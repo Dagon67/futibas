@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Credenciais e Secrets (NUNCA COMMITAR!)
+*.json
+!package.json
+!package-lock.json
+credentials_oauth.json
+credentials_oauth_web.json
+client_secret*.json
+*.pem
+*.key
+futsal-*.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Ambiente
+.env
+.env.local
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Uploads (fotos de jogadores)
+# Descomente a linha abaixo se NÃO quiser commitar as fotos no Git
+# uploads/players/*
+# !uploads/players/.gitkeep
