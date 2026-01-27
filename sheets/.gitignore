@@ -16,15 +16,22 @@ __pycache__/
 .Python
 env/
 venv/
-ENV/
 .venv
+ENV/
+env.bak/
+venv.bak/
 
 # IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Uploads (fotos de jogadores)
+uploads/
+!uploads/.gitkeep

@@ -206,7 +206,7 @@ function clearPlayerPhotoFromList(){
     if(preview) preview.style.display = "none";
 }
 
-function addPlayerFromList(){
+async function addPlayerFromList(){
     const nameInput = document.getElementById("newPlayerName");
     const numberInput = document.getElementById("newPlayerNumber");
     const positionInput = document.getElementById("newPlayerPosition");
@@ -237,9 +237,39 @@ function addPlayerFromList(){
         weight: weightInput.value ? parseFloat(weightInput.value) : null
     };
     
-    // Adicionar foto se houver
+    // Upload foto se houver
     if(playerPhotoBase64FromList){
-        newPlayer.photo = playerPhotoBase64FromList;
+        try {
+            const backendUrl = typeof getBackendUrl === 'function' ? getBackendUrl() : (window.BACKEND_URL || 'http://localhost:5000');
+            const response = await fetch(`${backendUrl}/upload/player-photo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    photo: playerPhotoBase64FromList,
+                    playerId: newPlayer.id
+                })
+            });
+            
+            if(response.ok){
+                const result = await response.json();
+                // Converter URL relativa em absoluta
+                const photoUrl = result.photoUrl.startsWith('http') 
+                    ? result.photoUrl 
+                    : `${backendUrl}${result.photoUrl}`;
+                newPlayer.photo = photoUrl;
+                console.log("✅ Foto enviada com sucesso:", photoUrl);
+            } else {
+                // Se upload falhar, usar Base64 como fallback
+                console.warn("⚠️ Upload falhou, usando Base64 local");
+                newPlayer.photo = playerPhotoBase64FromList;
+            }
+        } catch(error) {
+            // Se não conseguir conectar, usar Base64 local
+            console.warn("⚠️ Não foi possível fazer upload, usando Base64 local:", error);
+            newPlayer.photo = playerPhotoBase64FromList;
+        }
     }
     
     players.push(newPlayer);
@@ -326,7 +356,7 @@ function savePlayerEdit(oldId){
     const playerIndex = players.findIndex(p => p.id === oldId);
     
     if(playerIndex >= 0){
-        players[playerIndex] = {
+        const updatedPlayer = {
             id: oldId,
             name,
             position,
@@ -335,6 +365,41 @@ function savePlayerEdit(oldId){
             height: heightInput.value ? parseInt(heightInput.value) : null,
             weight: weightInput.value ? parseFloat(weightInput.value) : null
         };
+        
+        // Se houver nova foto, fazer upload
+        if(playerPhotoBase64FromList){
+            try {
+                const backendUrl = typeof getBackendUrl === 'function' ? getBackendUrl() : (window.BACKEND_URL || 'http://localhost:5000');
+                const response = await fetch(`${backendUrl}/upload/player-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        photo: playerPhotoBase64FromList,
+                        playerId: oldId
+                    })
+                });
+                
+                if(response.ok){
+                    const result = await response.json();
+                    const photoUrl = result.photoUrl.startsWith('http') 
+                        ? result.photoUrl 
+                        : `${backendUrl}${result.photoUrl}`;
+                    updatedPlayer.photo = photoUrl;
+                    console.log("✅ Foto atualizada com sucesso:", photoUrl);
+                } else {
+                    updatedPlayer.photo = playerPhotoBase64FromList; // Fallback Base64
+                }
+            } catch(error) {
+                updatedPlayer.photo = playerPhotoBase64FromList; // Fallback Base64
+            }
+        } else {
+            // Manter foto existente se não houver nova
+            updatedPlayer.photo = players[playerIndex].photo;
+        }
+        
+        players[playerIndex] = updatedPlayer;
         savePlayers(players);
     }
     

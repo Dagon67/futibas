@@ -137,7 +137,7 @@ function clearPlayerPhoto(){
     if(preview) preview.style.display = "none";
 }
 
-function addPlayer(){
+async function addPlayer(){
     const input = document.getElementById("newPlayerName");
     const name = input.value.trim();
     if(!name){
@@ -150,9 +150,39 @@ function addPlayer(){
         name
     };
     
-    // Adicionar foto se houver
+    // Upload foto se houver
     if(playerPhotoBase64){
-        newPlayer.photo = playerPhotoBase64;
+        try {
+            const backendUrl = typeof getBackendUrl === 'function' ? getBackendUrl() : (window.BACKEND_URL || 'http://localhost:5000');
+            const response = await fetch(`${backendUrl}/upload/player-photo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    photo: playerPhotoBase64,
+                    playerId: newPlayer.id
+                })
+            });
+            
+            if(response.ok){
+                const result = await response.json();
+                // Converter URL relativa em absoluta
+                const photoUrl = result.photoUrl.startsWith('http') 
+                    ? result.photoUrl 
+                    : `${backendUrl}${result.photoUrl}`;
+                newPlayer.photo = photoUrl;
+                console.log("✅ Foto enviada com sucesso:", photoUrl);
+            } else {
+                // Se upload falhar, usar Base64 como fallback
+                console.warn("⚠️ Upload falhou, usando Base64 local");
+                newPlayer.photo = playerPhotoBase64;
+            }
+        } catch(error) {
+            // Se não conseguir conectar, usar Base64 local
+            console.warn("⚠️ Não foi possível fazer upload, usando Base64 local:", error);
+            newPlayer.photo = playerPhotoBase64;
+        }
     }
     
     players.push(newPlayer);
