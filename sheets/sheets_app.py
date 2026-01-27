@@ -162,26 +162,17 @@ class SheetsEditor:
                 
                 if is_web_app:
                     # Web Application - para produção (Render)
-                    # Usa variável de ambiente para redirect_uri ou padrão
-                    redirect_uri = os.getenv('OAUTH_REDIRECT_URI', 
-                                           os.getenv('RENDER_EXTERNAL_URL', 'https://futibas.onrender.com') + '/oauth2callback')
-                    
-                    flow = Flow.from_client_secrets_file(
-                        credentials_path, 
-                        SCOPES,
-                        redirect_uri=redirect_uri
+                    # Em produção, não podemos usar método interativo
+                    # Tenta usar token salvo ou Service Account como fallback
+                    print("\n⚠️  Web Application detectado")
+                    print("💡 Em produção, OAuth interativo não está disponível.")
+                    print("💡 Use Service Account ou configure token OAuth previamente.")
+                    raise FileNotFoundError(
+                        "OAuth Web Application requer autenticação interativa que não está disponível em produção.\n"
+                        "Soluções:\n"
+                        "1. Use Service Account (recomendado para produção)\n"
+                        "2. Ou configure token OAuth localmente e faça upload do token.pickle"
                     )
-                    
-                    # Em produção, precisa de um servidor web rodando
-                    # Por enquanto, usa método console como fallback
-                    print("\n⚠️  Web Application detectado - usando método console")
-                    print("📋 Copie a URL abaixo, abra no navegador e autorize:")
-                    auth_url, _ = flow.authorization_url(prompt='consent')
-                    print(f"\n{auth_url}\n")
-                    
-                    # Aguarda código de autorização
-                    code = input("Digite o código de autorização da URL: ").strip()
-                    creds = flow.fetch_token(code=code)
                     
                 else:
                     # Desktop Application - para local

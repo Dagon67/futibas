@@ -190,7 +190,19 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
         questions: Perguntas (necessário apenas para sync_responses)
     """
     try:
-        sync = SheetsSync(use_oauth=True)
+        import os
+        # Em produção (Render), tenta Service Account primeiro, depois OAuth
+        use_oauth = True
+        if os.getenv('RENDER') or os.getenv('PORT'):
+            # Em produção, tenta Service Account primeiro
+            service_account_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+            if service_account_path and os.path.exists(service_account_path):
+                use_oauth = False
+                print("📊 Usando Service Account em produção")
+            else:
+                print("⚠️  Service Account não encontrado, tentando OAuth...")
+        
+        sync = SheetsSync(use_oauth=use_oauth)
         
         if data_type == "players":
             sync.sync_players(data)
