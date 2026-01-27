@@ -1,6 +1,8 @@
 # Credenciais do Google
 credentials.json
 credentials_oauth.json
+credentials_oauth_web.json
+client_secret*.json
 token.pickle
 config.py
 *.json

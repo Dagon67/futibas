@@ -6,11 +6,12 @@ Aba: primeiro
 
 import gspread
 from google.oauth2.service_account import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import InstalledAppFlow, Flow
 from google.auth.transport.requests import Request
 import os
 import pickle
 import requests
+import json
 from typing import Optional, List, Any
 
 # ID da planilha extraído da URL
@@ -103,7 +104,7 @@ class SheetsEditor:
         return gspread.authorize(creds)
     
     def _authenticate_oauth(self, credentials_path: Optional[str] = None):
-        """Autenticação usando OAuth 2.0 (mais fácil para uso pessoal)"""
+        """Autenticação usando OAuth 2.0 - Suporta Desktop app (local) e Web application (produção)"""
         creds = None
         token_file = 'token.pickle'
         
@@ -118,69 +119,113 @@ class SheetsEditor:
                 creds.refresh(Request())
             else:
                 if credentials_path is None:
-                    credentials_path = 'credentials_oauth.json'
+                    # Tenta encontrar arquivo de credenciais automaticamente
+                    web_creds = 'credentials_oauth_web.json'
+                    desktop_creds = 'credentials_oauth.json'
+                    
+                    # Prioriza web application se estiver em produção (Render)
+                    if os.getenv('RENDER') or os.getenv('PORT'):
+                        if os.path.exists(web_creds):
+                            credentials_path = web_creds
+                        elif os.path.exists(desktop_creds):
+                            credentials_path = desktop_creds
+                    else:
+                        # Local: prioriza desktop app
+                        if os.path.exists(desktop_creds):
+                            credentials_path = desktop_creds
+                        elif os.path.exists(web_creds):
+                            credentials_path = web_creds
+                    
+                    if credentials_path is None:
+                        credentials_path = desktop_creds  # Default
                 
                 if not os.path.exists(credentials_path):
                     raise FileNotFoundError(
                         "\n" + "="*60 + "\n"
                         "❌ Arquivo de credenciais OAuth não encontrado!\n\n"
+                        "Arquivos procurados:\n"
+                        f"  - {desktop_creds} (Desktop app - local)\n"
+                        f"  - {web_creds} (Web application - produção)\n\n"
                         "Para usar OAuth:\n"
                         "1. Acesse: https://console.cloud.google.com/\n"
                         "2. Crie um projeto e ative Google Sheets API e Drive API\n"
                         "3. Vá em 'Credentials' > 'Create Credentials' > 'OAuth client ID'\n"
-                        "4. Escolha 'Desktop app' e baixe o JSON\n"
-                        "5. Salve como 'credentials_oauth.json' na pasta do projeto\n"
-                        "6. Execute novamente - uma janela do navegador abrirá para autorizar\n"
+                        "4. Baixe o JSON e salve na pasta sheets/\n"
                         "="*60
                     )
                 
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    credentials_path, SCOPES)
-                # Tenta usar local server
-                try:
-                    creds = flow.run_local_server(port=0)
-                except Exception as e:
-                    # Se der erro de redirect_uri, mostra instruções
-                    error_msg = str(e).lower()
-                    if 'redirect_uri_mismatch' in error_msg or 'redirect' in error_msg:
-                        print("\n" + "="*70)
-                        print("❌ ERRO: redirect_uri_mismatch")
-                        print("="*70)
-                        print("\n🔧 SOLUÇÃO:")
-                        print("\n1. Acesse: https://console.cloud.google.com/apis/credentials?project=futsal-476923")
-                        print("2. Clique no OAuth Client ID para editar")
-                        print("3. IMPORTANTE: Certifique-se que é tipo 'Desktop app' (não 'Web application')")
-                        print("4. Se for 'Web application', crie um NOVO como 'Desktop app':")
-                        print("   - Clique em '+ CREATE CREDENTIALS' > 'OAuth client ID'")
-                        print("   - Escolha 'Desktop app'")
-                        print("   - Baixe o novo JSON e substitua credentials_oauth.json")
-                        print("\n📄 Veja os arquivos:")
-                        print("   - SOLUCAO_RAPIDA.md (solução mais rápida)")
-                        print("   - CORRIGIR_REDIRECT_URI.md (instruções detalhadas)")
-                        print("\n" + "="*70)
-                        raise FileNotFoundError(
-                            "Configure o OAuth Client como 'Desktop app' no Google Cloud Console. "
-                            "Veja SOLUCAO_RAPIDA.md para instruções."
-                        )
-                    elif '403' in error_msg or 'access_denied' in error_msg or 'test' in error_msg:
-                        print("\n" + "="*70)
-                        print("❌ ERRO 403: access_denied")
-                        print("="*70)
-                        print("\n🔧 SOLUÇÃO:")
-                        print("Seu email precisa ser adicionado como 'Test user' no Google Cloud Console.")
-                        print("\n1. Acesse: https://console.cloud.google.com/apis/credentials/consent?project=futsal-476923")
-                        print("2. Vá na seção 'Test users'")
-                        print("3. Clique em '+ ADD USERS'")
-                        print("4. Adicione seu email do Google (o mesmo que usa no Google Sheets)")
-                        print("5. Salve e execute novamente")
-                        print("\n📄 Veja: CORRIGIR_403_ACCESS_DENIED.md para instruções detalhadas")
-                        print("="*70)
-                        raise PermissionError(
-                            "Adicione seu email como 'Test user' na tela de consentimento OAuth. "
-                            "Veja CORRIGIR_403_ACCESS_DENIED.md para instruções."
-                        )
-                    else:
-                        raise
+                # Detecta tipo de credencial (web ou installed)
+                with open(credentials_path, 'r') as f:
+                    creds_data = json.load(f)
+                
+                is_web_app = 'web' in creds_data
+                
+                if is_web_app:
+                    # Web Application - para produção (Render)
+                    # Usa variável de ambiente para redirect_uri ou padrão
+                    redirect_uri = os.getenv('OAUTH_REDIRECT_URI', 
+                                           os.getenv('RENDER_EXTERNAL_URL', 'https://futibas.onrender.com') + '/oauth2callback')
+                    
+                    flow = Flow.from_client_secrets_file(
+                        credentials_path, 
+                        SCOPES,
+                        redirect_uri=redirect_uri
+                    )
+                    
+                    # Em produção, precisa de um servidor web rodando
+                    # Por enquanto, usa método console como fallback
+                    print("\n⚠️  Web Application detectado - usando método console")
+                    print("📋 Copie a URL abaixo, abra no navegador e autorize:")
+                    auth_url, _ = flow.authorization_url(prompt='consent')
+                    print(f"\n{auth_url}\n")
+                    
+                    # Aguarda código de autorização
+                    code = input("Digite o código de autorização da URL: ").strip()
+                    creds = flow.fetch_token(code=code)
+                    
+                else:
+                    # Desktop Application - para local
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        credentials_path, SCOPES)
+                    # Tenta usar local server
+                    try:
+                        creds = flow.run_local_server(port=0)
+                    except Exception as e:
+                        # Se der erro de redirect_uri, mostra instruções
+                        error_msg = str(e).lower()
+                        if 'redirect_uri_mismatch' in error_msg or 'redirect' in error_msg:
+                            print("\n" + "="*70)
+                            print("❌ ERRO: redirect_uri_mismatch")
+                            print("="*70)
+                            print("\n🔧 SOLUÇÃO:")
+                            print("\n1. Acesse: https://console.cloud.google.com/apis/credentials?project=futsal-476923")
+                            print("2. Clique no OAuth Client ID para editar")
+                            print("3. Adicione 'http://localhost' e 'http://localhost:5000' nas URIs de redirecionamento")
+                            print("\n📄 Veja: CORRIGIR_REDIRECT_URI.md para instruções detalhadas")
+                            print("="*70)
+                            raise FileNotFoundError(
+                                "Configure as URIs de redirecionamento no Google Cloud Console. "
+                                "Veja CORRIGIR_REDIRECT_URI.md para instruções."
+                            )
+                        elif '403' in error_msg or 'access_denied' in error_msg or 'test' in error_msg:
+                            print("\n" + "="*70)
+                            print("❌ ERRO 403: access_denied")
+                            print("="*70)
+                            print("\n🔧 SOLUÇÃO:")
+                            print("Seu email precisa ser adicionado como 'Test user' no Google Cloud Console.")
+                            print("\n1. Acesse: https://console.cloud.google.com/apis/credentials/consent?project=futsal-476923")
+                            print("2. Vá na seção 'Test users'")
+                            print("3. Clique em '+ ADD USERS'")
+                            print("4. Adicione seu email do Google")
+                            print("5. Salve e execute novamente")
+                            print("\n📄 Veja: CORRIGIR_403_ACCESS_DENIED.md para instruções detalhadas")
+                            print("="*70)
+                            raise PermissionError(
+                                "Adicione seu email como 'Test user' na tela de consentimento OAuth. "
+                                "Veja CORRIGIR_403_ACCESS_DENIED.md para instruções."
+                            )
+                        else:
+                            raise
             
             # Salva o token para próximas execuções
             with open(token_file, 'wb') as token:
