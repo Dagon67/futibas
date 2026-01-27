@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Painel de Monitoramento - Treino</title>
+
+<!-- Luxon p/ data/hora bonita -->
+<script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+
+<!-- Feather icons p/ ícones leves -->
+<script src="https://unpkg.com/feather-icons"></script>
+
+<style>
+    :root {
+        --bg-main: radial-gradient(circle at 50% 50%, #feec02 0%, #ffcc01 100%);
+        --card-bg: #000000;
+        --card-stroke: rgba(255,255,255,0.2);
+        --accent: #ffffff;
+        --accent-secondary: #000000;
+        --accent-soft: rgba(255,255,255,0.1);
+        --pre-color: #ffffff;
+        --pre-glow: rgba(255,255,255,0.3);
+        --post-color: #ffffff;
+        --post-glow: rgba(255,255,255,0.3);
+        --text-main: #ffffff;
+        --text-dim: #e0e0e0;
+        --text-bright: #ffffff;
+        --white-accent: #000000;
+        --radius-xl: 2rem;
+        --radius-lg: 1.5rem;
+        --radius-md: 1rem;
+        --fast: .2s;
+        --slow: .3s;
+        --touch-gap: clamp(16px,3vh,32px);
+        --touch-font-xl: clamp(2rem,3vw + 1rem,3.5rem);
+        --touch-font-lg: clamp(1.25rem,1.5vw + 0.8rem,1.75rem);
+        --touch-font-md: clamp(1rem,1vw + 0.6rem,1.25rem);
+        --safe-pad: clamp(20px,3vh,40px);
+        --panel-max-width: 1400px;
+    }
+
+    * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+        margin:0;
+        background:var(--bg-main);
+        color:var(--text-main);
+        min-height:100dvh;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-weight:600;
+    }
+
+    /* ---------- TELA DE BLOQUEIO ---------- */
+    #lock-screen{
+        position:fixed;
+        top:0;
+        left:0;
+        right:0;
+        bottom:0;
+        z-index:10000;
+        background:var(--bg-main);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:var(--safe-pad);
+    }
+    #lock-screen[data-unlocked="true"]{
+        display:none;
+    }
+    .lock-container{
+        width:100%;
+        max-width:500px;
+        background:var(--card-bg);
+        border-radius:var(--radius-xl);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 8px 32px rgba(0,0,0,.3);
+        padding:clamp(32px,5vh,48px) clamp(24px,3vw,40px);
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:var(--touch-gap);
+        text-align:center;
+    }
+    .lock-title{
+        font-size:var(--touch-font-xl);
+        font-weight:700;
+        color:var(--text-main);
+        margin-bottom:0.5rem;
+    }
+    .lock-subtitle{
+        font-size:var(--touch-font-md);
+        font-weight:400;
+        color:var(--text-dim);
+        margin-bottom:1rem;
+    }
+    .lock-input-wrapper{
+        width:100%;
+        display:flex;
+        flex-direction:column;
+        gap:1rem;
+    }
+    .lock-input{
+        font-size:var(--touch-font-lg);
+        line-height:1.3;
+        font-weight:600;
+        border-radius:var(--radius-lg);
+        border:3px solid rgba(255,255,255,.3);
+        background:rgba(0,0,0,0.6);
+        color:var(--text-main);
+        padding:1.25rem 1.5rem;
+        width:100%;
+        text-align:center;
+        letter-spacing:0.1em;
+        transition:all var(--fast) ease;
+    }
+    .lock-input:focus{
+        outline:none;
+        border-color:var(--accent);
+        box-shadow:0 0 20px rgba(255,255,255,0.3);
+        background:rgba(0,0,0,0.8);
+    }
+    .lock-input.error{
+        border-color:rgba(239,68,68,.6);
+        box-shadow:0 0 20px rgba(239,68,68,0.3);
+        animation:shake 0.4s ease;
+    }
+    @keyframes shake{
+        0%,100%{transform:translateX(0);}
+        25%{transform:translateX(-10px);}
+        75%{transform:translateX(10px);}
+    }
+    .lock-btn{
+        width:100%;
+        border:0;
+        cursor:pointer;
+        border-radius:var(--radius-lg);
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        line-height:1.2;
+        padding:1.25rem 1.5rem;
+        background:linear-gradient(160deg,#000000 0%,#1a1a1a 100%);
+        color:#feec02;
+        border:3px solid #ffffff;
+        box-shadow:0 10px 40px rgba(0,0,0,.6),0 2px 2px rgba(255,255,255,.2) inset;
+        transition:all var(--fast) ease;
+    }
+    .lock-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 15px 50px rgba(0,0,0,.7),0 2px 2px rgba(255,255,255,.3) inset;
+        background:linear-gradient(160deg,#1a1a1a 0%,#000000 100%);
+    }
+    .lock-btn:active{
+        transform:translateY(0) scale(0.98);
+    }
+    .lock-error-msg{
+        font-size:var(--touch-font-md);
+        color:rgba(239,68,68,.9);
+        margin-top:0.5rem;
+        min-height:1.5rem;
+        opacity:0;
+        transition:opacity var(--fast) ease;
+    }
+    .lock-error-msg.show{
+        opacity:1;
+    }
+
+    /* ---------- LAYOUT GERAL ---------- */
+    #app-shell{
+        position:relative;
+        width:100%;
+        max-width:var(--panel-max-width);
+        min-height:100dvh;
+        padding:var(--safe-pad);
+        display:flex;
+        flex-direction:column;
+    }
+
+    header.app-header{
+        display:none;
+    }
+
+    main#screen-area{
+        flex:1;
+        min-height:0;
+        position:relative;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    }
+
+    footer#floating-actions{
+        position:absolute;
+        right:var(--safe-pad);
+        bottom:var(--safe-pad);
+        display:flex;
+        gap:1rem;
+        flex-wrap:wrap;
+        justify-content:flex-end;
+    }
+
+    /* ---------- COMPONENTES ---------- */
+
+    .glass-card{
+        background:var(--card-bg);
+        border-radius:var(--radius-xl);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 8px 32px rgba(0,0,0,.3);
+        padding:clamp(16px,1.5vw,24px);
+        width:100%;
+        height:100%;
+        display:flex;
+        flex-direction:column;
+    }
+
+    .center-flex-col{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        height:100%;
+        width:100%;
+        gap:var(--touch-gap);
+    }
+
+    .big-dual-buttons{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:clamp(24px,4vh,48px);
+        width:100%;
+        max-width:1000px;
+    }
+
+    .action-btn{
+        -webkit-user-select:none;
+        user-select:none;
+        background:#000000;
+        border-radius:var(--radius-xl);
+        border:2px solid rgba(255,255,255,0.2);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        padding:clamp(32px,5vh,64px) clamp(24px,3vw,40px);
+        min-height:280px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        position:relative;
+        cursor:pointer;
+        transition:all var(--slow) cubic-bezier(0.4, 0, 0.2, 1);
+        font-size:var(--touch-font-xl);
+        font-weight:700;
+        line-height:1.2;
+        color:var(--text-main);
+        overflow:hidden;
+    }
+    .action-btn::before{
+        content:'';
+        position:absolute;
+        top:0;
+        left:0;
+        right:0;
+        bottom:0;
+        background:radial-gradient(circle at 30% 30%,rgba(255,255,255,0.1) 0%,transparent 70%);
+        opacity:0;
+        transition:opacity var(--slow) ease;
+    }
+    .action-btn:hover::before{
+        opacity:1;
+    }
+    .action-btn[data-variant="pre"]{
+        background:#000000;
+        border-color:rgba(255,255,255,0.25);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        color:#ffffff;
+    }
+    .action-btn[data-variant="pre"]:hover{
+        transform:translateY(-4px);
+        box-shadow:0 8px 24px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.35);
+    }
+    .action-btn[data-variant="post"]{
+        background:#000000;
+        border-color:rgba(255,255,255,0.25);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        color:#ffffff;
+    }
+    .action-btn[data-variant="post"]:hover{
+        transform:translateY(-4px);
+        box-shadow:0 8px 24px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.35);
+    }
+    .action-btn:active{
+        transform:translateY(-2px) scale(0.98);
+    }
+    .action-btn .sub{
+        margin-top:clamp(12px,2vh,20px);
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:rgba(255,255,255,0.7);
+        letter-spacing:0.02em;
+    }
+
+    /* Relógio/Data */
+    .datetime-display{
+        text-align:center;
+        margin-bottom:clamp(32px,5vh,64px);
+        color:var(--text-bright);
+    }
+    .datetime-display .date{
+        font-size:var(--touch-font-lg);
+        font-weight:500;
+        color:var(--text-dim);
+        letter-spacing:0.05em;
+        margin-bottom:0.5rem;
+    }
+    .datetime-display .time{
+        font-size:clamp(2.5rem,4vw + 1.5rem,4.5rem);
+        font-weight:700;
+        color:var(--text-main);
+        letter-spacing:-0.02em;
+        text-shadow:0 4px 20px rgba(0,0,0,0.5);
+        font-variant-numeric:tabular-nums;
+    }
+
+    .settings-fab{
+        cursor:pointer;
+        min-width:72px;
+        min-height:72px;
+        border-radius:var(--radius-lg);
+        background:#000000;
+        border:2px solid rgba(255,255,255,0.2);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        padding:1rem 1.25rem;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:.5rem;
+        font-size:var(--touch-font-md);
+        line-height:1.2;
+        font-weight:700;
+        color:var(--accent);
+        transition:all var(--slow) ease;
+    }
+    .settings-fab:hover{
+        transform:translateY(-2px);
+        border-color:rgba(255,255,255,0.3);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+    }
+    .settings-fab:active{
+        transform:translateY(0) scale(0.96);
+    }
+    .settings-fab i{
+        width:28px;
+        height:28px;
+        stroke:var(--accent);
+        stroke-width:2;
+    }
+
+    /* Lista de jogadores */
+    .player-list-wrapper{
+        flex:1;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+    }
+    .player-grid{
+        flex:1;
+        min-height:0;
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));
+        gap:var(--touch-gap);
+        align-content:flex-start;
+    }
+    .player-card{
+        background:#000000;
+        border-radius:var(--radius-lg);
+        border:2px solid rgba(255,255,255,0.15);
+        padding:1.25rem 1rem;
+        min-height:120px;
+        display:flex;
+        flex-direction:row;
+        align-items:center;
+        gap:1rem;
+        text-align:left;
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        color:var(--text-main);
+        cursor:pointer;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        transition:all var(--fast) ease;
+    }
+    .player-card-photo{
+        width:60px;
+        height:60px;
+        border-radius:50%;
+        object-fit:cover;
+        border:2px solid rgba(255,255,255,0.2);
+        flex-shrink:0;
+    }
+    .player-card-content{
+        flex:1;
+        display:flex;
+        flex-direction:column;
+        gap:0.25rem;
+        min-width:0;
+    }
+    .player-card[data-disabled="true"]{
+        opacity:.3;
+        filter:grayscale(1);
+        cursor:not-allowed;
+    }
+    .player-card:active{
+        scale:.97;
+        box-shadow:0 8px 25px rgba(0,0,0,.4),0 0 10px rgba(0,0,0,.3);
+    }
+    .player-card:hover{
+        background:linear-gradient(160deg,#feec02 0%,#ffcc01 100%);
+        transform:translateY(-2px);
+        box-shadow:0 15px 50px rgba(0,0,0,.4),0 2px 2px rgba(255,255,255,.6) inset;
+    }
+    .player-card small{
+        color:var(--text-dim);
+        font-size:var(--touch-font-md);
+        font-weight:400;
+    }
+
+    .back-row{
+        display:flex;
+        justify-content:flex-start;
+        align-items:center;
+        gap:1rem;
+        flex-wrap:wrap;
+    }
+    .back-btn{
+        cursor:pointer;
+        background:none;
+        border:0;
+        color:var(--accent);
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        display:flex;
+        align-items:center;
+        gap:.5rem;
+        line-height:1.2;
+        padding:.75rem 1rem;
+        border-radius:var(--radius-md);
+        background:#000000;
+        border:2px solid rgba(255,255,255,0.2);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .back-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .back-btn i{
+        width:20px;
+        height:20px;
+        stroke:var(--accent);
+    }
+    .screen-title{
+        font-size:var(--touch-font-lg);
+        font-weight:600;
+        color:var(--text-main);
+    }
+    .screen-sub{
+        font-size:var(--touch-font-md);
+        font-weight:400;
+        color:var(--text-dim);
+        line-height:1.4;
+    }
+
+    /* Questionário */
+    .questionnaire-wrapper{
+        flex:1;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+    }
+    .q-list{
+        flex:1;
+        min-height:0;
+        overflow-y:auto;
+        scrollbar-width:thin;
+        scrollbar-color:rgba(0,0,0,.3) rgba(255,255,255,.3);
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+        padding-right:.5rem;
+    }
+    .q-item{
+        background:#000000;
+        border-radius:var(--radius-lg);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        padding:1rem 1.25rem 1.25rem;
+        display:flex;
+        flex-direction:column;
+        gap:.75rem;
+    }
+    .q-text{
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        line-height:1.4;
+        color:var(--text-main);
+    }
+    .q-input{
+        font-size:var(--touch-font-md);
+        line-height:1.3;
+        font-weight:500;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.2);
+        background:#1a1a1a;
+        color:var(--text-main);
+        padding:1rem;
+        width:100%;
+    }
+    .q-input:focus{
+        border-color:rgba(255,255,255,.35);
+        outline:none;
+        box-shadow:0 0 0 2px rgba(255,255,255,0.15);
+        background:#000000;
+    }
+    .submit-btn{
+        width:100%;
+        border:0;
+        cursor:pointer;
+        border-radius:var(--radius-lg);
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        line-height:1.2;
+        padding:1rem 1.25rem;
+        background:#000000;
+        color:#feec02;
+        border:2px solid rgba(255,255,255,0.2);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        transition:all var(--fast) ease;
+    }
+    .submit-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .submit-btn:active{
+        scale:.97;
+        box-shadow:0 2px 8px rgba(0,0,0,.4);
+    }
+    .submit-btn[disabled]{
+        opacity:.4;
+        filter:grayscale(1);
+        cursor:not-allowed;
+    }
+
+    /* CONFIGURAÇÕES */
+    .settings-wrapper{
+        flex:1;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+    }
+
+    .tab-row{
+        display:flex;
+        gap:.5rem;
+        flex-wrap:wrap;
+    }
+    .tab-btn{
+        flex:1;
+        min-width:120px;
+        text-align:center;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:1px solid var(--card-stroke);
+        background:rgba(148,163,184,.07);
+        padding:.9rem 1rem;
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:var(--text-dim);
+        line-height:1.2;
+        box-shadow:0 20px 60px rgba(0,0,0,.9);
+        transition:all var(--fast) ease;
+    }
+    .tab-btn{
+        background:#000000;
+        border:2px solid rgba(255,255,255,.15);
+        color:var(--text-main);
+        box-shadow:0 2px 8px rgba(0,0,0,.3);
+    }
+    .tab-btn[data-active="true"]{
+        background:#000000;
+        border:2px solid rgba(255,255,255,.3);
+        color:var(--accent);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        font-weight:700;
+    }
+
+    .settings-panel-area{
+        flex:1;
+        min-height:0;
+        background:#000000;
+        border-radius:var(--radius-lg);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        display:flex;
+        flex-direction:column;
+        padding:1rem 1.25rem;
+        overflow:hidden;
+    }
+
+    .settings-panel-scroll{
+        flex:1;
+        min-height:0;
+        overflow-y:auto;
+        scrollbar-width:thin;
+        scrollbar-color:rgba(0,0,0,.3) rgba(255,255,255,.3);
+        display:flex;
+        flex-direction:column;
+        gap:1rem;
+        padding-right:.5rem;
+    }
+
+    .inline-form-row{
+        display:flex;
+        flex-wrap:wrap;
+        gap:.75rem;
+        align-items:flex-end;
+    }
+    .label-col{
+        flex:1;
+        min-width:200px;
+        display:flex;
+        flex-direction:column;
+        gap:.4rem;
+    }
+    .label-col label{
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:var(--text-main);
+        line-height:1.2;
+    }
+    .label-col input,
+    .label-col textarea,
+    .label-col select{
+        font-size:var(--touch-font-md);
+        line-height:1.3;
+        font-weight:500;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.2);
+        background:#1a1a1a;
+        color:var(--text-main);
+        padding:1rem;
+        width:100%;
+    }
+    .label-col input:focus,
+    .label-col textarea:focus,
+    .label-col select:focus{
+        border-color:rgba(255,255,255,.35);
+        outline:none;
+        box-shadow:0 0 0 2px rgba(255,255,255,0.15);
+        background:#000000;
+    }
+    .q-image{
+        max-width:100%;
+        width:auto;
+        height:auto;
+        max-height:400px;
+        border-radius:var(--radius-md);
+        margin:1rem 0;
+        border:1px solid var(--card-stroke);
+        object-fit:contain;
+        display:block;
+        margin-left:auto;
+        margin-right:auto;
+    }
+    .option-list{
+        display:flex;
+        flex-direction:column;
+        gap:.5rem;
+        margin-top:.5rem;
+    }
+    .option-item{
+        display:flex;
+        align-items:center;
+        gap:.5rem;
+        padding:.5rem;
+    }
+    .option-item input[type="text"]{
+        flex:1;
+        font-size:var(--touch-font-md);
+        padding:.75rem;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.2);
+        background:#1a1a1a;
+        color:var(--text-main);
+    }
+    .option-remove-btn{
+        cursor:pointer;
+        background:rgba(239,68,68,.15);
+        border:1px solid rgba(239,68,68,.4);
+        color:#fca5a5;
+        border-radius:var(--radius-md);
+        padding:.5rem .75rem;
+        font-size:.875rem;
+        font-weight:600;
+    }
+    .add-option-btn{
+        cursor:pointer;
+        background:#000000;
+        border:2px solid rgba(255,255,255,0.2);
+        color:var(--accent);
+        border-radius:var(--radius-md);
+        padding:.5rem 1rem;
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        margin-top:.5rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .add-option-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .radio-option, .checkbox-option{
+        display:flex;
+        align-items:center;
+        gap:.75rem;
+        padding:1rem;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.15);
+        background:#000000;
+        cursor:pointer;
+        transition:all var(--fast) ease;
+        color:var(--text-main);
+    }
+    .radio-option:hover, .checkbox-option:hover{
+        border-color:rgba(255,255,255,.25);
+        transform:translateY(-2px);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .radio-option input[type="radio"],
+    .checkbox-option input[type="checkbox"]{
+        width:20px;
+        height:20px;
+        cursor:pointer;
+    }
+    .rating-scale{
+        display:flex;
+        gap:.5rem;
+        flex-wrap:wrap;
+        justify-content:center;
+        margin-top:.75rem;
+    }
+    .rating-btn{
+        min-width:60px;
+        padding:1rem;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.15);
+        background:#000000;
+        color:var(--text-main);
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        cursor:pointer;
+        transition:all var(--fast) ease;
+    }
+    .rating-btn:hover{
+        border-color:rgba(255,255,255,.25);
+        transform:translateY(-2px);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .rating-btn.selected{
+        border-color:rgba(255,255,255,.35);
+        background:#000000;
+        color:#feec02;
+        box-shadow:0 4px 16px rgba(0,0,0,.5);
+    }
+    .image-preview{
+        max-width:100%;
+        max-height:200px;
+        border-radius:var(--radius-md);
+        margin-top:.5rem;
+        border:1px solid var(--card-stroke);
+    }
+    .image-upload-btn{
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,0.2);
+        background:#000000;
+        color:var(--accent);
+        padding:.75rem 1rem;
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        text-align:center;
+        margin-top:.5rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .image-upload-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+
+    .small-solid-btn{
+        flex:none;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,0.2);
+        background:#000000;
+        color:var(--accent);
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        line-height:1.2;
+        padding:1rem 1.25rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        transition:all var(--fast) ease;
+    }
+    .small-solid-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .small-solid-btn:active{
+        scale:.97;
+        box-shadow:0 2px 8px rgba(0,0,0,.4);
+    }
+
+    .item-row{
+        background:#000000;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.1);
+        padding:1rem 1.25rem;
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        flex-wrap:wrap;
+        gap:1rem;
+        box-shadow:0 2px 8px rgba(0,0,0,.3);
+    }
+
+    .item-main{
+        display:flex;
+        flex-direction:column;
+        gap:.4rem;
+        min-width:0;
+    }
+    .item-title{
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        color:var(--text-main);
+        word-break:break-word;
+    }
+    .item-sub{
+        font-size:var(--touch-font-md);
+        font-weight:400;
+        color:var(--text-dim);
+        line-height:1.3;
+        word-break:break-word;
+    }
+    .danger-btn{
+        flex:none;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:1px solid rgba(239,68,68,.4);
+        background:rgba(239,68,68,.07);
+        color:#fca5a5;
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        line-height:1.2;
+        padding:.8rem 1rem;
+        box-shadow:0 20px 60px rgba(0,0,0,.9),0 0 20px rgba(239,68,68,.4);
+        transition:all var(--fast) ease;
+    }
+    .danger-btn:active{
+        scale:.97;
+        box-shadow:0 10px 30px rgba(0,0,0,.8),0 0 15px rgba(239,68,68,.6);
+    }
+
+    .download-btn{
+        flex:none;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,0.2);
+        background:#000000;
+        color:#feec02;
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        line-height:1.2;
+        padding:1rem 1.25rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        transition:all var(--fast) ease;
+        text-decoration:none;
+    }
+    .download-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .download-btn:active{
+        scale:.97;
+        box-shadow:0 2px 8px rgba(0,0,0,.4);
+    }
+
+    /* HOME BUTTONS */
+    .home-buttons{
+        display:flex;
+        flex-direction:column;
+        gap:clamp(20px,3vh,32px);
+        width:100%;
+        max-width:600px;
+    }
+    .home-btn{
+        cursor:pointer;
+        border-radius:var(--radius-xl);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        padding:clamp(24px,4vh,40px) clamp(20px,3vw,32px);
+        min-height:120px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        position:relative;
+        transition:all var(--slow) cubic-bezier(0.4, 0, 0.2, 1);
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        line-height:1.2;
+        color:var(--text-main);
+        overflow:hidden;
+        background:#000000;
+    }
+    .home-btn i{
+        width:48px;
+        height:48px;
+        stroke:currentColor;
+        stroke-width:2;
+        margin-bottom:0.75rem;
+    }
+    .home-btn-primary{
+        background:#000000;
+        border-color:rgba(255,255,255,0.25);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        color:var(--accent);
+    }
+    .home-btn-primary:hover{
+        transform:translateY(-4px);
+        box-shadow:0 8px 24px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.35);
+    }
+    .home-btn-secondary:hover{
+        transform:translateY(-2px);
+        box-shadow:0 30px 100px rgba(0,0,0,.7),0 8px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .home-btn:active{
+        transform:translateY(-1px) scale(0.98);
+    }
+
+    .player-card-selected{
+        border-color:rgba(255,255,255,0.35) !important;
+        background:#000000 !important;
+        box-shadow:0 6px 20px rgba(0,0,0,.5) !important;
+    }
+
+    .training-item:hover{
+        background:#000000 !important;
+        border-color:rgba(255,255,255,0.25) !important;
+    }
+
+    /* MODAL DE SELEÇÃO DE IMAGENS */
+    .image-selector-modal{
+        position:fixed;
+        top:0;
+        left:0;
+        right:0;
+        bottom:0;
+        z-index:10001;
+        background:rgba(0,0,0,0.85);
+        backdrop-filter:blur(10px);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:var(--safe-pad);
+    }
+    .image-selector-modal[data-hidden="true"]{
+        display:none;
+    }
+    .image-selector-container{
+        background:var(--card-bg);
+        backdrop-filter:blur(20px) saturate(160%);
+        -webkit-backdrop-filter:blur(20px) saturate(160%);
+        border-radius:var(--radius-xl);
+        border:1px solid var(--card-stroke);
+        box-shadow:0 30px 120px rgba(0,0,0,.9),0 2px 2px rgba(255,255,255,.05) inset;
+        padding:clamp(24px,3vh,32px);
+        width:100%;
+        max-width:900px;
+        max-height:90vh;
+        display:flex;
+        flex-direction:column;
+        gap:1.5rem;
+    }
+    .image-selector-header{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:1rem;
+    }
+    .image-selector-title{
+        font-size:var(--touch-font-lg);
+        font-weight:600;
+        color:var(--text-main);
+    }
+    .image-selector-close{
+        cursor:pointer;
+        background:rgba(239,68,68,.15);
+        border:1px solid rgba(239,68,68,.4);
+        color:#fca5a5;
+        border-radius:var(--radius-md);
+        padding:0.75rem 1rem;
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        transition:all var(--fast) ease;
+    }
+    .image-selector-close:hover{
+        background:rgba(239,68,68,.25);
+        border-color:rgba(239,68,68,.6);
+    }
+    .image-selector-grid{
+        display:grid;
+        grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+        gap:1rem;
+        max-height:60vh;
+        overflow-y:auto;
+        scrollbar-width:thin;
+        scrollbar-color:rgba(0,0,0,.3) rgba(255,255,255,.3);
+        padding:0.5rem;
+    }
+    .image-selector-item{
+        aspect-ratio:1;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.15);
+        background:#000000;
+        cursor:pointer;
+        overflow:hidden;
+        position:relative;
+        transition:all var(--fast) ease;
+    }
+    .image-selector-item:hover{
+        border-color:rgba(255,255,255,.25);
+        transform:scale(1.05);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .image-selector-item.selected{
+        border-color:rgba(255,255,255,.35);
+        box-shadow:0 4px 16px rgba(0,0,0,.5);
+        background:#000000;
+    }
+    .image-selector-item img{
+        width:100%;
+        height:100%;
+        object-fit:cover;
+    }
+    .image-selector-item .image-name{
+        position:absolute;
+        bottom:0;
+        left:0;
+        right:0;
+        background:linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+        color:var(--text-main);
+        font-size:0.75rem;
+        padding:0.5rem;
+        text-align:center;
+        word-break:break-word;
+        font-weight:500;
+    }
+    .image-selector-loading{
+        text-align:center;
+        color:var(--text-dim);
+        padding:2rem;
+        font-size:var(--touch-font-md);
+    }
+
+    /* BOTÕES DE PERÍODO */
+    .period-btn{
+        cursor:pointer;
+        border-radius:var(--radius-lg);
+        border:2px solid rgba(255,255,255,.15);
+        background:#000000;
+        padding:1.5rem 1rem;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:0.75rem;
+        transition:all var(--fast) ease;
+        color:var(--text-main);
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .period-btn:hover{
+        border-color:rgba(255,255,255,.25);
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+    }
+    .period-btn.selected{
+        border-color:rgba(255,255,255,.35);
+        background:#000000;
+        color:#feec02;
+        box-shadow:0 4px 16px rgba(0,0,0,.5);
+    }
+    .period-btn i{
+        width:32px;
+        height:32px;
+        stroke:currentColor;
+        stroke-width:2;
+    }
+
+    /* responsividade leve */
+    @media (max-width:768px){
+        .big-dual-buttons{
+            grid-template-columns:1fr;
+            gap:clamp(20px,3vh,32px);
+        }
+        .action-btn{
+            min-height:220px;
+        }
+        .datetime-display .time{
+            font-size:clamp(2rem,5vw + 1rem,3rem);
+        }
+        .image-selector-grid{
+            grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- TELA DE BLOQUEIO -->
+<div id="lock-screen">
+    <div class="lock-container">
+        <div class="lock-title">Acesso Restrito</div>
+        <div class="lock-subtitle">Digite a senha para continuar</div>
+        <div class="lock-input-wrapper">
+            <input type="password" id="lock-password" class="lock-input" placeholder="••••••" autocomplete="off" autofocus>
+            <button id="lock-submit" class="lock-btn">Entrar</button>
+            <div id="lock-error" class="lock-error-msg">Senha incorreta</div>
+        </div>
+    </div>
+</div>
+
+<div id="app-shell">
+    <header class="app-header">
+        <div>
+            <div class="brand-line">Monitoramento Diário • Alto Rendimento</div>
+            <div class="brand-main">
+                <span>Painel de Treino</span>
+                <span class="mode-label" id="headerModeLabel">Menu</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="screen-area">
+        <!-- TELAS DINÂMICAS SERÃO INJETADAS AQUI -->
+    </main>
+
+    <footer id="floating-actions">
+        <!-- Botão de configurações removido - agora está na tela home -->
+    </footer>
+</div>
+
+<!-- MODAL DE SELEÇÃO DE IMAGENS -->
+<div id="image-selector-modal" class="image-selector-modal" data-hidden="true">
+    <div class="image-selector-container">
+        <div class="image-selector-header">
+            <div class="image-selector-title" id="image-selector-title">Selecionar Imagem</div>
+            <button class="image-selector-close" onclick="closeImageSelector()">Fechar</button>
+        </div>
+        <div class="image-selector-grid" id="image-selector-grid">
+            <div class="image-selector-loading">Carregando imagens...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Módulos JavaScript -->
+<script src="js/storage.js"></script>
+<script src="js/state.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/sheets_sync.js"></script>
+<script src="js/csv.js"></script>
+<script src="js/screens/home.js"></script>
+<script src="js/screens/trainingSetup.js"></script>
+<script src="js/screens/chooseMode.js"></script>
+<script src="js/screens/selectPlayers.js"></script>
+<script src="js/screens/selectPlayer.js"></script>
+<script src="js/screens/questionnaire.js"></script>
+<script src="js/screens/trainingsList.js"></script>
+<script src="js/screens/trainingDetails.js"></script>
+<script src="js/screens/addPlayerToTraining.js"></script>
+<script src="js/screens/players.js"></script>
+<script src="js/screens/playerStatus.js"></script>
+<script src="js/screens/settings.js"></script>
+<script src="js/screens/settingsQuestions.js"></script>
+<script src="js/screens/settingsData.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+    // Sistema de bloqueio por senha
+    (function() {
+        const LOCK_PASSWORD = '362514';
+        const lockScreen = document.getElementById('lock-screen');
+        const passwordInput = document.getElementById('lock-password');
+        const submitBtn = document.getElementById('lock-submit');
+        const errorMsg = document.getElementById('lock-error');
+        const appShell = document.getElementById('app-shell');
+
+        // Desbloqueia o app
+        function unlockApp() {
+            lockScreen.setAttribute('data-unlocked', 'true');
+            appShell.style.display = 'flex';
+        }
+
+        // Bloqueia o app novamente
+        function lockApp() {
+            lockScreen.setAttribute('data-unlocked', 'false');
+            appShell.style.display = 'none';
+            passwordInput.value = '';
+            passwordInput.focus();
+            errorMsg.classList.remove('show');
+            passwordInput.classList.remove('error');
+        }
+
+        // Mostra erro
+        function showError() {
+            passwordInput.classList.add('error');
+            errorMsg.classList.add('show');
+            passwordInput.value = '';
+            setTimeout(() => {
+                passwordInput.classList.remove('error');
+                errorMsg.classList.remove('show');
+            }, 2000);
+        }
+
+        // Verifica senha
+        function checkPassword() {
+            const input = passwordInput.value.trim();
+            if (input === LOCK_PASSWORD) {
+                unlockApp();
+            } else {
+                showError();
+            }
+        }
+
+        // Event listeners
+        submitBtn.addEventListener('click', checkPassword);
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkPassword();
+            }
+        });
+
+        // Foca no input quando a página carrega
+        passwordInput.focus();
+
+        // Inicializa bloqueado
+        appShell.style.display = 'none';
+
+        // Torna a função lockApp disponível globalmente
+        window.showLockScreen = lockApp;
+    })();
+</script>
+
+</body>
+</html>

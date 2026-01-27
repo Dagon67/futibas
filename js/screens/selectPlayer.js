@@ -1,0 +1,213 @@
+/* ===========================
+   🖥️ TELA: SELEÇÃO DE JOGADOR
+   =========================== */
+
+function goSelectPlayer(mode){
+    state.currentScreen = "selectPlayer";
+    state.currentMode = mode;
+    state.currentPlayerId = null;
+    setHeaderModeLabel(mode==="pre"?"Pré Treino":"Pós Treino");
+
+    const players = loadPlayers();
+    const pending = state.pendingByMode[mode]; // ids restantes
+    
+    // Só pode voltar ao home se todos responderam
+    const canGoBack = pending.length === 0;
+    const backButtonHTML = canGoBack 
+        ? `<button class="back-btn" onclick="goHome()">
+            <i data-feather="arrow-left"></i>
+            <span>Voltar</span>
+        </button>`
+        : ``;
+
+    const playerCardsHTML = players.length===0 
+    ? `<div style="color:var(--text-dim);font-size:var(--touch-font-md);text-align:center;width:100%;">Nenhum jogador cadastrado ainda.</div>`
+    : players.map(p=>{
+        const alreadyDone = !pending.includes(p.id);
+        const photoHTML = p.photo 
+            ? `<img src="${p.photo}" alt="${p.name}" class="player-card-photo" />`
+            : `<div class="player-card-photo" style="background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1.5rem;">👤</div>`;
+        return `
+        <div class="player-card"
+            ${alreadyDone?'data-disabled="true"':''}
+            onclick="${alreadyDone?'':`selectPlayer('${p.id}')`}">
+            ${photoHTML}
+            <div class="player-card-content">
+                <div>${p.name}</div>
+                <small>${alreadyDone?'Já respondeu':'Toque para responder'}</small>
+            </div>
+        </div>`;
+    }).join("");
+
+    const subtitleText = canGoBack 
+        ? "Todos responderam. Você pode iniciar o treino."
+        : `Faltam ${pending.length} ${pending.length === 1 ? 'jogador' : 'jogadores'} para responder.`;
+
+    // Botões de ação
+    const actionButtonsHTML = canGoBack 
+        ? `
+            <button class="submit-btn" onclick="startTraining()" style="margin-top:1rem;">
+                Iniciar Treino
+            </button>
+        `
+        : `
+            <div style="display:flex;flex-direction:column;gap:1rem;margin-top:1rem;">
+                <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                    <label style="font-size:var(--touch-font-md);color:var(--text-main);font-weight:500;">
+                        Senha para iniciar com questionários incompletos:
+                    </label>
+                    <input type="password" id="trainingPassword" class="q-input" placeholder="Digite a senha" oninput="checkTrainingPassword()" style="margin-bottom:0.5rem;" />
+                    <button class="submit-btn" id="startIncompleteBtn" onclick="startTrainingIncomplete()" disabled style="opacity:0.5;cursor:not-allowed;">
+                        Salvar e Iniciar Treino com Questionários Incompletos
+                    </button>
+                </div>
+            </div>
+        `;
+
+    renderScreen(`
+        <div class="player-list-wrapper">
+            <div class="back-row">
+                ${backButtonHTML}
+                <div>
+                    <div class="screen-title">
+                        ${mode==="pre" ? "Pré Treino" : "Pós Treino"}
+                    </div>
+                    <div class="screen-sub">
+                        ${subtitleText}
+                    </div>
+                </div>
+            </div>
+
+            <div class="player-grid">
+                ${playerCardsHTML}
+            </div>
+
+            ${actionButtonsHTML}
+        </div>
+    `);
+    
+    // Ocultar botão de configurações
+    updateSettingsButtonVisibility();
+    feather.replace();
+}
+
+function selectPlayer(playerId){
+    state.currentPlayerId = playerId;
+    state.cameFromScreen = "selectPlayer"; // Marcar que veio de selectPlayer
+    goQuestionnaire();
+}
+
+function checkTrainingPassword(){
+    const passwordInput = document.getElementById("trainingPassword");
+    const startBtn = document.getElementById("startIncompleteBtn");
+    
+    if(passwordInput && startBtn){
+        if(passwordInput.value === "362514"){
+            startBtn.disabled = false;
+            startBtn.style.opacity = "1";
+            startBtn.style.cursor = "pointer";
+        } else {
+            startBtn.disabled = true;
+            startBtn.style.opacity = "0.5";
+            startBtn.style.cursor = "not-allowed";
+        }
+    }
+}
+
+function startTraining(){
+    // Verificar se todos responderam
+    const mode = state.currentMode;
+    const pending = state.pendingByMode[mode];
+    
+    if(pending.length > 0){
+        alert("Ainda há jogadores que não responderam. Complete todos os questionários ou use a senha para iniciar com questionários incompletos.");
+        return;
+    }
+    
+    // Marcar treino como iniciado/completo
+    const trainingId = state.currentTrainingId;
+    if(trainingId){
+        const trainings = loadTrainings();
+        const training = trainings.find(t => t.id === trainingId);
+        if(training){
+            // Preservar todas as informações do treino
+            training.status = "completed";
+            training.completedAt = nowTimestamp();
+            
+            // Garantir que todas as respostas estejam salvas
+            if(!training.responses){
+                training.responses = [];
+            }
+            
+            // Garantir que os jogadores selecionados estejam preservados
+            if(!training.playerIds || training.playerIds.length === 0){
+                training.playerIds = [...state.selectedPlayerIds];
+            }
+            
+            // Limpar pending players se existir (treino completo)
+            training.pendingPlayers = [];
+            
+            // Salvar o treino
+            saveTrainings(trainings);
+        }
+    }
+    
+    // Limpar estado
+    state.currentTrainingId = null;
+    state.currentMode = null;
+    state.selectedPlayerIds = [];
+    state.pendingByMode[mode] = [];
+    
+    // Voltar para home
+    goHome();
+}
+
+function startTrainingIncomplete(){
+    const passwordInput = document.getElementById("trainingPassword");
+    if(!passwordInput || passwordInput.value !== "362514"){
+        alert("Senha incorreta.");
+        return;
+    }
+    
+    // Marcar treino como iniciado (mas incompleto)
+    const trainingId = state.currentTrainingId;
+    const mode = state.currentMode;
+    
+    if(trainingId){
+        const trainings = loadTrainings();
+        const training = trainings.find(t => t.id === trainingId);
+        if(training){
+            // Preservar todas as informações do treino
+            training.status = "incomplete";
+            training.completedAt = nowTimestamp();
+            training.incompleteReason = "Iniciado com questionários incompletos";
+            
+            // Garantir que todas as respostas já coletadas estejam salvas
+            // (isso já foi feito durante o fluxo, mas garantimos que está tudo ok)
+            if(!training.responses){
+                training.responses = [];
+            }
+            
+            // Garantir que os jogadores selecionados estejam preservados
+            if(!training.playerIds || training.playerIds.length === 0){
+                training.playerIds = [...state.selectedPlayerIds];
+            }
+            
+            // Salvar informações sobre quem não respondeu
+            const pending = state.pendingByMode[mode] || [];
+            training.pendingPlayers = pending; // IDs dos jogadores que não responderam
+            
+            // Salvar o treino
+            saveTrainings(trainings);
+        }
+    }
+    
+    // Limpar estado
+    state.currentTrainingId = null;
+    state.currentMode = null;
+    state.selectedPlayerIds = [];
+    state.pendingByMode[mode] = [];
+    
+    // Voltar para home
+    goHome();
+}

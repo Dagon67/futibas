@@ -1,0 +1,1912 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Painel de Monitoramento - Treino</title>
+
+<!-- Luxon p/ data/hora bonita -->
+<script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+
+<!-- Feather icons p/ ícones leves -->
+<script src="https://unpkg.com/feather-icons"></script>
+
+<style>
+    :root {
+        --bg-main: radial-gradient(circle at 50% 50%, #feec02 0%, #ffcc01 100%);
+        --card-bg: #000000;
+        --card-stroke: rgba(255,255,255,0.2);
+        --accent: #ffffff;
+        --accent-secondary: #000000;
+        --accent-soft: rgba(255,255,255,0.1);
+        --pre-color: #ffffff;
+        --pre-glow: rgba(255,255,255,0.3);
+        --post-color: #ffffff;
+        --post-glow: rgba(255,255,255,0.3);
+        --text-main: #ffffff;
+        --text-dim: #e0e0e0;
+        --text-bright: #ffffff;
+        --white-accent: #000000;
+        --radius-xl: 2rem;
+        --radius-lg: 1.5rem;
+        --radius-md: 1rem;
+        --fast: .2s;
+        --slow: .3s;
+        --touch-gap: clamp(16px,3vh,32px);
+        --touch-font-xl: clamp(2rem,3vw + 1rem,3.5rem);
+        --touch-font-lg: clamp(1.25rem,1.5vw + 0.8rem,1.75rem);
+        --touch-font-md: clamp(1rem,1vw + 0.6rem,1.25rem);
+        --safe-pad: clamp(20px,3vh,40px);
+        --panel-max-width: 1400px;
+    }
+
+    * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+        margin:0;
+        background:var(--bg-main);
+        color:var(--text-main);
+        min-height:100dvh;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-weight:600;
+    }
+
+    /* ---------- LAYOUT GERAL ---------- */
+    #app-shell{
+        position:relative;
+        width:100%;
+        max-width:var(--panel-max-width);
+        min-height:100dvh;
+        padding:var(--safe-pad);
+        display:flex;
+        flex-direction:column;
+    }
+
+    header.app-header{
+        display:none;
+    }
+
+    main#screen-area{
+        flex:1;
+        min-height:0;
+        position:relative;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    }
+
+    footer#floating-actions{
+        position:absolute;
+        right:var(--safe-pad);
+        bottom:var(--safe-pad);
+        display:flex;
+        gap:1rem;
+        flex-wrap:wrap;
+        justify-content:flex-end;
+    }
+
+    /* ---------- COMPONENTES ---------- */
+
+    .glass-card{
+        background:var(--card-bg);
+        border-radius:var(--radius-xl);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 8px 32px rgba(0,0,0,.3);
+        padding:clamp(16px,1.5vw,24px);
+        width:100%;
+        height:100%;
+        display:flex;
+        flex-direction:column;
+    }
+
+    .center-flex-col{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        height:100%;
+        width:100%;
+        gap:var(--touch-gap);
+    }
+
+    .big-dual-buttons{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:clamp(24px,4vh,48px);
+        width:100%;
+        max-width:1000px;
+    }
+
+    .action-btn{
+        -webkit-user-select:none;
+        user-select:none;
+        background:#000000;
+        border-radius:var(--radius-xl);
+        border:2px solid rgba(255,255,255,0.2);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        padding:clamp(32px,5vh,64px) clamp(24px,3vw,40px);
+        min-height:280px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        position:relative;
+        cursor:pointer;
+        transition:all var(--slow) cubic-bezier(0.4, 0, 0.2, 1);
+        font-size:var(--touch-font-xl);
+        font-weight:700;
+        line-height:1.2;
+        color:var(--text-main);
+        overflow:hidden;
+    }
+    .action-btn::before{
+        content:'';
+        position:absolute;
+        top:0;
+        left:0;
+        right:0;
+        bottom:0;
+        background:radial-gradient(circle at 30% 30%,rgba(255,255,255,0.1) 0%,transparent 70%);
+        opacity:0;
+        transition:opacity var(--slow) ease;
+    }
+    .action-btn:hover::before{
+        opacity:1;
+    }
+    .action-btn[data-variant="pre"]{
+        background:#000000;
+        border-color:rgba(255,255,255,0.25);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        color:#ffffff;
+    }
+    .action-btn[data-variant="pre"]:hover{
+        transform:translateY(-4px);
+        box-shadow:0 8px 24px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.35);
+    }
+    .action-btn[data-variant="post"]{
+        background:#000000;
+        border-color:rgba(255,255,255,0.25);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        color:#ffffff;
+    }
+    .action-btn[data-variant="post"]:hover{
+        transform:translateY(-4px);
+        box-shadow:0 8px 24px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.35);
+    }
+    .action-btn:active{
+        transform:translateY(-2px) scale(0.98);
+    }
+    .action-btn .sub{
+        margin-top:clamp(12px,2vh,20px);
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:rgba(255,255,255,0.7);
+        letter-spacing:0.02em;
+    }
+
+    /* Relógio/Data */
+    .datetime-display{
+        text-align:center;
+        margin-bottom:clamp(32px,5vh,64px);
+        color:var(--text-bright);
+    }
+    .datetime-display .date{
+        font-size:var(--touch-font-lg);
+        font-weight:500;
+        color:var(--text-dim);
+        letter-spacing:0.05em;
+        margin-bottom:0.5rem;
+    }
+    .datetime-display .time{
+        font-size:clamp(2.5rem,4vw + 1.5rem,4.5rem);
+        font-weight:700;
+        color:var(--text-main);
+        letter-spacing:-0.02em;
+        text-shadow:0 4px 20px rgba(0,0,0,0.3);
+        font-variant-numeric:tabular-nums;
+    }
+
+    .settings-fab{
+        cursor:pointer;
+        min-width:72px;
+        min-height:72px;
+        border-radius:var(--radius-lg);
+        background:#000000;
+        border:2px solid rgba(255,255,255,0.2);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        padding:1rem 1.25rem;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:.5rem;
+        font-size:var(--touch-font-md);
+        line-height:1.2;
+        font-weight:700;
+        color:var(--accent);
+        transition:all var(--slow) ease;
+    }
+    .settings-fab:hover{
+        transform:translateY(-2px);
+        border-color:rgba(255,255,255,0.3);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+    }
+    .settings-fab:active{
+        transform:translateY(0) scale(0.96);
+    }
+    .settings-fab i{
+        width:28px;
+        height:28px;
+        stroke:var(--accent);
+        stroke-width:2;
+    }
+
+    /* Lista de jogadores */
+    .player-list-wrapper{
+        flex:1;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+    }
+    .player-grid{
+        flex:1;
+        min-height:0;
+        display:grid;
+        grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));
+        gap:var(--touch-gap);
+        align-content:flex-start;
+    }
+    .player-card{
+        background:#000000;
+        border-radius:var(--radius-lg);
+        border:2px solid rgba(255,255,255,0.15);
+        padding:1.25rem 1rem;
+        min-height:120px;
+        display:flex;
+        flex-direction:row;
+        align-items:center;
+        gap:1rem;
+        text-align:left;
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        color:var(--text-main);
+        cursor:pointer;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        transition:all var(--fast) ease;
+    }
+    .player-card-photo{
+        width:60px;
+        height:60px;
+        border-radius:50%;
+        object-fit:cover;
+        border:2px solid rgba(255,255,255,0.2);
+        flex-shrink:0;
+    }
+    .player-card-content{
+        flex:1;
+        display:flex;
+        flex-direction:column;
+        gap:0.25rem;
+        min-width:0;
+    }
+    .player-card:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.25);
+    }
+    .player-card[data-disabled="true"]{
+        opacity:.3;
+        filter:grayscale(1);
+        cursor:not-allowed;
+    }
+    .player-card:active{
+        scale:.97;
+        box-shadow:0 8px 25px rgba(0,0,0,.4),0 0 10px rgba(0,0,0,.3);
+    }
+    .player-card small{
+        color:var(--text-dim);
+        font-size:var(--touch-font-md);
+        font-weight:400;
+    }
+
+    .back-row{
+        display:flex;
+        justify-content:flex-start;
+        align-items:center;
+        gap:1rem;
+        flex-wrap:wrap;
+    }
+    .back-btn{
+        cursor:pointer;
+        background:none;
+        border:0;
+        color:var(--accent);
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        display:flex;
+        align-items:center;
+        gap:.5rem;
+        line-height:1.2;
+        padding:.75rem 1rem;
+        border-radius:var(--radius-md);
+        background:#000000;
+        border:2px solid rgba(255,255,255,0.2);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .back-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .back-btn i{
+        width:20px;
+        height:20px;
+        stroke:var(--accent);
+    }
+    .screen-title{
+        font-size:var(--touch-font-lg);
+        font-weight:600;
+        color:var(--text-main);
+    }
+    .screen-sub{
+        font-size:var(--touch-font-md);
+        font-weight:400;
+        color:var(--text-dim);
+        line-height:1.4;
+    }
+
+    /* Questionário */
+    .questionnaire-wrapper{
+        flex:1;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+    }
+    .q-list{
+        flex:1;
+        min-height:0;
+        overflow-y:auto;
+        scrollbar-width:thin;
+        scrollbar-color:rgba(0,0,0,.3) rgba(255,255,255,.3);
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+        padding-right:.5rem;
+    }
+    .q-item{
+        background:#000000;
+        border-radius:var(--radius-lg);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        padding:1rem 1.25rem 1.25rem;
+        display:flex;
+        flex-direction:column;
+        gap:.75rem;
+    }
+    .q-text{
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        line-height:1.4;
+        color:var(--text-main);
+    }
+    .q-input{
+        font-size:var(--touch-font-md);
+        line-height:1.3;
+        font-weight:500;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.2);
+        background:#1a1a1a;
+        color:var(--text-main);
+        padding:1rem;
+        width:100%;
+    }
+    .q-input:focus{
+        border-color:rgba(255,255,255,.35);
+        outline:none;
+        box-shadow:0 0 0 2px rgba(255,255,255,0.15);
+        background:#000000;
+    }
+    .submit-btn{
+        width:100%;
+        border:0;
+        cursor:pointer;
+        border-radius:var(--radius-lg);
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        line-height:1.2;
+        padding:1rem 1.25rem;
+        background:linear-gradient(160deg,#000000 0%,#1a1a1a 100%);
+        color:#feec02;
+        border:3px solid #000000;
+        box-shadow:0 15px 50px rgba(0,0,0,.4),0 2px 2px rgba(255,255,255,.3) inset;
+        transition:all var(--fast) ease;
+    }
+    .submit-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 20px 60px rgba(0,0,0,.5),0 2px 2px rgba(255,255,255,.4) inset;
+    }
+    .submit-btn:active{
+        scale:.97;
+        box-shadow:0 10px 30px rgba(0,0,0,.4),0 0 15px rgba(0,0,0,.3);
+    }
+    .submit-btn[disabled]{
+        opacity:.4;
+        filter:grayscale(1);
+        cursor:not-allowed;
+    }
+
+    /* CONFIGURAÇÕES */
+    .settings-wrapper{
+        flex:1;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:var(--touch-gap);
+    }
+
+    .tab-row{
+        display:flex;
+        gap:.5rem;
+        flex-wrap:wrap;
+    }
+    .tab-btn{
+        flex:1;
+        min-width:120px;
+        text-align:center;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:1px solid var(--card-stroke);
+        background:rgba(148,163,184,.07);
+        padding:.9rem 1rem;
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:var(--text-dim);
+        line-height:1.2;
+        box-shadow:0 20px 60px rgba(0,0,0,.9);
+        transition:all var(--fast) ease;
+    }
+    .tab-btn{
+        background:#000000;
+        border:2px solid rgba(255,255,255,.15);
+        color:var(--text-main);
+        box-shadow:0 2px 8px rgba(0,0,0,.3);
+    }
+    .tab-btn[data-active="true"]{
+        background:#000000;
+        border:2px solid rgba(255,255,255,.3);
+        color:var(--accent);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        font-weight:700;
+    }
+
+    .settings-panel-area{
+        flex:1;
+        min-height:0;
+        background:#000000;
+        border-radius:var(--radius-lg);
+        border:2px solid rgba(255,255,255,0.15);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        display:flex;
+        flex-direction:column;
+        padding:1rem 1.25rem;
+        overflow:hidden;
+    }
+
+    .settings-panel-scroll{
+        flex:1;
+        min-height:0;
+        overflow-y:auto;
+        scrollbar-width:thin;
+        scrollbar-color:rgba(0,0,0,.3) rgba(255,255,255,.3);
+        display:flex;
+        flex-direction:column;
+        gap:1rem;
+        padding-right:.5rem;
+    }
+
+    .inline-form-row{
+        display:flex;
+        flex-wrap:wrap;
+        gap:.75rem;
+        align-items:flex-end;
+    }
+    .label-col{
+        flex:1;
+        min-width:200px;
+        display:flex;
+        flex-direction:column;
+        gap:.4rem;
+    }
+    .label-col label{
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:var(--text-main);
+        line-height:1.2;
+    }
+    .label-col input,
+    .label-col textarea,
+    .label-col select{
+        font-size:var(--touch-font-md);
+        line-height:1.3;
+        font-weight:500;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.2);
+        background:#1a1a1a;
+        color:var(--text-main);
+        padding:1rem;
+        width:100%;
+    }
+    .label-col input:focus,
+    .label-col textarea:focus,
+    .label-col select:focus{
+        border-color:rgba(255,255,255,.35);
+        outline:none;
+        box-shadow:0 0 0 2px rgba(255,255,255,0.15);
+        background:#000000;
+    }
+    .q-image{
+        max-width:100%;
+        border-radius:var(--radius-md);
+        margin-bottom:.75rem;
+        border:1px solid var(--card-stroke);
+    }
+    .option-list{
+        display:flex;
+        flex-direction:column;
+        gap:.5rem;
+        margin-top:.5rem;
+    }
+    .option-item{
+        display:flex;
+        align-items:center;
+        gap:.5rem;
+        padding:.5rem;
+    }
+    .option-item input[type="text"]{
+        flex:1;
+        font-size:var(--touch-font-md);
+        padding:.75rem;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.2);
+        background:#1a1a1a;
+        color:var(--text-main);
+    }
+    .option-remove-btn{
+        cursor:pointer;
+        background:rgba(239,68,68,.15);
+        border:1px solid rgba(239,68,68,.4);
+        color:#fca5a5;
+        border-radius:var(--radius-md);
+        padding:.5rem .75rem;
+        font-size:.875rem;
+        font-weight:600;
+    }
+    .add-option-btn{
+        cursor:pointer;
+        background:#000000;
+        border:2px solid rgba(255,255,255,0.2);
+        color:var(--accent);
+        border-radius:var(--radius-md);
+        padding:.5rem 1rem;
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        margin-top:.5rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .add-option-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .radio-option, .checkbox-option{
+        display:flex;
+        align-items:center;
+        gap:.75rem;
+        padding:1rem;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.15);
+        background:#000000;
+        cursor:pointer;
+        transition:all var(--fast) ease;
+        color:var(--text-main);
+    }
+    .radio-option:hover, .checkbox-option:hover{
+        border-color:rgba(255,255,255,.25);
+        transform:translateY(-2px);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .radio-option input[type="radio"],
+    .checkbox-option input[type="checkbox"]{
+        width:20px;
+        height:20px;
+        cursor:pointer;
+    }
+    .rating-scale{
+        display:flex;
+        gap:.5rem;
+        flex-wrap:wrap;
+        justify-content:center;
+        margin-top:.75rem;
+    }
+    .rating-btn{
+        min-width:60px;
+        padding:1rem;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.15);
+        background:#000000;
+        color:var(--text-main);
+        font-size:var(--touch-font-lg);
+        font-weight:700;
+        cursor:pointer;
+        transition:all var(--fast) ease;
+    }
+    .rating-btn:hover{
+        border-color:rgba(255,255,255,.25);
+        transform:translateY(-2px);
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .rating-btn.selected{
+        border-color:rgba(255,255,255,.35);
+        background:#000000;
+        color:#feec02;
+        box-shadow:0 4px 16px rgba(0,0,0,.5);
+    }
+    .image-preview{
+        max-width:100%;
+        max-height:200px;
+        border-radius:var(--radius-md);
+        margin-top:.5rem;
+        border:1px solid var(--card-stroke);
+    }
+    .image-upload-btn{
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,0.2);
+        background:#000000;
+        color:var(--accent);
+        padding:.75rem 1rem;
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        text-align:center;
+        margin-top:.5rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+    }
+    .image-upload-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+
+    .small-solid-btn{
+        flex:none;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,0.2);
+        background:#000000;
+        color:var(--accent);
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        line-height:1.2;
+        padding:1rem 1.25rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        transition:all var(--fast) ease;
+    }
+    .small-solid-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .small-solid-btn:active{
+        scale:.97;
+        box-shadow:0 2px 8px rgba(0,0,0,.4);
+    }
+
+    .item-row{
+        background:var(--white-accent);
+        border-radius:var(--radius-md);
+        border:2px solid rgba(0,0,0,.2);
+        padding:1rem 1.25rem;
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        flex-wrap:wrap;
+        gap:1rem;
+        box-shadow:0 5px 20px rgba(0,0,0,.2),0 2px 2px rgba(255,255,255,.5) inset;
+    }
+
+    .item-main{
+        display:flex;
+        flex-direction:column;
+        gap:.4rem;
+        min-width:0;
+    }
+    .item-title{
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        color:var(--text-main);
+        word-break:break-word;
+    }
+    .item-sub{
+        font-size:var(--touch-font-md);
+        font-weight:400;
+        color:var(--text-dim);
+        line-height:1.3;
+        word-break:break-word;
+    }
+    .danger-btn{
+        flex:none;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:1px solid rgba(239,68,68,.4);
+        background:rgba(239,68,68,.07);
+        color:#fca5a5;
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        line-height:1.2;
+        padding:.8rem 1rem;
+        box-shadow:0 20px 60px rgba(0,0,0,.9),0 0 20px rgba(239,68,68,.4);
+        transition:all var(--fast) ease;
+    }
+    .danger-btn:active{
+        scale:.97;
+        box-shadow:0 10px 30px rgba(0,0,0,.8),0 0 15px rgba(239,68,68,.6);
+    }
+
+    .download-btn{
+        flex:none;
+        cursor:pointer;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,0.2);
+        background:#000000;
+        color:#feec02;
+        font-size:var(--touch-font-md);
+        font-weight:700;
+        line-height:1.2;
+        padding:1rem 1.25rem;
+        box-shadow:0 4px 16px rgba(0,0,0,.4);
+        transition:all var(--fast) ease;
+        text-decoration:none;
+    }
+    .download-btn:hover{
+        transform:translateY(-2px);
+        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(255,255,255,0.3);
+    }
+    .download-btn:active{
+        scale:.97;
+        box-shadow:0 2px 8px rgba(0,0,0,.4);
+    }
+
+    /* responsividade leve */
+    @media (max-width:768px){
+        .big-dual-buttons{
+            grid-template-columns:1fr;
+            gap:clamp(20px,3vh,32px);
+        }
+        .action-btn{
+            min-height:220px;
+        }
+        .datetime-display .time{
+            font-size:clamp(2rem,5vw + 1rem,3rem);
+        }
+    }
+</style>
+</head>
+<body>
+
+<div id="app-shell">
+    <header class="app-header">
+        <div>
+            <div class="brand-line">Monitoramento Diário • Alto Rendimento</div>
+            <div class="brand-main">
+                <span>Painel de Treino</span>
+                <span class="mode-label" id="headerModeLabel">Menu</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="screen-area">
+        <!-- TELAS DINÂMICAS SERÃO INJETADAS AQUI -->
+    </main>
+
+    <footer id="floating-actions">
+        <button class="settings-fab" id="openSettingsBtn" onclick="goSettings()">
+            <i data-feather="settings"></i>
+            <div>Config.</div>
+        </button>
+    </footer>
+</div>
+
+<script>
+/* ===========================
+   🔁 ESTADO / STORAGE LOCAL
+   =========================== */
+
+const STORAGE_KEYS = {
+    PLAYERS: "treino_players",
+    QUESTIONS: "treino_questions",
+    RESPONSES: "treino_responses"
+};
+
+// inicial: perguntas pré e pós
+const defaultQuestions = {
+    pre: [
+        {tipo:"texto",texto:"Como você está se sentindo hoje fisicamente?",opcoes:[],imagem:null},
+        {tipo:"nota",texto:"Qual seu nível de fadiga agora?",opcoes:[],imagem:null},
+        {tipo:"texto",texto:"Sentiu dor ou desconforto em alguma parte do corpo?",opcoes:[],imagem:null},
+        {tipo:"nota",texto:"Dormiu bem?",opcoes:[],imagem:null}
+    ],
+    post: [
+        {tipo:"texto",texto:"Como você está se sentindo após o treino?",opcoes:[],imagem:null},
+        {tipo:"texto",texto:"Sentiu dor aguda em algum momento?",opcoes:[],imagem:null},
+        {tipo:"nota",texto:"Nível de esforço hoje?",opcoes:[],imagem:null},
+        {tipo:"escolha",texto:"Você acha que consegue treinar igual amanhã?",opcoes:["Sim","Não","Talvez"],imagem:null}
+    ]
+};
+
+// helpers de estado em memória
+let state = {
+    currentScreen: "menu",     // menu | selectPlayer | questionnaire | settings
+    currentMode: null,         // "pre" | "post" | null
+    currentPlayerId: null,     // id jogador atual respondendo
+    tempAnswers: {},           // respostas atuais antes de salvar
+    // controle de quem já respondeu nesta rodada:
+    pendingByMode: {
+        pre: [],
+        post: []
+    },
+    settingsTab: "players"     // players | questionsPre | questionsPost | data
+};
+
+// Carregar / salvar localStorage
+function loadPlayers(){
+    try{
+        return JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYERS)) || [];
+    }catch(e){return []}
+}
+function savePlayers(players){
+    localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+}
+
+function loadQuestions(){
+    try{
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUESTIONS));
+        if(!saved) return defaultQuestions;
+        // Migrar perguntas antigas (strings) para novo formato (objetos)
+        const migrated = {pre:[],post:[]};
+        ['pre','post'].forEach(mode=>{
+            if(Array.isArray(saved[mode])){
+                saved[mode].forEach(q=>{
+                    if(typeof q === 'string'){
+                        // Migrar string para objeto
+                        migrated[mode].push({tipo:"texto",texto:q,opcoes:[],imagem:null});
+                    }else if(q && typeof q === 'object'){
+                        // Já está no formato novo
+                        migrated[mode].push({
+                            tipo:q.tipo || "texto",
+                            texto:q.texto || q,
+                            opcoes:Array.isArray(q.opcoes) ? q.opcoes : [],
+                            imagem:q.imagem || null
+                        });
+                    }
+                });
+            }
+        });
+        return migrated;
+    }catch(e){return defaultQuestions}
+}
+function saveQuestions(qs){
+    localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(qs));
+}
+
+function loadResponses(){
+    try{
+        return JSON.parse(localStorage.getItem(STORAGE_KEYS.RESPONSES)) || [];
+    }catch(e){return []}
+}
+function saveResponses(r){
+    localStorage.setItem(STORAGE_KEYS.RESPONSES, JSON.stringify(r));
+}
+
+// garantir defaults
+if(!localStorage.getItem(STORAGE_KEYS.QUESTIONS)){
+    saveQuestions(defaultQuestions);
+}
+if(!localStorage.getItem(STORAGE_KEYS.PLAYERS)){
+    savePlayers([]);
+}
+if(!localStorage.getItem(STORAGE_KEYS.RESPONSES)){
+    saveResponses([]);
+}
+
+// Ao iniciar rodada de coleta (ex: tocar em "Pré Treino"), 
+// pendingByMode[mode] recebe TODOS os jogadores que ainda não responderam NESTA rodada.
+function resetPendingForMode(mode){
+    const players = loadPlayers();
+    state.pendingByMode[mode] = players.map(p => p.id);
+}
+
+/* ===========================
+   🧠 UTILIDADES
+   =========================== */
+
+function setHeaderModeLabel(text){
+    const el = document.getElementById("headerModeLabel");
+    if(el) el.textContent = text;
+}
+
+function updateSettingsButtonVisibility(){
+    const settingsBtn = document.getElementById("openSettingsBtn");
+    if(settingsBtn){
+        // Só mostra o botão na tela do menu
+        if(state.currentScreen === "menu"){
+            settingsBtn.style.display = "flex";
+        } else {
+            settingsBtn.style.display = "none";
+        }
+    }
+}
+
+function uid(){
+    return "id_"+Math.random().toString(36).slice(2,9);
+}
+
+function nowTimestamp(){
+    // usando luxon para ISO local
+    return luxon.DateTime.now().toISO(); 
+}
+
+function getPlayerById(id){
+    return loadPlayers().find(p=>p.id===id) || null;
+}
+
+/* ===========================
+   💾 RESPOSTAS E CSV
+   =========================== */
+
+function finalizeQuestionnaireAndSave(){
+    const mode = state.currentMode;
+    const playerId = state.currentPlayerId;
+    const player = getPlayerById(playerId);
+    if(!player) return;
+
+    // salvar no array principal de respostas
+    const responses = loadResponses();
+    responses.push({
+        mode,
+        playerId,
+        playerName: player.name,
+        timestamp: nowTimestamp(),
+        answers: {...state.tempAnswers}
+    });
+    saveResponses(responses);
+
+    // marcar jogador como já respondeu nesta rodada
+    const idx = state.pendingByMode[mode].indexOf(playerId);
+    if(idx>=0){
+        state.pendingByMode[mode].splice(idx,1);
+    }
+
+    // limpar respostas temporárias
+    state.tempAnswers = {};
+    state.currentPlayerId = null;
+
+    // Se ainda falta jogador -> volta pro selectPlayer
+    if(state.pendingByMode[mode].length>0){
+        goSelectPlayer(mode);
+    } else {
+        // acabou todos -> volta menu
+        goMenu();
+    }
+}
+
+// gera CSV de todas respostas já colhidas
+function generateCSV(){
+    const responses = loadResponses();
+    // Cabeçalho dinâmico: juntar todas perguntas possíveis
+    const qs = loadQuestions();
+    const allQ = [...qs.pre, ...qs.post];
+    // Criar mapa de texto da pergunta para ID único
+    const questionMap = new Map();
+    allQ.forEach((q,idx)=>{
+        const qText = typeof q === 'string' ? q : q.texto;
+        if(!questionMap.has(qText)){
+            questionMap.set(qText, qText);
+        }
+    });
+    const uniqueQuestions = Array.from(questionMap.keys());
+
+    // cabeçalho
+    // mode, playerName, timestamp, depois cada pergunta
+    const header = ["modo","jogador","datahora", ...uniqueQuestions.map(q => sanitizeCSVHeader(q))];
+
+    const rows = [header];
+
+    responses.forEach(r=>{
+        const row = [];
+        row.push(r.mode==="pre"?"Pré":"Pós");
+        row.push(r.playerName || "");
+        row.push(r.timestamp || "");
+        uniqueQuestions.forEach(qText=>{
+            const answer = r.answers[qText];
+            let answerStr = "";
+            if(Array.isArray(answer)){
+                answerStr = answer.join("; ");
+            }else if(answer != null){
+                answerStr = answer.toString();
+            }
+            row.push(answerStr.replace(/\r?\n/g," "));
+        });
+        rows.push(row);
+    });
+
+    // montar CSV string
+    const csvString = rows.map(cols => cols.map(csvEscape).join(",")).join("\r\n");
+    return csvString;
+
+    function csvEscape(val){
+        const v = (val==null?"":String(val));
+        if(v.includes('"') || v.includes(",") || v.includes("\n")){
+            return '"'+v.replace(/"/g,'""')+'"';
+        }
+        return v;
+    }
+    function sanitizeCSVHeader(h){
+        return h.replace(/[\r\n,]+/g," ").trim();
+    }
+}
+
+// baixa CSV
+function downloadCSV(){
+    const csvContent = generateCSV();
+    const blob = new Blob([csvContent], {type: "text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const dt = luxon.DateTime.now().toFormat("yyyyLLdd_HHmmss");
+    a.download = "respostas_treino_"+dt+".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/* ===========================
+   🖥️ RENDER DE TELAS
+   =========================== */
+
+function renderScreen(html){
+    const area = document.getElementById("screen-area");
+    area.innerHTML = `
+        <div class="glass-card">
+            ${html}
+        </div>
+    `;
+    feather.replace(); // atualiza ícones feather
+}
+
+/* -------- MENU INICIAL -------- */
+function updateDateTime(){
+    const now = luxon.DateTime.now().setLocale('pt-BR');
+    const dateStr = now.toFormat("EEEE, dd 'de' MMMM 'de' yyyy");
+    const timeStr = now.toFormat("HH:mm:ss");
+    
+    const dateEl = document.getElementById("currentDate");
+    const timeEl = document.getElementById("currentTime");
+    
+    if(dateEl) dateEl.textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+    if(timeEl) timeEl.textContent = timeStr;
+}
+
+function goMenu(){
+    state.currentScreen = "menu";
+    state.currentMode = null;
+    state.currentPlayerId = null;
+    setHeaderModeLabel("Menu");
+
+    renderScreen(`
+        <div class="center-flex-col">
+            <div class="datetime-display">
+                <div class="date" id="currentDate"></div>
+                <div class="time" id="currentTime"></div>
+            </div>
+            <div class="big-dual-buttons">
+                <button class="action-btn" data-variant="pre"
+                    onclick="startMode('pre')">
+                    <div>Pré Treino</div>
+                    <div class="sub">Check-in físico antes da sessão</div>
+                </button>
+                <button class="action-btn" data-variant="post"
+                    onclick="startMode('post')">
+                    <div>Pós Treino</div>
+                    <div class="sub">Como você saiu do treino</div>
+                </button>
+            </div>
+        </div>
+    `);
+    
+    // Atualizar data/hora imediatamente e depois a cada segundo
+    updateDateTime();
+    if(window.dateTimeInterval) clearInterval(window.dateTimeInterval);
+    window.dateTimeInterval = setInterval(updateDateTime, 1000);
+    
+    // Mostrar botão de configurações no menu
+    updateSettingsButtonVisibility();
+}
+
+/* -------- SELECIONAR MODO E LISTA DE JOGADORES -------- */
+function startMode(mode){
+    // parar atualização do relógio quando sair do menu
+    if(window.dateTimeInterval) clearInterval(window.dateTimeInterval);
+    // se estamos começando agora, resetar pending
+    resetPendingForMode(mode);
+    goSelectPlayer(mode);
+}
+
+function goSelectPlayer(mode){
+    state.currentScreen = "selectPlayer";
+    state.currentMode = mode;
+    state.currentPlayerId = null;
+    setHeaderModeLabel(mode==="pre"?"Pré Treino":"Pós Treino");
+
+    const players = loadPlayers();
+    const pending = state.pendingByMode[mode]; // ids restantes
+    
+    // Só pode voltar ao menu se todos responderam
+    const canGoBack = pending.length === 0;
+    const backButtonHTML = canGoBack 
+        ? `<button class="back-btn" onclick="goMenu()">
+            <i data-feather="arrow-left"></i>
+            <span>Menu</span>
+        </button>`
+        : ``;
+
+    const playerCardsHTML = players.length===0 
+    ? `<div style="color:var(--text-dim);font-size:var(--touch-font-md);text-align:center;width:100%;">Nenhum jogador cadastrado ainda.</div>`
+    : players.map(p=>{
+        const alreadyDone = !pending.includes(p.id);
+        const photoHTML = p.photo 
+            ? `<img src="${p.photo}" alt="${p.name}" class="player-card-photo" />`
+            : `<div class="player-card-photo" style="background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1.5rem;">👤</div>`;
+        return `
+        <div class="player-card"
+            ${alreadyDone?'data-disabled="true"':''}
+            onclick="${alreadyDone?'':`selectPlayer('${p.id}')`}">
+            ${photoHTML}
+            <div class="player-card-content">
+                <div>${p.name}</div>
+                <small>${alreadyDone?'Já respondeu':'Toque para responder'}</small>
+            </div>
+        </div>`;
+    }).join("");
+
+    const subtitleText = canGoBack 
+        ? "Todos responderam. Você pode voltar ao menu."
+        : `Faltam ${pending.length} ${pending.length === 1 ? 'jogador' : 'jogadores'} para responder.`;
+
+    renderScreen(`
+        <div class="player-list-wrapper">
+            <div class="back-row">
+                ${backButtonHTML}
+                <div>
+                    <div class="screen-title">
+                        ${mode==="pre" ? "Pré Treino" : "Pós Treino"}
+                    </div>
+                    <div class="screen-sub">
+                        ${subtitleText}
+                    </div>
+                </div>
+            </div>
+
+            <div class="player-grid">
+                ${playerCardsHTML}
+            </div>
+        </div>
+    `);
+    
+    // Ocultar botão de configurações
+    updateSettingsButtonVisibility();
+}
+
+/* -------- QUESTIONÁRIO -------- */
+function selectPlayer(playerId){
+    state.currentPlayerId = playerId;
+    goQuestionnaire();
+}
+
+function goQuestionnaire(){
+    state.currentScreen = "questionnaire";
+
+    const mode = state.currentMode;
+    const player = getPlayerById(state.currentPlayerId);
+    const allQuestions = loadQuestions();
+    const qsList = mode==="pre" ? allQuestions.pre : allQuestions.post;
+    
+    // Verificar se pode voltar (só quando todos responderam)
+    const pending = state.pendingByMode[mode];
+    const canGoBack = pending.length === 0;
+    const backButtonHTML = canGoBack 
+        ? `<button class="back-btn" onclick="goSelectPlayer('${mode}')">
+            <i data-feather="arrow-left"></i>
+            <span>${player ? player.name : "Voltar"}</span>
+        </button>`
+        : ``;
+
+    // montar inputs baseado no tipo de pergunta
+    const qItemsHTML = qsList.map((qObj,idx)=>{
+        const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
+        const qText = q.texto || qObj;
+        const safeId = "q_"+idx;
+        const qId = "qid_"+idx;
+        
+        let inputHTML = "";
+        if(q.tipo === "texto"){
+            inputHTML = `<textarea class="q-input" rows="3" id="${safeId}" oninput="captureAnswer('${qText}', this.value)" placeholder="Digite aqui..." required></textarea>`;
+        }else if(q.tipo === "nota"){
+            inputHTML = `<div class="rating-scale" id="${qId}">
+                ${[0,1,2,3,4,5,6,7,8,9,10].map(n=>
+                    `<button type="button" class="rating-btn" onclick="selectRating('${qText}', ${n}, '${qId}')">${n}</button>`
+                ).join("")}
+            </div>`;
+        }else if(q.tipo === "escolha"){
+            if(q.opcoes && q.opcoes.length > 0){
+                inputHTML = `<div id="${qId}">
+                    ${q.opcoes.map((opt,optIdx)=>
+                        `<label class="radio-option">
+                            <input type="radio" name="${safeId}" value="${opt}" onchange="captureAnswer('${qText}', this.value)" required>
+                            <span>${opt}</span>
+                        </label>`
+                    ).join("")}
+                </div>`;
+            }else{
+                inputHTML = `<div class="item-sub">Nenhuma opção configurada</div>`;
+            }
+        }else if(q.tipo === "checkbox"){
+            if(q.opcoes && q.opcoes.length > 0){
+                inputHTML = `<div id="${qId}">
+                    ${q.opcoes.map((opt,optIdx)=>
+                        `<label class="checkbox-option">
+                            <input type="checkbox" name="${safeId}" value="${opt}" onchange="captureCheckboxAnswer('${qText}', this.value, this.checked)">
+                            <span>${opt}</span>
+                        </label>`
+                    ).join("")}
+                </div>`;
+            }else{
+                inputHTML = `<div class="item-sub">Nenhuma opção configurada</div>`;
+            }
+        }
+        
+        const imageHTML = q.imagem ? `<img src="${q.imagem}" alt="Imagem da pergunta" class="q-image">` : "";
+        
+        return `
+        <div class="q-item">
+            ${imageHTML}
+            <div class="q-text">${qText} <span style="color:var(--pre-color);">*</span></div>
+            ${inputHTML}
+        </div>`;
+    }).join("");
+
+    renderScreen(`
+        <div class="questionnaire-wrapper">
+            <div class="back-row">
+                ${backButtonHTML}
+                <div>
+                    <div class="screen-title">
+                        ${mode==="pre" ? "Questionário Pré Treino" : "Questionário Pós Treino"}
+                    </div>
+                    <div class="screen-sub">
+                        Todas as perguntas são obrigatórias. Responda com sinceridade.
+                    </div>
+                </div>
+            </div>
+
+            <div class="q-list">
+                ${qItemsHTML}
+            </div>
+
+            <button class="submit-btn" id="submitAnswersBtn"
+                onclick="submitAnswers()">
+                Enviar Respostas
+            </button>
+        </div>
+    `);
+    
+    // Ocultar botão de configurações
+    updateSettingsButtonVisibility();
+}
+
+function captureAnswer(qText, val){
+    state.tempAnswers[qText] = val;
+}
+
+function selectRating(qText, value, containerId){
+    state.tempAnswers[qText] = value.toString();
+    // Atualizar visual dos botões
+    const container = document.getElementById(containerId);
+    if(container){
+        const buttons = container.querySelectorAll('.rating-btn');
+        buttons.forEach((btn,idx)=>{
+            if(idx === value){
+                btn.classList.add('selected');
+            }else{
+                btn.classList.remove('selected');
+            }
+        });
+    }
+}
+
+function captureCheckboxAnswer(qText, value, checked){
+    if(!state.tempAnswers[qText]){
+        state.tempAnswers[qText] = [];
+    }
+    if(!Array.isArray(state.tempAnswers[qText])){
+        state.tempAnswers[qText] = [];
+    }
+    if(checked){
+        if(!state.tempAnswers[qText].includes(value)){
+            state.tempAnswers[qText].push(value);
+        }
+    }else{
+        state.tempAnswers[qText] = state.tempAnswers[qText].filter(v => v !== value);
+    }
+}
+
+function submitAnswers(){
+    // validação simples: nenhuma pergunta vazia
+    const mode = state.currentMode;
+    const allQuestions = loadQuestions();
+    const qsList = mode==="pre" ? allQuestions.pre : allQuestions.post;
+
+    for (let i=0;i<qsList.length;i++){
+        const qObj = qsList[i];
+        const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
+        const qText = q.texto || qObj;
+        
+        if(!(qText in state.tempAnswers)){
+            alert("Responda todas as perguntas antes de enviar.");
+            return;
+        }
+        
+        const answer = state.tempAnswers[qText];
+        if(q.tipo === "checkbox"){
+            if(!Array.isArray(answer) || answer.length === 0){
+                alert("Selecione pelo menos uma opção para todas as perguntas.");
+                return;
+            }
+        }else if(q.tipo === "escolha" || q.tipo === "nota"){
+            if(!answer || answer.toString().trim() === ""){
+                alert("Responda todas as perguntas antes de enviar.");
+                return;
+            }
+        }else{
+            if(!answer || answer.toString().trim() === ""){
+                alert("Responda todas as perguntas antes de enviar.");
+                return;
+            }
+        }
+    }
+
+    // trava botão pra evitar duplo toque
+    const btn = document.getElementById("submitAnswersBtn");
+    if(btn){
+        btn.disabled = true;
+        btn.textContent = "Enviando...";
+    }
+
+    finalizeQuestionnaireAndSave();
+}
+
+/* -------- CONFIGURAÇÕES -------- */
+function goSettings(){
+    // parar atualização do relógio quando sair do menu
+    if(window.dateTimeInterval) clearInterval(window.dateTimeInterval);
+    state.currentScreen = "settings";
+    state.currentMode = null;
+    state.currentPlayerId = null;
+    setHeaderModeLabel("Configurações");
+    renderSettings();
+    
+    // Ocultar botão de configurações (estamos dentro das configurações)
+    updateSettingsButtonVisibility();
+}
+
+function setSettingsTab(tab){
+    state.settingsTab = tab;
+    // Resetar formulário de perguntas ao trocar de aba
+    questionFormState = {
+        tipo: "texto",
+        opcoes: [],
+        imagemPreview: null
+    };
+    renderSettings();
+}
+
+function renderSettings(){
+    const tab = state.settingsTab;
+
+    let panelHTML = "";
+
+    if(tab==="players"){
+        panelHTML = renderSettingsPlayers();
+    }else if(tab==="questionsPre"){
+        panelHTML = renderSettingsQuestions("pre");
+    }else if(tab==="questionsPost"){
+        panelHTML = renderSettingsQuestions("post");
+    }else if(tab==="data"){
+        panelHTML = renderSettingsData();
+    }
+
+    renderScreen(`
+        <div class="settings-wrapper">
+
+            <div class="back-row">
+                <button class="back-btn" onclick="goMenu()">
+                    <i data-feather="arrow-left"></i>
+                    <span>Menu</span>
+                </button>
+                <div>
+                    <div class="screen-title">Configurações</div>
+                    <div class="screen-sub">Gestão de atletas, perguntas e dados.</div>
+                </div>
+            </div>
+
+            <div class="tab-row">
+                <button class="tab-btn" data-active="${tab==="players"}" onclick="setSettingsTab('players')">Jogadores</button>
+                <button class="tab-btn" data-active="${tab==="questionsPre"}" onclick="setSettingsTab('questionsPre')">Perguntas Pré</button>
+                <button class="tab-btn" data-active="${tab==="questionsPost"}" onclick="setSettingsTab('questionsPost')">Perguntas Pós</button>
+                <button class="tab-btn" data-active="${tab==="data"}" onclick="setSettingsTab('data')">Dados / CSV</button>
+            </div>
+
+            <div class="settings-panel-area">
+                <div class="settings-panel-scroll">
+                    ${panelHTML}
+                </div>
+            </div>
+
+        </div>
+    `);
+
+    feather.replace();
+}
+
+/* -- SUBTELA: PLAYERS -- */
+function renderSettingsPlayers(){
+    const players = loadPlayers();
+    const listHTML = players.map(p=>{
+        return `
+        <div class="item-row">
+            <div class="item-main">
+                <div class="item-title">${p.name}</div>
+                <div class="item-sub">ID interno: ${p.id}</div>
+            </div>
+            <button class="danger-btn" onclick="removePlayer('${p.id}')">
+                Remover
+            </button>
+        </div>`;
+    }).join("");
+
+    return `
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+                <div class="item-title" style="margin-bottom:.5rem;">Adicionar novo jogador</div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div class="inline-form-row">
+                        <div class="label-col">
+                            <label>Nome do jogador</label>
+                            <input id="newPlayerName" placeholder="Ex: João Silva" />
+                        </div>
+                    </div>
+                    <div class="label-col">
+                        <label>Foto do jogador (opcional)</label>
+                        <div style="font-size:0.875rem;color:var(--text-dim);margin-bottom:0.5rem;">
+                            Tamanho recomendado: 200x200px ou maior (quadrado). A imagem será redimensionada automaticamente.
+                        </div>
+                        <input type="file" id="newPlayerPhoto" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;" onchange="handlePlayerPhotoChange(event)" />
+                        <button type="button" class="image-upload-btn" onclick="document.getElementById('newPlayerPhoto').click()">
+                            <i data-feather="camera"></i> Selecionar Foto
+                        </button>
+                        <div id="playerPhotoPreview" style="margin-top:0.5rem;display:none;">
+                            <img id="playerPhotoPreviewImg" src="" alt="Preview" style="max-width:150px;max-height:150px;border-radius:var(--radius-md);border:2px solid rgba(255,255,255,0.2);object-fit:cover;" />
+                            <button type="button" class="danger-btn" onclick="clearPlayerPhoto()" style="margin-top:0.5rem;padding:0.5rem 1rem;font-size:0.875rem;">Remover Foto</button>
+                        </div>
+                    </div>
+                    <button class="small-solid-btn" onclick="addPlayer()">Adicionar</button>
+                </div>
+            </div>
+
+            <div>
+                <div class="item-title" style="margin-bottom:.5rem;">Jogadores cadastrados</div>
+                ${players.length? listHTML : `<div class="item-sub">Nenhum jogador ainda.</div>`}
+            </div>
+        </div>
+    `;
+}
+
+let playerPhotoBase64 = null;
+
+function handlePlayerPhotoChange(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    
+    // Validar tipo de arquivo
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if(!validTypes.includes(file.type)){
+        alert("Por favor, selecione uma imagem válida (JPG, PNG ou WEBP).");
+        event.target.value = "";
+        return;
+    }
+    
+    // Validar tamanho (máximo 2MB)
+    if(file.size > 2 * 1024 * 1024){
+        alert("A imagem deve ter no máximo 2MB. Por favor, escolha uma imagem menor.");
+        event.target.value = "";
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e){
+        const img = new Image();
+        img.onload = function(){
+            // Redimensionar para tamanho ideal: 200x200px (quadrado, ideal para foto de perfil)
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const maxSize = 200;
+            
+            // Calcular dimensões mantendo proporção
+            let width = img.width;
+            let height = img.height;
+            
+            if(width > height){
+                if(width > maxSize){
+                    height = (height * maxSize) / width;
+                    width = maxSize;
+                }
+            } else {
+                if(height > maxSize){
+                    width = (width * maxSize) / height;
+                    height = maxSize;
+                }
+            }
+            
+            canvas.width = maxSize;
+            canvas.height = maxSize;
+            
+            // Centralizar e desenhar a imagem (cortar para ficar quadrada)
+            const offsetX = (maxSize - width) / 2;
+            const offsetY = (maxSize - height) / 2;
+            
+            // Fundo preto para áreas vazias
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, maxSize, maxSize);
+            
+            ctx.drawImage(img, offsetX, offsetY, width, height);
+            
+            // Converter para base64 com qualidade otimizada
+            playerPhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+            
+            const preview = document.getElementById("playerPhotoPreview");
+            const previewImg = document.getElementById("playerPhotoPreviewImg");
+            if(preview && previewImg){
+                previewImg.src = playerPhotoBase64;
+                preview.style.display = "block";
+            }
+            feather.replace();
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearPlayerPhoto(){
+    playerPhotoBase64 = null;
+    const fileInput = document.getElementById("newPlayerPhoto");
+    const preview = document.getElementById("playerPhotoPreview");
+    if(fileInput) fileInput.value = "";
+    if(preview) preview.style.display = "none";
+}
+
+function addPlayer(){
+    const input = document.getElementById("newPlayerName");
+    const name = input.value.trim();
+    if(!name){
+        alert("Digite um nome.");
+        return;
+    }
+    const players = loadPlayers();
+    const newPlayer = {
+        id: uid(),
+        name
+    };
+    
+    // Adicionar foto se houver
+    if(playerPhotoBase64){
+        newPlayer.photo = playerPhotoBase64;
+    }
+    
+    players.push(newPlayer);
+    savePlayers(players);
+    
+    // Limpar campos
+    input.value = "";
+    clearPlayerPhoto();
+    renderSettings();
+}
+
+function removePlayer(id){
+    const player = getPlayerById(id);
+    if(!player) return;
+    
+    if(!confirm(`Tem certeza que deseja remover o jogador "${player.name}"?\n\nEsta ação não pode ser desfeita.`)){
+        return;
+    }
+    
+    let players = loadPlayers();
+    players = players.filter(p=>p.id!==id);
+    savePlayers(players);
+    renderSettings();
+}
+
+/* -- SUBTELA: QUESTIONS (pre/post) -- */
+let questionFormState = {
+    tipo: "texto",
+    opcoes: [],
+    imagemPreview: null
+};
+
+function renderSettingsQuestions(mode){
+    const qs = loadQuestions();
+    const list = mode==="pre" ? qs.pre : qs.post;
+    const labelMode = mode==="pre" ? "pré treino" : "pós treino";
+
+    const listHTML = list.map((qObj,idx)=>{
+        const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
+        const qText = q.texto || qObj;
+        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota (0-10)" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
+        const hasImage = q.imagem ? `<small style="color:var(--accent);">📷 Com imagem</small>` : "";
+        return `
+        <div class="item-row">
+            <div class="item-main">
+                <div class="item-title">Pergunta ${idx+1} • ${tipoLabel}</div>
+                <div class="item-sub">${qText}</div>
+                ${hasImage}
+            </div>
+            <button class="danger-btn" onclick="removeQuestion('${mode}', ${idx})">
+                Remover
+            </button>
+        </div>`;
+    }).join("");
+
+    const needsOptions = questionFormState.tipo === "escolha" || questionFormState.tipo === "checkbox";
+    const optionsHTML = needsOptions ? `
+        <div class="label-col">
+            <label>Opções (adicione uma por vez)</label>
+            <div class="option-list" id="optionList_${mode}">
+                ${questionFormState.opcoes.map((opt,optIdx)=>`
+                    <div class="option-item">
+                        <input type="text" value="${opt}" onchange="updateQuestionOption(${optIdx}, this.value, '${mode}')" placeholder="Opção ${optIdx+1}">
+                        <button class="option-remove-btn" onclick="removeQuestionOption(${optIdx}, '${mode}')">Remover</button>
+                    </div>
+                `).join("")}
+            </div>
+            <button class="add-option-btn" onclick="addQuestionOption('${mode}')">+ Adicionar Opção</button>
+        </div>
+    ` : "";
+
+    const imageHTML = `
+        <div class="label-col">
+            <label>Anexar Imagem (URL)</label>
+            <input type="text" id="newQuestionImage_${mode}" placeholder="https://exemplo.com/imagem.jpg" oninput="previewQuestionImage(this.value, '${mode}')">
+            ${questionFormState.imagemPreview ? `<img src="${questionFormState.imagemPreview}" alt="Preview" class="image-preview" id="imagePreview_${mode}">` : ""}
+        </div>
+    `;
+
+    return `
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+                <div class="item-title" style="margin-bottom:.5rem;">Adicionar pergunta (${labelMode})</div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div class="label-col">
+                        <label>Tipo de Pergunta</label>
+                        <select id="newQuestionType_${mode}" onchange="changeQuestionType(this.value, '${mode}')">
+                            <option value="texto" ${questionFormState.tipo === "texto" ? "selected" : ""}>Aberta (texto livre)</option>
+                            <option value="nota" ${questionFormState.tipo === "nota" ? "selected" : ""}>Nota (0 a 10)</option>
+                            <option value="escolha" ${questionFormState.tipo === "escolha" ? "selected" : ""}>Escolha única (radio)</option>
+                            <option value="checkbox" ${questionFormState.tipo === "checkbox" ? "selected" : ""}>Múltipla escolha (checkbox)</option>
+                        </select>
+                    </div>
+                    <div class="label-col">
+                        <label>Texto da Pergunta</label>
+                        <textarea id="newQuestionText_${mode}" rows="2" placeholder="Ex: Sentiu algum desconforto muscular específico?"></textarea>
+                    </div>
+                    ${optionsHTML}
+                    ${imageHTML}
+                    <button class="small-solid-btn" onclick="addQuestion('${mode}')">Adicionar Pergunta</button>
+                </div>
+            </div>
+
+            <div>
+                <div class="item-title" style="margin-bottom:.5rem;">Perguntas atuais (${labelMode})</div>
+                ${list.length? listHTML : `<div class="item-sub">Nenhuma pergunta cadastrada.</div>`}
+            </div>
+        </div>
+    `;
+}
+
+function changeQuestionType(newType, mode){
+    questionFormState.tipo = newType;
+    if(newType !== "escolha" && newType !== "checkbox"){
+        questionFormState.opcoes = [];
+    }else if(questionFormState.opcoes.length === 0){
+        questionFormState.opcoes = [""];
+    }
+    renderSettings();
+}
+
+function addQuestionOption(mode){
+    questionFormState.opcoes.push("");
+    renderSettings();
+}
+
+function updateQuestionOption(index, value, mode){
+    questionFormState.opcoes[index] = value;
+}
+
+function removeQuestionOption(index, mode){
+    questionFormState.opcoes.splice(index, 1);
+    renderSettings();
+}
+
+function previewQuestionImage(url, mode){
+    const trimmedUrl = url ? url.trim() : "";
+    questionFormState.imagemPreview = trimmedUrl || null;
+    // Atualizar preview se já existe na DOM, sem re-render completo
+    const previewEl = document.getElementById(`imagePreview_${mode}`);
+    if(previewEl){
+        if(trimmedUrl){
+            previewEl.src = trimmedUrl;
+            previewEl.style.display = "block";
+        }else{
+            previewEl.style.display = "none";
+        }
+    }else if(trimmedUrl){
+        // Se não existe ainda mas há URL, re-renderizar
+        renderSettings();
+    }
+}
+
+function addQuestion(mode){
+    const ta = document.getElementById(`newQuestionText_${mode}`);
+    const text = ta.value.trim();
+    if(!text){
+        alert("Digite o texto da pergunta.");
+        return;
+    }
+    
+    const tipo = questionFormState.tipo;
+    let opcoes = [];
+    
+    if(tipo === "escolha" || tipo === "checkbox"){
+        opcoes = questionFormState.opcoes.filter(o => o.trim() !== "");
+        if(opcoes.length < 2){
+            alert(`Perguntas do tipo "${tipo === 'escolha' ? 'Escolha única' : 'Múltipla escolha'}" precisam de pelo menos 2 opções.`);
+            return;
+        }
+    }
+    
+    const imageInput = document.getElementById(`newQuestionImage_${mode}`);
+    const imagem = imageInput ? imageInput.value.trim() : null;
+    
+    const qs = loadQuestions();
+    const newQ = {
+        tipo: tipo,
+        texto: text,
+        opcoes: opcoes,
+        imagem: imagem || null
+    };
+    
+    if(mode==="pre"){
+        qs.pre.push(newQ);
+    }else{
+        qs.post.push(newQ);
+    }
+    saveQuestions(qs);
+    
+    // Limpar formulário
+    ta.value = "";
+    if(imageInput) imageInput.value = "";
+    questionFormState = {
+        tipo: "texto",
+        opcoes: [],
+        imagemPreview: null
+    };
+    renderSettings();
+}
+
+function removeQuestion(mode, idx){
+    if(!confirm("Tem certeza que deseja remover esta pergunta?")){
+        return;
+    }
+    const qs = loadQuestions();
+    if(mode==="pre"){
+        qs.pre.splice(idx,1);
+    }else{
+        qs.post.splice(idx,1);
+    }
+    saveQuestions(qs);
+    renderSettings();
+}
+
+/* -- SUBTELA: DATA / CSV -- */
+function renderSettingsData(){
+    const answers = loadResponses();
+    // breve resumo
+    let resumoHTML = "";
+    if(!answers.length){
+        resumoHTML = `<div class="item-sub">Ainda não há respostas registradas.</div>`;
+    }else{
+        resumoHTML = answers.slice().reverse().slice(0,5).map(r=>{
+            return `
+                <div class="item-row">
+                    <div class="item-main">
+                        <div class="item-title">
+                            ${r.playerName} • ${r.mode==="pre"?"Pré":"Pós"}
+                        </div>
+                        <div class="item-sub">
+                            ${r.timestamp}<br/>
+                            ${Object.keys(r.answers).length} respostas coletadas
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    return `
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="item-title" style="margin-bottom:.5rem;">Exportar CSV</div>
+            <div class="inline-form-row" style="align-items:center;">
+                <div class="item-sub" style="flex:1;min-width:200px;">
+                    Baixe todas as respostas (pré e pós) em .csv
+                    para análise posterior.
+                </div>
+                <button class="download-btn" onclick="downloadCSV()">
+                    Baixar CSV
+                </button>
+            </div>
+
+            <div>
+                <div class="item-title" style="margin-bottom:.5rem;">Últimas respostas</div>
+                ${resumoHTML}
+            </div>
+        </div>
+    `;
+}
+
+/* ===========================
+   🚀 INIT
+   =========================== */
+
+// Inicializar
+goMenu(); // tela inicial (já chama updateSettingsButtonVisibility dentro)
+
+// Limpar intervalo ao sair da página
+window.addEventListener('beforeunload', function(){
+    if(window.dateTimeInterval) clearInterval(window.dateTimeInterval);
+});
+</script>
+</body>
+</html>
+
+
