@@ -13,7 +13,11 @@ class SheetsSync:
     
     def __init__(self, use_oauth: bool = True, credentials_path: Optional[str] = None):
         """Inicializa o sincronizador"""
-        self.editor = SheetsEditor(use_oauth=use_oauth, credentials_path=credentials_path)
+        # Se credentials_path foi fornecido e não é OAuth, passa para o editor
+        if credentials_path and not use_oauth:
+            self.editor = SheetsEditor(use_oauth=False, credentials_path=credentials_path)
+        else:
+            self.editor = SheetsEditor(use_oauth=use_oauth, credentials_path=credentials_path)
         self.editor.connect(SPREADSHEET_ID)
         if self.editor.use_api_key:
             raise PermissionError("API Key não permite edição. Use OAuth ou Service Account.")
@@ -191,18 +195,52 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
     """
     try:
         import os
+        import json
+        
         # Em produção (Render), tenta Service Account primeiro, depois OAuth
         use_oauth = True
+        credentials_path = None
+        
         if os.getenv('RENDER') or os.getenv('PORT'):
             # Em produção, tenta Service Account primeiro
-            service_account_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-            if service_account_path and os.path.exists(service_account_path):
-                use_oauth = False
-                print("📊 Usando Service Account em produção")
-            else:
+            # Render coloca Secret Files em /etc/secrets/ ou na raiz
+            possible_paths = [
+                os.getenv('GOOGLE_APPLICATION_CREDENTIALS'),  # Variável de ambiente com caminho
+                '/etc/secrets/GOOGLE_APPLICATION_CREDENTIALS',  # Render Secret File padrão
+                'GOOGLE_APPLICATION_CREDENTIALS',  # Na raiz do projeto
+                'service-account.json',  # Nome alternativo
+                'futsal-476923-19e955d7ed78.json',  # Nome do arquivo existente
+            ]
+            
+            # Tenta encontrar o arquivo
+            for path in possible_paths:
+                if path and os.path.exists(path):
+                    credentials_path = path
+                    use_oauth = False
+                    print(f"📊 Service Account encontrado: {path}")
+                    break
+            
+            # Se não encontrou arquivo, tenta ler da variável de ambiente (JSON direto)
+            if use_oauth:
+                creds_json_str = os.getenv('GOOGLE_CREDENTIALS_JSON')
+                if creds_json_str:
+                    try:
+                        # Valida se é JSON válido
+                        json.loads(creds_json_str)
+                        # Cria arquivo temporário
+                        temp_path = '/tmp/service-account.json'
+                        with open(temp_path, 'w') as f:
+                            f.write(creds_json_str)
+                        credentials_path = temp_path
+                        use_oauth = False
+                        print("📊 Service Account encontrado em variável de ambiente")
+                    except:
+                        pass
+            
+            if use_oauth:
                 print("⚠️  Service Account não encontrado, tentando OAuth...")
         
-        sync = SheetsSync(use_oauth=use_oauth)
+        sync = SheetsSync(use_oauth=use_oauth, credentials_path=credentials_path)
         
         if data_type == "players":
             sync.sync_players(data)
