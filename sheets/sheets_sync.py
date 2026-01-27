@@ -233,9 +233,35 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
                             f.write(creds_json_str)
                         credentials_path = temp_path
                         use_oauth = False
-                        print("📊 Service Account encontrado em variável de ambiente")
-                    except:
-                        pass
+                        print("📊 Service Account encontrado em variável de ambiente GOOGLE_CREDENTIALS_JSON")
+                    except Exception as e:
+                        print(f"⚠️  Erro ao processar GOOGLE_CREDENTIALS_JSON: {e}")
+                
+                # Tenta também ler do Secret File do Render (conteúdo direto)
+                if use_oauth:
+                    secret_file_path = '/etc/secrets/GOOGLE_APPLICATION_CREDENTIALS'
+                    if os.path.exists(secret_file_path):
+                        # Pode ser um arquivo JSON ou caminho para arquivo
+                        try:
+                            with open(secret_file_path, 'r') as f:
+                                content = f.read().strip()
+                                # Se parece com JSON, tenta usar
+                                if content.startswith('{'):
+                                    json.loads(content)  # Valida
+                                    temp_path = '/tmp/service-account-from-secret.json'
+                                    with open(temp_path, 'w') as f:
+                                        f.write(content)
+                                    credentials_path = temp_path
+                                    use_oauth = False
+                                    print("📊 Service Account encontrado em Secret File do Render")
+                                else:
+                                    # Pode ser um caminho
+                                    if os.path.exists(content):
+                                        credentials_path = content
+                                        use_oauth = False
+                                        print(f"📊 Service Account encontrado no caminho: {content}")
+                        except Exception as e:
+                            print(f"⚠️  Erro ao ler Secret File: {e}")
             
             if use_oauth:
                 print("⚠️  Service Account não encontrado, tentando OAuth...")
