@@ -12,7 +12,7 @@ function getBackendUrl() {
     
     // Se não estiver em localhost, assume produção
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        return PROD_BACKEND_URL || 'https://tutem-backend.onrender.com'; // Substitua pela sua URL
+        return PROD_BACKEND_URL || 'https://futibas.onrender.com';
     }
     
     // Desenvolvimento local
