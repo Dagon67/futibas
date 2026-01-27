@@ -48,6 +48,7 @@ build/
 *.egg-info/
 
 # Uploads (fotos de jogadores)
-# Descomente a linha abaixo se NÃO quiser commitar as fotos no Git
+# As fotos serão commitadas no repositório para persistência
+# Se NÃO quiser commitar, descomente a linha abaixo:
 # uploads/players/*
 # !uploads/players/.gitkeep

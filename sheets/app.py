@@ -85,6 +85,35 @@ def upload_player_photo():
         with open(filepath, 'wb') as f:
             f.write(image_data)
         
+        # Tentar fazer commit no Git (opcional - apenas se configurado)
+        # Isso permite que as fotos sejam persistidas no repositório
+        try:
+            import subprocess
+            repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            git_enabled = os.getenv('GIT_AUTO_COMMIT', 'false').lower() == 'true'
+            
+            if git_enabled:
+                # Adicionar arquivo ao Git
+                subprocess.run(
+                    ['git', 'add', filepath],
+                    cwd=repo_root,
+                    capture_output=True,
+                    timeout=5
+                )
+                # Fazer commit
+                subprocess.run(
+                    ['git', 'commit', '-m', f'Add player photo: {filename}'],
+                    cwd=repo_root,
+                    capture_output=True,
+                    timeout=5
+                )
+                # Push (requer autenticação configurada)
+                # subprocess.run(['git', 'push'], cwd=repo_root, capture_output=True, timeout=10)
+                print(f"✅ Foto commitada no Git: {filename}")
+        except Exception as e:
+            # Se falhar, continua normalmente (foto foi salva)
+            print(f"⚠️ Não foi possível commitar no Git (opcional): {e}")
+        
         # Retornar URL relativa
         photo_url = f"/uploads/players/{filename}"
         
