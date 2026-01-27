@@ -12,6 +12,20 @@ app = Flask(__name__)
 CORS(app)  # Permite requisições do frontend
 
 
+@app.route('/', methods=['GET'])
+def root():
+    """Endpoint raiz"""
+    return jsonify({
+        "status": "ok",
+        "service": "Tutem - Sistema de Monitoramento de Treinos",
+        "endpoints": {
+            "health": "/health",
+            "sync": "/sync",
+            "sync_all": "/sync/all"
+        }
+    })
+
+
 @app.route('/health', methods=['GET'])
 def health():
     """Endpoint de health check"""
