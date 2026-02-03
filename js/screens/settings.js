@@ -21,7 +21,8 @@ function setSettingsTab(tab){
     questionFormState = {
         tipo: "texto",
         opcoes: [],
-        imagemPreview: null
+        imagemPreview: null,
+        notaMax: 10
     };
     renderSettings();
 }

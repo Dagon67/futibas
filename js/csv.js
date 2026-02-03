@@ -9,10 +9,11 @@ function finalizeQuestionnaireAndSave(){
     const player = getPlayerById(playerId);
     if(!player || !trainingId) return;
 
-    // Criar resposta
+    // Criar resposta (incluir número para planilha legível)
     const response = {
         playerId,
         playerName: player.name,
+        playerNumber: player.number != null ? player.number : "",
         timestamp: nowTimestamp(),
         answers: {...state.tempAnswers}
     };
@@ -66,9 +67,20 @@ function finalizeQuestionnaireAndSave(){
     state.cameFromScreen = null;
 }
 
-// gera CSV de todas respostas já colhidas
+// Modelo de exportação para Sheets (1ª pergunta = Qualidade Total de Recuperação, etc.)
+var EXPORT_HEADERS_PRE = [
+    "Qualidade Total de Recuperação",
+    "Bem Estar [Fadiga]",
+    "Bem Estar [Qualidade de Sono]",
+    "Bem Estar [Dor Muscular]",
+    "Bem Estar [Nível de Estresse]",
+    "Bem Estar [Humor]",
+    "Pontos de Dor",
+    "Pontos de Dor Articular"
+];
+
+// gera CSV de todas respostas já colhidas (modelo compatível com o Sheet)
 function generateCSV(){
-    // Coletar todas respostas de todos treinos
     const trainings = loadTrainings();
     const allResponses = [];
     trainings.forEach(t => {
@@ -82,59 +94,52 @@ function generateCSV(){
         });
     });
 
-    // Cabeçalho dinâmico: juntar todas perguntas possíveis
     const qs = loadQuestions();
-    const allQ = [...qs.pre, ...qs.post];
-    // Criar mapa de texto da pergunta para ID único
-    const questionMap = new Map();
-    allQ.forEach((q,idx)=>{
-        const qText = typeof q === 'string' ? q : q.texto;
-        if(!questionMap.has(qText)){
-            questionMap.set(qText, qText);
-        }
-    });
-    const uniqueQuestions = Array.from(questionMap.keys());
+    const preQs = (qs.pre || []).map(q => typeof q === 'string' ? { texto: q } : q);
+    const postQs = (qs.post || []).map(q => typeof q === 'string' ? { texto: q } : q);
 
-    // cabeçalho
-    // data treino, mode, playerName, timestamp, depois cada pergunta, comentario
-    const header = ["data_treino","modo","jogador","datahora", ...uniqueQuestions.map(q => sanitizeCSVHeader(q)), "comentario"];
-
+    // Cabeçalho: Carimbo, Nome, Modo, colunas do modelo pré (EXPORT_HEADERS_PRE), colunas pós (texto das perguntas), Comentário
+    const postHeaders = postQs.map(q => sanitizeCSVHeader(q.texto));
+    const header = ["Carimbo de data/hora", "Nome", "Modo", ...EXPORT_HEADERS_PRE, ...postHeaders, "Comentário"];
     const rows = [header];
 
-    allResponses.forEach(r=>{
+    allResponses.forEach(r => {
         const row = [];
-        row.push(r.trainingDate || "");
-        row.push(r.mode==="pre"?"Pré":"Pós");
-        row.push(r.playerName || "");
         row.push(r.timestamp || "");
-        uniqueQuestions.forEach(qText=>{
-            const answer = r.answers[qText];
-            let answerStr = "";
-            if(Array.isArray(answer)){
-                answerStr = answer.join("; ");
-            }else if(answer != null){
-                answerStr = answer.toString();
-            }
-            row.push(answerStr.replace(/\r?\n/g," "));
+        row.push(r.playerName || "");
+        row.push(r.mode === "pre" ? "Pré" : "Pós");
+
+        // Respostas pré (por ordem: 1ª pergunta cadastrada = Qualidade Total de Recuperação)
+        for (let i = 0; i < EXPORT_HEADERS_PRE.length; i++) {
+            const qText = preQs[i] ? preQs[i].texto : null;
+            const val = r.mode === "pre" && qText && r.answers[qText] != null
+                ? (Array.isArray(r.answers[qText]) ? r.answers[qText].join("; ") : String(r.answers[qText]))
+                : "";
+            row.push((val || "").replace(/\r?\n/g, " "));
+        }
+        // Respostas pós (por ordem)
+        postQs.forEach(q => {
+            const val = r.mode === "post" && r.answers[q.texto] != null
+                ? (Array.isArray(r.answers[q.texto]) ? r.answers[q.texto].join("; ") : String(r.answers[q.texto]))
+                : "";
+            row.push((val || "").replace(/\r?\n/g, " "));
         });
-        // Adicionar comentário
-        row.push((r.comment || "").replace(/\r?\n/g," "));
+        row.push((r.comment || "").replace(/\r?\n/g, " "));
         rows.push(row);
     });
 
-    // montar CSV string
     const csvString = rows.map(cols => cols.map(csvEscape).join(",")).join("\r\n");
     return csvString;
 
-    function csvEscape(val){
-        const v = (val==null?"":String(val));
-        if(v.includes('"') || v.includes(",") || v.includes("\n")){
-            return '"'+v.replace(/"/g,'""')+'"';
+    function csvEscape(val) {
+        const v = (val == null ? "" : String(val));
+        if (v.includes('"') || v.includes(",") || v.includes("\n")) {
+            return '"' + v.replace(/"/g, '""') + '"';
         }
         return v;
     }
-    function sanitizeCSVHeader(h){
-        return h.replace(/[\r\n,]+/g," ").trim();
+    function sanitizeCSVHeader(h) {
+        return (h || "").replace(/[\r\n,]+/g, " ").trim();
     }
 }
 

@@ -96,6 +96,12 @@ function viewTrainingDetails(trainingId){
                             </button>
                         </div>
                     ` : ''}
+                    <div style="margin-bottom:1rem;">
+                        <button class="small-solid-btn" onclick="finalizeTrainingAndSyncToSheets('${trainingId}')" style="width:100%;">
+                            <i data-feather="upload-cloud" style="width:20px;height:20px;margin-right:0.5rem;"></i>
+                            Finalizar treino e sincronizar com Sheets
+                        </button>
+                    </div>
                     <div class="item-title" style="margin-bottom:1rem;">Jogadores e Respostas</div>
                     ${playersHTML}
                 </div>
@@ -105,6 +111,21 @@ function viewTrainingDetails(trainingId){
     
     updateSettingsButtonVisibility();
     feather.replace();
+}
+
+/** Finaliza o treino enviando os dados atuais (localStorage) para o Google Sheets. */
+function finalizeTrainingAndSyncToSheets(trainingId) {
+    if (typeof syncAllToSheets !== "function") {
+        alert("Sincronização com Sheets não disponível.");
+        return;
+    }
+    syncAllToSheets()
+        .then(function () {
+            alert("Treino sincronizado com a planilha.");
+        })
+        .catch(function (err) {
+            alert("Erro ao sincronizar: " + (err && err.message ? err.message : String(err)));
+        });
 }
 
 function answerQuestionnaireForPlayer(trainingId, playerId){

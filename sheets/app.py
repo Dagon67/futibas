@@ -133,6 +133,32 @@ def serve_player_photo(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 
+# Pastas de imagens para perguntas (pre/ e pos/) - relativas à raiz do projeto
+IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'}
+
+
+@app.route('/api/images/<folder>', methods=['GET'])
+def list_images(folder):
+    """Lista todos os arquivos de imagem da pasta pre ou pos"""
+    if folder not in ('pre', 'pos'):
+        return jsonify({"success": False, "error": "Pasta inválida"}), 400
+    try:
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        folder_path = os.path.join(repo_root, folder)
+        if not os.path.isdir(folder_path):
+            return jsonify({"success": True, "images": []}), 200
+        files = []
+        for name in os.listdir(folder_path):
+            if os.path.isfile(os.path.join(folder_path, name)):
+                ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+                if ext in IMAGE_EXTENSIONS:
+                    files.append(name)
+        files.sort()
+        return jsonify({"success": True, "images": files}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/sync', methods=['POST'])
 def sync():
     """Endpoint principal para sincronização"""

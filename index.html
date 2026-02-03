@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>Painel de Monitoramento - Treino</title>
+<title>Associação Desportiva Jaraguá - Painel de Treino</title>
 
 <!-- Luxon p/ data/hora bonita -->
 <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
@@ -21,17 +21,17 @@
     :root {
         --bg-main: radial-gradient(circle at 50% 50%, #feec02 0%, #ffcc01 100%);
         --card-bg: #000000;
-        --card-stroke: rgba(255,255,255,0.2);
-        --accent: #ffffff;
-        --accent-secondary: #000000;
-        --accent-soft: rgba(255,255,255,0.1);
-        --pre-color: #ffffff;
-        --pre-glow: rgba(255,255,255,0.3);
-        --post-color: #ffffff;
-        --post-glow: rgba(255,255,255,0.3);
+        --card-stroke: rgba(254,236,2,0.35);
+        --accent: #feec02;
+        --accent-secondary: #ffcc01;
+        --accent-soft: rgba(254,236,2,0.15);
+        --pre-color: #feec02;
+        --pre-glow: rgba(254,236,2,0.35);
+        --post-color: #ffcc01;
+        --post-glow: rgba(255,204,1,0.35);
         --text-main: #ffffff;
         --text-dim: #e0e0e0;
-        --text-bright: #ffffff;
+        --text-bright: #feec02;
         --white-accent: #000000;
         --radius-xl: 2rem;
         --radius-lg: 1.5rem;
@@ -85,8 +85,8 @@
         max-width:500px;
         background:var(--card-bg);
         border-radius:var(--radius-xl);
-        border:2px solid rgba(255,255,255,0.15);
-        box-shadow:0 8px 32px rgba(0,0,0,.3);
+        border:2px solid var(--card-stroke);
+        box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px rgba(254,236,2,.2);
         padding:clamp(32px,5vh,48px) clamp(24px,3vw,40px);
         display:flex;
         flex-direction:column;
@@ -94,6 +94,13 @@
         justify-content:center;
         gap:var(--touch-gap);
         text-align:center;
+    }
+    .lock-logo{
+        width:clamp(80px,20vw,120px);
+        height:auto;
+        object-fit:contain;
+        margin-bottom:0.5rem;
+        filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));
     }
     .lock-title{
         font-size:var(--touch-font-xl);
@@ -130,7 +137,7 @@
     .lock-input:focus{
         outline:none;
         border-color:var(--accent);
-        box-shadow:0 0 20px rgba(255,255,255,0.3);
+        box-shadow:0 0 20px rgba(254,236,2,0.35);
         background:rgba(0,0,0,0.8);
     }
     .lock-input.error{
@@ -154,13 +161,13 @@
         padding:1.25rem 1.5rem;
         background:linear-gradient(160deg,#000000 0%,#1a1a1a 100%);
         color:#feec02;
-        border:3px solid #ffffff;
-        box-shadow:0 10px 40px rgba(0,0,0,.6),0 2px 2px rgba(255,255,255,.2) inset;
+        border:3px solid #feec02;
+        box-shadow:0 10px 40px rgba(0,0,0,.6),0 0 20px rgba(254,236,2,.25),0 2px 2px rgba(254,236,2,.15) inset;
         transition:all var(--fast) ease;
     }
     .lock-btn:hover{
         transform:translateY(-2px);
-        box-shadow:0 15px 50px rgba(0,0,0,.7),0 2px 2px rgba(255,255,255,.3) inset;
+        box-shadow:0 15px 50px rgba(0,0,0,.7),0 0 28px rgba(254,236,2,.35),0 2px 2px rgba(254,236,2,.2) inset;
         background:linear-gradient(160deg,#1a1a1a 0%,#000000 100%);
     }
     .lock-btn:active{
@@ -217,8 +224,8 @@
     .glass-card{
         background:var(--card-bg);
         border-radius:var(--radius-xl);
-        border:2px solid rgba(255,255,255,0.15);
-        box-shadow:0 8px 32px rgba(0,0,0,.3);
+        border:2px solid var(--card-stroke);
+        box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px rgba(254,236,2,.1);
         padding:clamp(16px,1.5vw,24px);
         width:100%;
         height:100%;
@@ -284,25 +291,25 @@
     }
     .action-btn[data-variant="pre"]{
         background:#000000;
-        border-color:rgba(255,255,255,0.25);
-        box-shadow:0 4px 16px rgba(0,0,0,.4);
-        color:#ffffff;
+        border-color:rgba(254,236,2,0.5);
+        box-shadow:0 4px 16px rgba(0,0,0,.4),0 0 20px rgba(254,236,2,.15);
+        color:#feec02;
     }
     .action-btn[data-variant="pre"]:hover{
         transform:translateY(-4px);
-        box-shadow:0 8px 24px rgba(0,0,0,.5);
-        border-color:rgba(255,255,255,0.35);
+        box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 28px rgba(254,236,2,.25);
+        border-color:rgba(254,236,2,0.7);
     }
     .action-btn[data-variant="post"]{
         background:#000000;
-        border-color:rgba(255,255,255,0.25);
-        box-shadow:0 4px 16px rgba(0,0,0,.4);
-        color:#ffffff;
+        border-color:rgba(255,204,1,0.5);
+        box-shadow:0 4px 16px rgba(0,0,0,.4),0 0 20px rgba(255,204,1,.15);
+        color:#ffcc01;
     }
     .action-btn[data-variant="post"]:hover{
         transform:translateY(-4px);
-        box-shadow:0 8px 24px rgba(0,0,0,.5);
-        border-color:rgba(255,255,255,0.35);
+        box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 28px rgba(255,204,1,.25);
+        border-color:rgba(255,204,1,0.7);
     }
     .action-btn:active{
         transform:translateY(-2px) scale(0.98);
@@ -343,7 +350,7 @@
         min-height:72px;
         border-radius:var(--radius-lg);
         background:#000000;
-        border:2px solid rgba(255,255,255,0.2);
+        border:2px solid rgba(254,236,2,0.4);
         box-shadow:0 4px 16px rgba(0,0,0,.4);
         padding:1rem 1.25rem;
         display:flex;
@@ -359,8 +366,8 @@
     }
     .settings-fab:hover{
         transform:translateY(-2px);
-        border-color:rgba(255,255,255,0.3);
-        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(254,236,2,0.6);
+        box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 16px rgba(254,236,2,.2);
     }
     .settings-fab:active{
         transform:translateY(0) scale(0.96);
@@ -391,7 +398,7 @@
     .player-card{
         background:#000000;
         border-radius:var(--radius-lg);
-        border:2px solid rgba(255,255,255,0.15);
+        border:2px solid var(--card-stroke);
         padding:1.25rem 1rem;
         min-height:120px;
         display:flex;
@@ -462,13 +469,13 @@
         padding:.75rem 1rem;
         border-radius:var(--radius-md);
         background:#000000;
-        border:2px solid rgba(255,255,255,0.2);
+        border:2px solid rgba(254,236,2,0.4);
         box-shadow:0 4px 16px rgba(0,0,0,.4);
     }
     .back-btn:hover{
         transform:translateY(-2px);
-        box-shadow:0 6px 20px rgba(0,0,0,.5);
-        border-color:rgba(255,255,255,0.3);
+        box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 12px rgba(254,236,2,.2);
+        border-color:rgba(254,236,2,0.6);
     }
     .back-btn i{
         width:20px;
@@ -1158,10 +1165,11 @@
 <!-- TELA DE BLOQUEIO -->
 <div id="lock-screen">
     <div class="lock-container">
-        <div class="lock-title">Acesso Restrito</div>
-        <div class="lock-subtitle">Digite a senha para continuar</div>
+        <img src="Associação_Desportiva_Jaraguá.png" alt="Associação Desportiva Jaraguá" class="lock-logo">
+        <div class="lock-title">Associação Desportiva Jaraguá</div>
+        <div class="lock-subtitle">Painel de Treino • Digite a senha para continuar</div>
         <div class="lock-input-wrapper">
-            <input type="password" id="lock-password" class="lock-input" placeholder="••••••" autocomplete="off" autofocus>
+            <input type="password" id="lock-password" class="lock-input" placeholder="••••••" autocomplete="off">
             <button id="lock-submit" class="lock-btn">Entrar</button>
             <div id="lock-error" class="lock-error-msg">Senha incorreta</div>
         </div>
@@ -1222,7 +1230,14 @@
 <script src="js/screens/settingsQuestions.js"></script>
 <script src="js/screens/settingsData.js"></script>
 <script src="js/app.js"></script>
-
+<script>
+    // Função global para o botão Jogadores (garante que goPlayers seja chamada ao clicar)
+    window.abrirJogadores = function() {
+        if (typeof goPlayers === 'function') {
+            goPlayers();
+        }
+    };
+</script>
 <script>
     // Sistema de bloqueio por senha
     (function() {
@@ -1239,12 +1254,11 @@
             appShell.style.display = 'flex';
         }
 
-        // Bloqueia o app novamente
+        // Bloqueia o app novamente (sem focus programático para evitar aviso de autofocus)
         function lockApp() {
             lockScreen.setAttribute('data-unlocked', 'false');
             appShell.style.display = 'none';
             passwordInput.value = '';
-            passwordInput.focus();
             errorMsg.classList.remove('show');
             passwordInput.classList.remove('error');
         }
@@ -1278,8 +1292,8 @@
             }
         });
 
-        // Foca no input quando a página carrega
-        passwordInput.focus();
+        // Não focar no carregamento: evita "Autofocus processing was blocked" (usuário pode clicar no campo)
+        // O foco só é aplicado ao bloquear de novo (lockApp), após a tela estar visível.
 
         // Inicializa bloqueado
         appShell.style.display = 'none';

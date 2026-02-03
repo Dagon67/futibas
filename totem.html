@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>Painel de Monitoramento - Treino</title>
+<title>Associação Desportiva Jaraguá - Painel de Treino</title>
 
 <!-- Luxon p/ data/hora bonita -->
 <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
@@ -21,17 +21,17 @@
     :root {
         --bg-main: radial-gradient(circle at 50% 50%, #feec02 0%, #ffcc01 100%);
         --card-bg: #000000;
-        --card-stroke: rgba(255,255,255,0.2);
-        --accent: #ffffff;
-        --accent-secondary: #000000;
-        --accent-soft: rgba(255,255,255,0.1);
-        --pre-color: #ffffff;
-        --pre-glow: rgba(255,255,255,0.3);
-        --post-color: #ffffff;
-        --post-glow: rgba(255,255,255,0.3);
+        --card-stroke: rgba(254,236,2,0.35);
+        --accent: #feec02;
+        --accent-secondary: #ffcc01;
+        --accent-soft: rgba(254,236,2,0.15);
+        --pre-color: #feec02;
+        --pre-glow: rgba(254,236,2,0.35);
+        --post-color: #ffcc01;
+        --post-glow: rgba(255,204,1,0.35);
         --text-main: #ffffff;
         --text-dim: #e0e0e0;
-        --text-bright: #ffffff;
+        --text-bright: #feec02;
         --white-accent: #000000;
         --radius-xl: 2rem;
         --radius-lg: 1.5rem;
@@ -102,8 +102,8 @@
     .glass-card{
         background:var(--card-bg);
         border-radius:var(--radius-xl);
-        border:2px solid rgba(255,255,255,0.15);
-        box-shadow:0 8px 32px rgba(0,0,0,.3);
+        border:2px solid var(--card-stroke);
+        box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px rgba(254,236,2,.1);
         padding:clamp(16px,1.5vw,24px);
         width:100%;
         height:100%;
@@ -169,25 +169,25 @@
     }
     .action-btn[data-variant="pre"]{
         background:#000000;
-        border-color:rgba(255,255,255,0.25);
-        box-shadow:0 4px 16px rgba(0,0,0,.4);
-        color:#ffffff;
+        border-color:rgba(254,236,2,0.5);
+        box-shadow:0 4px 16px rgba(0,0,0,.4),0 0 20px rgba(254,236,2,.15);
+        color:#feec02;
     }
     .action-btn[data-variant="pre"]:hover{
         transform:translateY(-4px);
-        box-shadow:0 8px 24px rgba(0,0,0,.5);
-        border-color:rgba(255,255,255,0.35);
+        box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 28px rgba(254,236,2,.25);
+        border-color:rgba(254,236,2,0.7);
     }
     .action-btn[data-variant="post"]{
         background:#000000;
-        border-color:rgba(255,255,255,0.25);
-        box-shadow:0 4px 16px rgba(0,0,0,.4);
-        color:#ffffff;
+        border-color:rgba(255,204,1,0.5);
+        box-shadow:0 4px 16px rgba(0,0,0,.4),0 0 20px rgba(255,204,1,.15);
+        color:#ffcc01;
     }
     .action-btn[data-variant="post"]:hover{
         transform:translateY(-4px);
-        box-shadow:0 8px 24px rgba(0,0,0,.5);
-        border-color:rgba(255,255,255,0.35);
+        box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 28px rgba(255,204,1,.25);
+        border-color:rgba(255,204,1,0.7);
     }
     .action-btn:active{
         transform:translateY(-2px) scale(0.98);
@@ -200,6 +200,14 @@
         letter-spacing:0.02em;
     }
 
+    /* Logo do time (totem) */
+    .totem-logo{
+        width:clamp(80px,18vw,140px);
+        height:auto;
+        object-fit:contain;
+        margin-bottom:clamp(8px,1.5vh,16px);
+        filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));
+    }
     /* Relógio/Data */
     .datetime-display{
         text-align:center;
@@ -228,7 +236,7 @@
         min-height:72px;
         border-radius:var(--radius-lg);
         background:#000000;
-        border:2px solid rgba(255,255,255,0.2);
+        border:2px solid rgba(254,236,2,0.4);
         box-shadow:0 4px 16px rgba(0,0,0,.4);
         padding:1rem 1.25rem;
         display:flex;
@@ -244,8 +252,8 @@
     }
     .settings-fab:hover{
         transform:translateY(-2px);
-        border-color:rgba(255,255,255,0.3);
-        box-shadow:0 6px 20px rgba(0,0,0,.5);
+        border-color:rgba(254,236,2,0.6);
+        box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 16px rgba(254,236,2,.2);
     }
     .settings-fab:active{
         transform:translateY(0) scale(0.96);
@@ -276,7 +284,7 @@
     .player-card{
         background:#000000;
         border-radius:var(--radius-lg);
-        border:2px solid rgba(255,255,255,0.15);
+        border:2px solid var(--card-stroke);
         padding:1.25rem 1rem;
         min-height:120px;
         display:flex;
@@ -308,8 +316,8 @@
     }
     .player-card:hover{
         transform:translateY(-2px);
-        box-shadow:0 6px 20px rgba(0,0,0,.5);
-        border-color:rgba(255,255,255,0.25);
+        box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 16px rgba(254,236,2,.15);
+        border-color:rgba(254,236,2,0.5);
     }
     .player-card[data-disabled="true"]{
         opacity:.3;
@@ -347,13 +355,13 @@
         padding:.75rem 1rem;
         border-radius:var(--radius-md);
         background:#000000;
-        border:2px solid rgba(255,255,255,0.2);
+        border:2px solid rgba(254,236,2,0.4);
         box-shadow:0 4px 16px rgba(0,0,0,.4);
     }
     .back-btn:hover{
         transform:translateY(-2px);
-        box-shadow:0 6px 20px rgba(0,0,0,.5);
-        border-color:rgba(255,255,255,0.3);
+        box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 12px rgba(254,236,2,.2);
+        border-color:rgba(254,236,2,0.6);
     }
     .back-btn i{
         width:20px;
@@ -1124,6 +1132,7 @@ function goMenu(){
 
     renderScreen(`
         <div class="center-flex-col">
+            <img src="Associação_Desportiva_Jaraguá.png" alt="Associação Desportiva Jaraguá" class="totem-logo">
             <div class="datetime-display">
                 <div class="date" id="currentDate"></div>
                 <div class="time" id="currentTime"></div>
@@ -1152,11 +1161,11 @@ function goMenu(){
     updateSettingsButtonVisibility();
 }
 
-/* -------- SELECIONAR MODO E LISTA DE JOGADORES -------- */
+/* -------- SELECIONAR MODO (todos os jogadores já selecionados) -------- */
 function startMode(mode){
-    // parar atualização do relógio quando sair do menu
     if(window.dateTimeInterval) clearInterval(window.dateTimeInterval);
-    // se estamos começando agora, resetar pending
+    const players = loadPlayers();
+    state.selectedPlayerIds = players.map(p => p.id);
     resetPendingForMode(mode);
     goSelectPlayer(mode);
 }
@@ -1261,8 +1270,10 @@ function goQuestionnaire(){
         if(q.tipo === "texto"){
             inputHTML = `<textarea class="q-input" rows="3" id="${safeId}" oninput="captureAnswer('${qText}', this.value)" placeholder="Digite aqui..." required></textarea>`;
         }else if(q.tipo === "nota"){
+            const notaMax = q.notaMax || 10;
+            const scale = Array.from({length: notaMax + 1}, (_, i) => i);
             inputHTML = `<div class="rating-scale" id="${qId}">
-                ${[0,1,2,3,4,5,6,7,8,9,10].map(n=>
+                ${scale.map(n=>
                     `<button type="button" class="rating-btn" onclick="selectRating('${qText}', ${n}, '${qId}')">${n}</button>`
                 ).join("")}
             </div>`;
@@ -1668,7 +1679,8 @@ function removePlayer(id){
 let questionFormState = {
     tipo: "texto",
     opcoes: [],
-    imagemPreview: null
+    imagemPreview: null,
+    notaMax: 10
 };
 
 function renderSettingsQuestions(mode){
@@ -1679,7 +1691,7 @@ function renderSettingsQuestions(mode){
     const listHTML = list.map((qObj,idx)=>{
         const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
         const qText = q.texto || qObj;
-        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota (0-10)" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
+        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota (0-" + (q.notaMax || 10) + ")" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
         const hasImage = q.imagem ? `<small style="color:var(--accent);">📷 Com imagem</small>` : "";
         return `
         <div class="item-row">
@@ -1727,11 +1739,21 @@ function renderSettingsQuestions(mode){
                         <label>Tipo de Pergunta</label>
                         <select id="newQuestionType_${mode}" onchange="changeQuestionType(this.value, '${mode}')">
                             <option value="texto" ${questionFormState.tipo === "texto" ? "selected" : ""}>Aberta (texto livre)</option>
-                            <option value="nota" ${questionFormState.tipo === "nota" ? "selected" : ""}>Nota (0 a 10)</option>
+                            <option value="nota" ${questionFormState.tipo === "nota" ? "selected" : ""}>Nota (escala configurável)</option>
                             <option value="escolha" ${questionFormState.tipo === "escolha" ? "selected" : ""}>Escolha única (radio)</option>
                             <option value="checkbox" ${questionFormState.tipo === "checkbox" ? "selected" : ""}>Múltipla escolha (checkbox)</option>
                         </select>
                     </div>
+                    ${questionFormState.tipo === "nota" ? `
+                    <div class="label-col">
+                        <label>Nota máxima (escala de 0 a)</label>
+                        <select id="newQuestionNotaMax_${mode}" onchange="questionFormState.notaMax=parseInt(this.value);">
+                            <option value="5" ${questionFormState.notaMax === 5 ? "selected" : ""}>0 a 5</option>
+                            <option value="10" ${questionFormState.notaMax === 10 ? "selected" : ""}>0 a 10</option>
+                            <option value="20" ${questionFormState.notaMax === 20 ? "selected" : ""}>0 a 20</option>
+                        </select>
+                    </div>
+                    ` : ""}
                     <div class="label-col">
                         <label>Texto da Pergunta</label>
                         <textarea id="newQuestionText_${mode}" rows="2" placeholder="Ex: Sentiu algum desconforto muscular específico?"></textarea>
@@ -1752,6 +1774,9 @@ function renderSettingsQuestions(mode){
 
 function changeQuestionType(newType, mode){
     questionFormState.tipo = newType;
+    if(newType === "nota" && !questionFormState.notaMax){
+        questionFormState.notaMax = 10;
+    }
     if(newType !== "escolha" && newType !== "checkbox"){
         questionFormState.opcoes = [];
     }else if(questionFormState.opcoes.length === 0){
@@ -1821,6 +1846,10 @@ function addQuestion(mode){
         opcoes: opcoes,
         imagem: imagem || null
     };
+    if(tipo === "nota"){
+        const notaMaxEl = document.getElementById(`newQuestionNotaMax_${mode}`);
+        newQ.notaMax = notaMaxEl ? (parseInt(notaMaxEl.value, 10) || 10) : (questionFormState.notaMax || 10);
+    }
     
     if(mode==="pre"){
         qs.pre.push(newQ);
@@ -1835,7 +1864,8 @@ function addQuestion(mode){
     questionFormState = {
         tipo: "texto",
         opcoes: [],
-        imagemPreview: null
+        imagemPreview: null,
+        notaMax: 10
     };
     renderSettings();
 }

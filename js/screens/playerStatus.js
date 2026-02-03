@@ -42,6 +42,7 @@ function viewPlayerStatus(playerId){
                 <div class="item-title" style="font-size:var(--touch-font-lg);">${player.name}</div>
                 <div class="item-sub">
                     ${player.position ? `Posição: ${player.position}` : ''}
+                    ${player.lateralidade ? ` • ${player.lateralidade}` : ''}
                     ${player.number ? ` • Número: #${player.number}` : ''}
                     ${player.age ? ` • Idade: ${player.age} anos` : ''}
                     ${player.height ? ` • Altura: ${player.height}cm` : ''}

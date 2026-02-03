@@ -38,33 +38,57 @@ function goChooseMode(){
 }
 
 function selectMode(mode){
-    state.currentMode = mode;
-    // Criar novo treino
-    const trainingId = uid();
-    const now = luxon.DateTime.now();
-    const selectedDate = state.trainingDate || now.toFormat("yyyy-MM-dd");
-    const selectedDateFormatted = state.trainingDateFormatted || now.setLocale('pt-BR').toFormat("dd/MM/yyyy");
-    
-    const training = {
-        id: trainingId,
-        date: selectedDate,
-        dateFormatted: selectedDateFormatted,
-        datetime: now.toISO(),
-        mode: mode,
-        period: state.trainingPeriod || null,
-        playerIds: [],
-        responses: []
-    };
-    const trainings = loadTrainings();
-    trainings.push(training);
-    saveTrainings(trainings);
-    
-    state.currentTrainingId = trainingId;
-    
-    // Limpar dados temporários
-    delete state.trainingDate;
-    delete state.trainingDateFormatted;
-    delete state.trainingPeriod;
-    
-    goSelectPlayers();
+    try {
+        state.currentMode = mode;
+        const players = loadPlayers();
+        if (!Array.isArray(players)) {
+            console.error("loadPlayers não retornou array");
+            alert("Erro ao carregar jogadores. Tente novamente.");
+            return;
+        }
+        state.selectedPlayerIds = players.map(p => p.id);
+
+        const trainingId = uid();
+        const now = luxon.DateTime.now();
+        const selectedDate = state.trainingDate || now.toFormat("yyyy-MM-dd");
+        const selectedDateFormatted = state.trainingDateFormatted || now.setLocale("pt-BR").toFormat("dd/MM/yyyy");
+
+        const training = {
+            id: trainingId,
+            date: selectedDate,
+            dateFormatted: selectedDateFormatted,
+            datetime: now.toISO(),
+            mode: mode,
+            period: state.trainingPeriod || null,
+            playerIds: [...state.selectedPlayerIds],
+            responses: []
+        };
+        var trainings = loadTrainings();
+        if (!Array.isArray(trainings)) {
+            console.error("loadTrainings não retornou array, valor:", trainings);
+            alert("Erro ao carregar treinos. Tente novamente.");
+            return;
+        }
+        trainings.push(training);
+        saveTrainings(trainings);
+        // Garantir que persistiu (evitar falha silenciosa de localStorage)
+        var after = loadTrainings();
+        if (!after.some(function(t){ return t.id === trainingId; })) {
+            console.error("Treino não persistiu no localStorage após saveTrainings");
+            alert("Não foi possível salvar o treino. Verifique se o navegador permite armazenamento local.");
+            return;
+        }
+
+        state.currentTrainingId = trainingId;
+
+        delete state.trainingDate;
+        delete state.trainingDateFormatted;
+        delete state.trainingPeriod;
+
+        resetPendingForMode(mode);
+        goSelectPlayer(mode);
+    } catch (err) {
+        console.error("Erro ao criar treino:", err);
+        alert("Erro ao criar treino: " + (err.message || err));
+    }
 }

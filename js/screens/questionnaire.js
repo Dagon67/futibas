@@ -39,8 +39,10 @@ function goQuestionnaire(){
         if(q.tipo === "texto"){
             inputHTML = `<textarea class="q-input" rows="3" id="${safeId}" oninput="captureAnswer('${qText}', this.value)" placeholder="Digite aqui..." required></textarea>`;
         }else if(q.tipo === "nota"){
+            const notaMax = q.notaMax || 10;
+            const scale = Array.from({length: notaMax + 1}, (_, i) => i);
             inputHTML = `<div class="rating-scale" id="${qId}">
-                ${[0,1,2,3,4,5,6,7,8,9,10].map(n=>
+                ${scale.map(n=>
                     `<button type="button" class="rating-btn" onclick="selectRating('${qText}', ${n}, '${qId}')">${n}</button>`
                 ).join("")}
             </div>`;

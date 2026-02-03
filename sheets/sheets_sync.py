@@ -24,72 +24,87 @@ class SheetsSync:
         self.spreadsheet = self.editor.spreadsheet
         
     def _get_or_create_worksheet(self, name: str) -> Any:
-        """Obtém ou cria uma aba na planilha"""
+        """Obtém ou cria uma aba na planilha (só cria com o nome pedido: pre, pos, Jogadores, etc.)."""
         try:
             worksheet = self.spreadsheet.worksheet(name)
-        except:
-            # Se não existe, cria
+        except Exception:
             worksheet = self.spreadsheet.add_worksheet(title=name, rows=1000, cols=26)
         return worksheet
+
+    def _delete_worksheet_if_exists(self, name: str) -> None:
+        """Remove a aba com o nome dado se existir (evita aba 'Respostas' antiga)."""
+        try:
+            ws = self.spreadsheet.worksheet(name)
+            self.spreadsheet.del_worksheet(ws)
+            print(f"🗑️ Aba '{name}' removida (não é mais usada).")
+        except Exception:
+            pass  # aba não existe, nada a fazer
     
+    def _update_worksheet_batch(self, worksheet, rows: List[List[Any]]):
+        """Atualiza aba com lista de linhas em 2 chamadas (clear + update) para economizar quota da API."""
+        worksheet.clear()
+        if rows:
+            worksheet.update('A1', rows, value_input_option='USER_ENTERED')
+
     def sync_players(self, players: List[Dict[str, Any]]):
         """Sincroniza lista de jogadores na aba 'Jogadores'"""
         worksheet = self._get_or_create_worksheet("Jogadores")
-        
-        # Cabeçalho
         header = ["ID", "Nome", "Número", "Posição", "Idade", "Altura (cm)", "Peso (kg)"]
-        worksheet.clear()
-        worksheet.append_row(header)
-        
-        # Dados
+        rows = [header]
         if players:
             for player in players:
-                row = [
-                    player.get("id", ""),
-                    player.get("name", ""),
-                    player.get("number", ""),
-                    player.get("position", ""),
-                    player.get("age", ""),
-                    player.get("height", ""),
-                    player.get("weight", "")
-                ]
-                worksheet.append_row(row)
-        
+                rows.append([
+                    self._str(player.get("id")),
+                    self._str(player.get("name")),
+                    self._str(player.get("number")),
+                    self._str(player.get("position")),
+                    self._str(player.get("age")),
+                    self._str(player.get("height")),
+                    self._str(player.get("weight")),
+                ])
+        self._update_worksheet_batch(worksheet, rows)
         print(f"✅ {len(players)} jogadores sincronizados")
     
+    def _str(self, val):
+        """Converte valor para string de forma segura (evita erro 500 por tipo inesperado)."""
+        if val is None:
+            return ""
+        if isinstance(val, (list, dict)):
+            return json.dumps(val, ensure_ascii=False) if val else ""
+        return str(val)
+
     def sync_trainings(self, trainings: List[Dict[str, Any]]):
         """Sincroniza lista de treinos na aba 'Treinos'"""
         worksheet = self._get_or_create_worksheet("Treinos")
-        
-        # Cabeçalho
         header = ["ID", "Data", "Data Formatada", "Data/Hora", "Modo", "Período", "Jogadores IDs", "Número de Respostas"]
-        worksheet.clear()
-        worksheet.append_row(header)
-        
-        # Dados
+        rows = [header]
         if trainings:
             for training in trainings:
-                player_ids = ",".join(training.get("playerIds", []))
-                num_responses = len(training.get("responses", []))
-                
-                row = [
-                    training.get("id", ""),
-                    training.get("date", ""),
-                    training.get("dateFormatted", ""),
-                    training.get("datetime", ""),
-                    training.get("mode", ""),
-                    training.get("period", ""),
+                player_ids_raw = training.get("playerIds") or training.get("player_ids") or []
+                if not isinstance(player_ids_raw, list):
+                    player_ids_raw = []
+                player_ids = ",".join(str(pid) for pid in player_ids_raw)
+                responses_list = training.get("responses") or []
+                num_responses = len(responses_list) if isinstance(responses_list, list) else 0
+                rows.append([
+                    self._str(training.get("id")),
+                    self._str(training.get("date")),
+                    self._str(training.get("dateFormatted")),
+                    self._str(training.get("datetime")),
+                    self._str(training.get("mode")),
+                    self._str(training.get("period")),
                     player_ids,
-                    num_responses
-                ]
-                worksheet.append_row(row)
-        
+                    str(num_responses),
+                ])
+        self._update_worksheet_batch(worksheet, rows)
         print(f"✅ {len(trainings)} treinos sincronizados")
     
     def sync_responses(self, responses: List[Dict[str, Any]], questions: Dict[str, List[Dict[str, Any]]], trainings: Optional[List[Dict[str, Any]]] = None):
-        """Sincroniza todas as respostas na aba 'Respostas'"""
-        worksheet = self._get_or_create_worksheet("Respostas")
-        
+        """Sincroniza respostas nas abas 'pre' e 'pos' (coluna H = Estado atual). Remove aba 'Respostas' se existir."""
+        # Remover aba antiga "Respostas" se existir (só usamos "pre" e "pos")
+        self._delete_worksheet_if_exists("Respostas")
+        self._delete_worksheet_if_exists("Respostas Pós Treino")
+
         # Se trainings for fornecido, coletar todas as respostas de todos os treinos
         all_responses = []
         if trainings:
@@ -104,72 +119,117 @@ class SheetsSync:
                     })
         else:
             all_responses = responses
-        
-        # Coletar todas as perguntas possíveis para criar cabeçalho dinâmico
-        all_questions = []
-        question_map = {}
-        
-        for mode in ["pre", "post"]:
-            for q in questions.get(mode, []):
-                q_text = q.get("texto", "")
-                if q_text and q_text not in question_map:
-                    question_map[q_text] = len(all_questions)
-                    all_questions.append(q_text)
-        
-        # Cabeçalho
-        header = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"]
-        header.extend(all_questions)
-        worksheet.clear()
-        worksheet.append_row(header)
-        
-        # Dados
-        for response in all_responses:
+
+        pre_responses = [r for r in all_responses if r.get("mode") == "pre"]
+        post_responses = [r for r in all_responses if r.get("mode") == "post"]
+
+        # Perguntas de pré e pós (ordem das colunas)
+        pre_questions = []
+        for q in questions.get("pre", []):
+            t = q.get("texto", "")
+            if t:
+                pre_questions.append(t)
+
+        post_questions = []
+        for q in questions.get("post", []):
+            t = q.get("texto", "")
+            if t:
+                post_questions.append(t)
+
+        # --- Aba "pre": estrutura igual ao tester - pre.csv ---
+        # Colunas: ID Treino, Data Treino, Modo, ID Jogador, Nome Jogador, Data/Hora, Comentário, [8 perguntas], Estado atual
+        # Mapeamento coluna do Sheets -> texto da pergunta no app (para buscar em answers)
+        pre_column_to_question = [
+            "Qualidade Total de Recuperação",
+            "Bem Estar [Fadiga]",           # -> Nível de fadiga
+            "Bem Estar [Qualidade de Sono]", # -> Nível de sono
+            "Bem Estar [Dor Muscular]",     # -> Nível de dor
+            "Bem Estar [Nível de Estresse]", # -> Nível de estresse
+            "Bem Estar [Humor]",            # -> Nível de humor
+            "Pontos de Dor",                 # -> Pontos de dor
+            "Pontos de Dor Articular",       # -> Pontos de dor articular
+        ]
+        worksheet_pre = self._get_or_create_worksheet("pre")
+        header_pre = [
+            "ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário",
+            "Qualidade Total de Recuperação", "Nível de fadiga", "Nível de sono", "Nível de dor",
+            "Nível de estresse", "Nível de humor", "Pontos de dor", "Pontos de dor articular",
+            "Estado atual"
+        ]
+        rows_pre = [header_pre]
+        for response in pre_responses:
             answers = response.get("answers", {})
             row = [
-                response.get("trainingId", ""),
-                response.get("trainingDate", ""),
-                "Pré" if response.get("mode") == "pre" else "Pós",
-                response.get("playerId", ""),
-                response.get("playerName", ""),
-                response.get("timestamp", ""),
-                response.get("comment", "")
+                self._str(response.get("trainingId", "")),
+                self._str(response.get("trainingDate", "")),
+                "Pré",
+                self._str(response.get("playerId", response.get("playerNumber", ""))),
+                self._str(response.get("playerName", "")),
+                self._str(response.get("timestamp", "")),
+                self._str(response.get("comment", "")),
             ]
-            
-            # Adicionar respostas na ordem das perguntas
-            for q_text in all_questions:
+            for q_text in pre_column_to_question:
                 answer = answers.get(q_text, "")
                 if isinstance(answer, list):
                     answer = "; ".join(str(a) for a in answer)
                 else:
                     answer = str(answer) if answer is not None else ""
-                row.append(answer)
-            
-            worksheet.append_row(row)
-        
-        print(f"✅ {len(all_responses)} respostas sincronizadas")
+                row.append(self._str(answer))
+            row.append("")  # Estado atual (pre)
+            rows_pre.append(row)
+        self._update_worksheet_batch(worksheet_pre, rows_pre)
+        print(f"✅ {len(pre_responses)} respostas (pré-treino) sincronizadas na aba pre")
+
+        # --- Aba "pos": estrutura igual ao tester - pos.csv ---
+        # ID Treino, Data Treino, Modo, ID Jogador, Nome Jogador, Data/Hora, Comentário, Estado atual (coluna H)
+        worksheet_pos = self._get_or_create_worksheet("pos")
+        header_post = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário", "Estado atual"]
+        rows_post = [header_post]
+        for response in post_responses:
+            answers = response.get("answers", {})
+            parts = []
+            for q_text in post_questions:
+                answer = answers.get(q_text, "")
+                if isinstance(answer, list):
+                    answer = "; ".join(str(a) for a in answer)
+                else:
+                    answer = str(answer) if answer is not None else ""
+                if answer:
+                    parts.append(answer)
+            estado_atual = "; ".join(parts) if parts else ""
+            row = [
+                self._str(response.get("trainingId", "")),
+                self._str(response.get("trainingDate", "")),
+                "Pós",
+                self._str(response.get("playerId", response.get("playerNumber", ""))),
+                self._str(response.get("playerName", "")),
+                self._str(response.get("timestamp", "")),
+                self._str(response.get("comment", "")),
+                self._str(estado_atual),  # coluna H = Estado atual
+            ]
+            rows_post.append(row)
+        self._update_worksheet_batch(worksheet_pos, rows_post)
+        if post_responses:
+            print(f"✅ {len(post_responses)} respostas (pós-treino) sincronizadas na aba pos (coluna H = Estado atual)")
+        else:
+            print("ℹ️ Aba 'pos' criada/atualizada (sem linhas de pós-treino ainda)")
     
     def sync_questions(self, questions: Dict[str, List[Dict[str, Any]]]):
         """Sincroniza configuração de perguntas na aba 'Perguntas'"""
         worksheet = self._get_or_create_worksheet("Perguntas")
-        
-        # Cabeçalho
         header = ["Modo", "Tipo", "Texto", "Opções", "Imagem"]
-        worksheet.clear()
-        worksheet.append_row(header)
-        
-        # Dados
+        rows = [header]
         for mode in ["pre", "post"]:
             for q in questions.get(mode, []):
                 opcoes = "; ".join(q.get("opcoes", [])) if q.get("opcoes") else ""
-                row = [
+                rows.append([
                     "Pré" if mode == "pre" else "Pós",
-                    q.get("tipo", ""),
-                    q.get("texto", ""),
-                    opcoes,
-                    q.get("imagem", "")
-                ]
-                worksheet.append_row(row)
-        
+                    self._str(q.get("tipo")),
+                    self._str(q.get("texto")),
+                    self._str(opcoes),
+                    self._str(q.get("imagem")),
+                ])
+        self._update_worksheet_batch(worksheet, rows)
         total = len(questions.get("pre", [])) + len(questions.get("post", []))
         print(f"✅ {total} perguntas sincronizadas")
     

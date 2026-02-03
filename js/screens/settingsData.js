@@ -28,16 +28,44 @@ function renderSettingsData(){
 
     return `
         <div style="display:flex;flex-direction:column;gap:1rem;">
-            <div class="item-title" style="margin-bottom:.5rem;">Exportar CSV</div>
+            <div class="item-title" style="margin-bottom:.5rem;">Sincronizar com Google Sheets</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                O Sheets só é atualizado quando você clica em "Sincronizar agora" ou "Finalizar treino e sincronizar" na tela do treino.
+            </div>
+            <button class="small-solid-btn" type="button" onclick="syncAllToSheets().then(function(){ alert('Planilha atualizada.'); }).catch(function(e){ alert('Erro: ' + (e && e.message ? e.message : e)); });" style="margin-bottom:1rem;">
+                Sincronizar agora
+            </button>
+
+            <div class="item-title" style="margin-bottom:.5rem;">Limpar treinos</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                Apaga todos os treinos e respostas no app e na planilha (Sheets). Use para recomeçar e recriar as abas pre/pos corretamente.
+            </div>
+            <button class="small-solid-btn" type="button" onclick="confirmClearTrainingsAndResponses()" style="background:var(--card-stroke);color:var(--text-dim);">
+                Limpar treinos e respostas
+            </button>
+            <div id="clearTrainingsFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
+
+            <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Exportar CSV</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                O CSV segue o modelo do Sheet: 1ª pergunta pré = Qualidade Total de Recuperação, etc.
+            </div>
             <div class="inline-form-row" style="align-items:center;">
                 <div class="item-sub" style="flex:1;min-width:200px;">
-                    Baixe todas as respostas (pré e pós) em .csv
-                    para análise posterior.
+                    Baixe todas as respostas (pré e pós) em .csv para análise ou importação no Sheets.
                 </div>
                 <button class="download-btn" onclick="downloadCSV()">
                     Baixar CSV
                 </button>
             </div>
+
+            <div class="item-title" style="margin-bottom:.5rem;">Perguntas padrão</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                Copie as perguntas atuais (do localStorage) para colar no suporte e atualizar o padrão do app.
+            </div>
+            <button class="small-solid-btn" type="button" onclick="copyCurrentQuestionsAsDefault()">
+                Copiar perguntas atuais (JSON)
+            </button>
+            <div id="copyQuestionsFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
 
             <div>
                 <div class="item-title" style="margin-bottom:.5rem;">Últimas respostas</div>
@@ -45,4 +73,41 @@ function renderSettingsData(){
             </div>
         </div>
     `;
+}
+
+function confirmClearTrainingsAndResponses(){
+    if (!confirm("Isso vai apagar TODOS os treinos e respostas no app e na planilha (Sheets). Tem certeza?")) return;
+    clearTrainingsAndResponses();
+    var el = document.getElementById("clearTrainingsFeedback");
+    if (el) { el.style.display = "block"; el.textContent = "Treinos e respostas apagados. Planilha está sendo atualizada."; el.style.color = "var(--accent)"; }
+    setTimeout(function(){ if (el) { el.style.display = "none"; } }, 5000);
+    setTimeout(function(){ renderSettingsData(); renderSettings(); }, 1500);
+}
+
+function copyCurrentQuestionsAsDefault(){
+    const qs = loadQuestions();
+    const json = JSON.stringify(qs, null, 2);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(json).then(function(){
+            var el = document.getElementById("copyQuestionsFeedback");
+            if (el) { el.style.display = "block"; el.textContent = "Copiado. Cole no suporte para atualizar o padrão."; el.style.color = "var(--accent)"; }
+            setTimeout(function(){ if (el) { el.style.display = "none"; } }, 3000);
+        }).catch(function(){
+            fallbackCopy(json);
+        });
+    } else {
+        fallbackCopy(json);
+    }
+}
+function fallbackCopy(text){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand("copy");
+        var el = document.getElementById("copyQuestionsFeedback");
+        if (el) { el.style.display = "block"; el.textContent = "Copiado. Cole no suporte para atualizar o padrão."; }
+    } catch(e) {}
+    document.body.removeChild(ta);
 }

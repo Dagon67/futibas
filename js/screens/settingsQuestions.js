@@ -5,7 +5,8 @@
 let questionFormState = {
     tipo: "texto",
     opcoes: [],
-    imagemPreview: null
+    imagemPreview: null,
+    notaMax: 10   // escala de nota: 5, 10 ou 20
 };
 
 function renderSettingsQuestions(mode){
@@ -21,7 +22,7 @@ function renderSettingsQuestions(mode){
     const listHTML = list.map((qObj,idx)=>{
         const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
         const qText = q.texto || qObj;
-        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota (0-10)" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
+        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota (0-" + (q.notaMax || 10) + ")" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
         const hasImage = q.imagem ? `<small style="color:var(--accent);">📷 Com imagem</small>` : "";
         return `
         <div class="item-row">
@@ -75,11 +76,21 @@ function renderSettingsQuestions(mode){
                         <label>Tipo de Pergunta</label>
                         <select id="newQuestionType_${mode}" onchange="changeQuestionType(this.value, '${mode}')">
                             <option value="texto" ${questionFormState.tipo === "texto" ? "selected" : ""}>Aberta (texto livre)</option>
-                            <option value="nota" ${questionFormState.tipo === "nota" ? "selected" : ""}>Nota (0 a 10)</option>
+                            <option value="nota" ${questionFormState.tipo === "nota" ? "selected" : ""}>Nota (escala configurável)</option>
                             <option value="escolha" ${questionFormState.tipo === "escolha" ? "selected" : ""}>Escolha única (radio)</option>
                             <option value="checkbox" ${questionFormState.tipo === "checkbox" ? "selected" : ""}>Múltipla escolha (checkbox)</option>
                         </select>
                     </div>
+                    ${questionFormState.tipo === "nota" ? `
+                    <div class="label-col">
+                        <label>Nota máxima (escala de 0 a)</label>
+                        <select id="newQuestionNotaMax_${mode}" onchange="questionFormState.notaMax=parseInt(this.value);">
+                            <option value="5" ${questionFormState.notaMax === 5 ? "selected" : ""}>0 a 5</option>
+                            <option value="10" ${questionFormState.notaMax === 10 ? "selected" : ""}>0 a 10</option>
+                            <option value="20" ${questionFormState.notaMax === 20 ? "selected" : ""}>0 a 20</option>
+                        </select>
+                    </div>
+                    ` : ""}
                     <div class="label-col">
                         <label>Texto da Pergunta</label>
                         <textarea id="newQuestionText_${mode}" rows="2" placeholder="Ex: Sentiu algum desconforto muscular específico?"></textarea>
@@ -100,6 +111,9 @@ function renderSettingsQuestions(mode){
 
 function changeQuestionType(newType, mode){
     questionFormState.tipo = newType;
+    if(newType === "nota" && !questionFormState.notaMax){
+        questionFormState.notaMax = 10;
+    }
     if(newType !== "escolha" && newType !== "checkbox"){
         questionFormState.opcoes = [];
     }else if(questionFormState.opcoes.length === 0){
@@ -142,14 +156,45 @@ function loadAvailableImages(mode){
         select.remove(1);
     }
     
-    // Adicionar opção de carregando
     const loadingOption = document.createElement('option');
     loadingOption.value = '';
     loadingOption.textContent = 'Carregando imagens...';
     loadingOption.disabled = true;
     select.appendChild(loadingOption);
     
-    // Tentar carregar imagens
+    // Tentar primeiro a API do backend (lista real da pasta)
+    const backendUrl = typeof getBackendUrl === 'function' ? getBackendUrl() : (window.BACKEND_URL || '');
+    if(backendUrl){
+        fetch(backendUrl + '/api/images/' + imageFolder)
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                while(select.options.length > 1) select.remove(1);
+                if(data.success && data.images && data.images.length > 0){
+                    data.images.forEach(function(fileName){
+                        const opt = document.createElement('option');
+                        opt.value = fileName;
+                        opt.textContent = fileName;
+                        select.appendChild(opt);
+                    });
+                    imageCache[mode === "pre" ? "pre" : "post"] = data.images;
+                } else {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = 'Nenhuma imagem na pasta';
+                    opt.disabled = true;
+                    select.appendChild(opt);
+                }
+            })
+            .catch(function(){
+                // Backend indisponível: usar descoberta por tentativa
+                while(select.options.length > 1) select.remove(1);
+                loadingOption.textContent = 'Carregando imagens...';
+                select.appendChild(loadingOption);
+                findImagesInFolder(imageFolder, mode);
+            });
+        return;
+    }
+    
     findImagesInFolder(imageFolder, mode);
 }
 
@@ -160,16 +205,16 @@ function findImagesInFolder(folder, mode){
     // Estratégia: tentar nomes específicos primeiro, depois números
     const namesToTry = [];
     
-    // Nomes específicos conhecidos das pastas
+    // Nomes específicos conhecidos das pastas (usado só quando não há backend)
     const specificNames = [
         // Pre
-        'articula', 'musculo', 'bem estar', 'recupera',
+        'articula', 'musculo', 'bem estar', 'recupera', 'sono', 'dor', 'fadiga', 'humor', 'estresse',
         // Pos
         'esforço',
         // Palavras comuns em português relacionadas a treino
         'articulacao', 'articulacoes', 'musculos', 'musculo',
         'bem-estar', 'bemestar', 'recuperacao', 'recuperar',
-        'esforco', 'esforços', 'dor', 'dores', 'fadiga',
+        'esforco', 'esforços', 'dores',
         'energia', 'disposicao', 'motivacao', 'concentracao',
         'flexibilidade', 'forca', 'resistencia', 'velocidade',
         'agilidade', 'coordenacao', 'equilibrio', 'postura',
@@ -439,6 +484,10 @@ function addQuestion(mode){
         opcoes: opcoes,
         imagem: imagem || null
     };
+    if(tipo === "nota"){
+        const notaMaxEl = document.getElementById(`newQuestionNotaMax_${mode}`);
+        newQ.notaMax = notaMaxEl ? (parseInt(notaMaxEl.value, 10) || 10) : (questionFormState.notaMax || 10);
+    }
     
     if(mode==="pre"){
         qs.pre.push(newQ);
@@ -453,7 +502,8 @@ function addQuestion(mode){
     questionFormState = {
         tipo: "texto",
         opcoes: [],
-        imagemPreview: null
+        imagemPreview: null,
+        notaMax: 10
     };
     renderSettings();
 }

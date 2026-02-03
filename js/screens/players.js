@@ -22,7 +22,7 @@ function goPlayers(){
                         ${p.name} ${number}
                     </div>
                     <div class="item-sub">
-                        Posição: ${position}${p.age ? ` • Idade: ${p.age}` : ''}${p.height ? ` • Altura: ${p.height}cm` : ''}
+                        Posição: ${position}${p.lateralidade ? ` • ${p.lateralidade}` : ''}${p.age ? ` • Idade: ${p.age}` : ''}${p.height ? ` • Altura: ${p.height}cm` : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;">
@@ -79,6 +79,16 @@ function goPlayers(){
                                     <div class="label-col">
                                         <label>Idade</label>
                                         <input type="number" id="newPlayerAge" placeholder="Ex: 25" min="1" max="100" />
+                                    </div>
+                                </div>
+                                <div class="inline-form-row">
+                                    <div class="label-col">
+                                        <label>Destro / Canhoto</label>
+                                        <select id="newPlayerLateralidade">
+                                            <option value="">Não informado</option>
+                                            <option value="Destro">Destro</option>
+                                            <option value="Canhoto">Canhoto</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="inline-form-row">
@@ -210,12 +220,14 @@ async function addPlayerFromList(){
     const nameInput = document.getElementById("newPlayerName");
     const numberInput = document.getElementById("newPlayerNumber");
     const positionInput = document.getElementById("newPlayerPosition");
+    const lateralidadeInput = document.getElementById("newPlayerLateralidade");
     const ageInput = document.getElementById("newPlayerAge");
     const heightInput = document.getElementById("newPlayerHeight");
     const weightInput = document.getElementById("newPlayerWeight");
     
     const name = nameInput.value.trim();
     const position = positionInput.value.trim();
+    const lateralidade = lateralidadeInput ? lateralidadeInput.value.trim() : null;
     
     if(!name){
         alert("Digite o nome do jogador.");
@@ -231,6 +243,7 @@ async function addPlayerFromList(){
         id: uid(),
         name,
         position,
+        lateralidade: lateralidade || null,
         number: numberInput.value ? parseInt(numberInput.value) : null,
         age: ageInput.value ? parseInt(ageInput.value) : null,
         height: heightInput.value ? parseInt(heightInput.value) : null,
@@ -279,6 +292,7 @@ async function addPlayerFromList(){
     nameInput.value = "";
     numberInput.value = "";
     positionInput.value = "";
+    if(lateralidadeInput) lateralidadeInput.value = "";
     ageInput.value = "";
     heightInput.value = "";
     weightInput.value = "";
@@ -305,18 +319,15 @@ function editPlayer(id){
     const player = getPlayerById(id);
     if(!player) return;
     
-    // Preencher formulário com dados do jogador
+    // Preencher formulário com dados do jogador (não remover da lista; a alteração é salva em savePlayerEdit)
     document.getElementById("newPlayerName").value = player.name || "";
     document.getElementById("newPlayerNumber").value = player.number || "";
     document.getElementById("newPlayerPosition").value = player.position || "";
+    var latEl = document.getElementById("newPlayerLateralidade");
+    if(latEl) latEl.value = player.lateralidade || "";
     document.getElementById("newPlayerAge").value = player.age || "";
     document.getElementById("newPlayerHeight").value = player.height || "";
     document.getElementById("newPlayerWeight").value = player.weight || "";
-    
-    // Remover jogador da lista
-    let players = loadPlayers();
-    players = players.filter(p=>p.id!==id);
-    savePlayers(players);
     
     // Scroll para o formulário
     document.getElementById("newPlayerName").scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -332,16 +343,18 @@ function editPlayer(id){
     }
 }
 
-function savePlayerEdit(oldId){
+async function savePlayerEdit(oldId){
     const nameInput = document.getElementById("newPlayerName");
     const numberInput = document.getElementById("newPlayerNumber");
     const positionInput = document.getElementById("newPlayerPosition");
+    const lateralidadeInput = document.getElementById("newPlayerLateralidade");
     const ageInput = document.getElementById("newPlayerAge");
     const heightInput = document.getElementById("newPlayerHeight");
     const weightInput = document.getElementById("newPlayerWeight");
     
     const name = nameInput.value.trim();
     const position = positionInput.value.trim();
+    const lateralidade = lateralidadeInput ? lateralidadeInput.value.trim() : null;
     
     if(!name){
         alert("Digite o nome do jogador.");
@@ -360,6 +373,7 @@ function savePlayerEdit(oldId){
             id: oldId,
             name,
             position,
+            lateralidade: lateralidade || null,
             number: numberInput.value ? parseInt(numberInput.value) : null,
             age: ageInput.value ? parseInt(ageInput.value) : null,
             height: heightInput.value ? parseInt(heightInput.value) : null,
@@ -407,6 +421,7 @@ function savePlayerEdit(oldId){
     nameInput.value = "";
     numberInput.value = "";
     positionInput.value = "";
+    if(lateralidadeInput) lateralidadeInput.value = "";
     ageInput.value = "";
     heightInput.value = "";
     weightInput.value = "";
@@ -421,4 +436,8 @@ function savePlayerEdit(oldId){
     }
     
     goPlayers();
+}
+
+if (typeof window !== 'undefined') {
+    window.goPlayers = goPlayers;
 }

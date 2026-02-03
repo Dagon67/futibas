@@ -9,18 +9,44 @@ const STORAGE_KEYS = {
     TRAININGS: "treino_trainings"  // Sessões de treino
 };
 
-// inicial: perguntas pré e pós
+// Jogadores padrão da temporada (usados quando não há dados salvos ou ao restaurar padrão)
+const defaultPlayers = [
+    { id: "default_02", number: 2, name: "Tatinho", position: "Ala", lateralidade: "Canhoto" },
+    { id: "default_07", number: 7, name: "Bruninho", position: "Ala", lateralidade: "Destro" },
+    { id: "default_08", number: 8, name: "Leco", position: "Fixo", lateralidade: null },
+    { id: "default_10", number: 10, name: "Pedrinho", position: "Ala", lateralidade: "Canhoto" },
+    { id: "default_11", number: 11, name: "William", position: "Ala", lateralidade: "Destro" },
+    { id: "default_14", number: 14, name: "Eka", position: "Pivô", lateralidade: null },
+    { id: "default_16", number: 16, name: "Caetano", position: "Fixo", lateralidade: null },
+    { id: "default_20", number: 20, name: "João Roberto", position: "Pivô", lateralidade: null },
+    { id: "default_22", number: 22, name: "Nicolas", position: "Goleiro", lateralidade: null },
+    { id: "default_26", number: 26, name: "Bruno Rafael", position: "Ala", lateralidade: "Destro" },
+    { id: "default_28", number: 28, name: "Nenen Ribeiro", position: "Fixo", lateralidade: null },
+    { id: "default_30", number: 30, name: "Gui Uesler", position: "Fixo", lateralidade: null },
+    { id: "default_31", number: 31, name: "Valenga", position: "Goleiro", lateralidade: null },
+    { id: "default_33", number: 33, name: "Cadu", position: "Goleiro", lateralidade: null },
+    { id: "default_44", number: 44, name: "Matheus", position: "Ala", lateralidade: "Destro" },
+    { id: "default_88", number: 88, name: "Marcênio", position: "Fixo", lateralidade: null },
+    { id: "default_90", number: 90, name: "Santiago", position: "Ala", lateralidade: "Canhoto" },
+    { id: "default_91", number: 91, name: "Menegazzo", position: "Goleiro", lateralidade: null }
+];
+
+// Perguntas padrão (modelo do Sheet: 1ª = Qualidade Total de Recuperação, etc. – ordem igual ao CSV de exportação)
 const defaultQuestions = {
     pre: [
-        {tipo:"texto",texto:"Como você está se sentindo hoje fisicamente?",opcoes:[],imagem:null},
-        {tipo:"nota",texto:"Qual seu nível de fadiga agora?",opcoes:[],imagem:null},
-        {tipo:"texto",texto:"Sentiu dor ou desconforto em alguma parte do corpo?",opcoes:[],imagem:null},
-        {tipo:"nota",texto:"Dormiu bem?",opcoes:[],imagem:null}
+        {tipo:"nota",texto:"Qualidade Total de Recuperação",opcoes:[],imagem:"pre/recupera.png",notaMax:10},
+        {tipo:"nota",texto:"Bem Estar [Fadiga]",opcoes:[],imagem:"pre/fadiga.jpg",notaMax:10},
+        {tipo:"nota",texto:"Bem Estar [Qualidade de Sono]",opcoes:[],imagem:"pre/sono.jpg",notaMax:5},
+        {tipo:"nota",texto:"Bem Estar [Dor Muscular]",opcoes:[],imagem:"pre/musculo.png",notaMax:10},
+        {tipo:"nota",texto:"Bem Estar [Nível de Estresse]",opcoes:[],imagem:"pre/estresse.jpg",notaMax:10},
+        {tipo:"nota",texto:"Bem Estar [Humor]",opcoes:[],imagem:"pre/humor.jpg",notaMax:10},
+        {tipo:"texto",texto:"Pontos de Dor",opcoes:[],imagem:"pre/dor.jpg"},
+        {tipo:"texto",texto:"Pontos de Dor Articular",opcoes:[],imagem:"pre/articula.png"}
     ],
     post: [
         {tipo:"texto",texto:"Como você está se sentindo após o treino?",opcoes:[],imagem:null},
         {tipo:"texto",texto:"Sentiu dor aguda em algum momento?",opcoes:[],imagem:null},
-        {tipo:"nota",texto:"Nível de esforço hoje?",opcoes:[],imagem:null},
+        {tipo:"nota",texto:"Nível de esforço hoje?",opcoes:[],imagem:"pos/esforço.png",notaMax:10},
         {tipo:"escolha",texto:"Você acha que consegue treinar igual amanhã?",opcoes:["Sim","Não","Talvez"],imagem:null}
     ]
 };
@@ -33,10 +59,7 @@ function loadPlayers(){
 }
 function savePlayers(players){
     localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
-    // Sincronizar com Google Sheets
-    if(typeof syncToSheets === 'function'){
-        syncToSheets('players', players).catch(err => console.error('Erro ao sincronizar jogadores:', err));
-    }
+    // Sheets só é atualizado ao clicar em "Sincronizar agora" ou "Finalizar treino e sincronizar"
 }
 
 function loadQuestions(){
@@ -68,10 +91,7 @@ function loadQuestions(){
 }
 function saveQuestions(qs){
     localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(qs));
-    // Sincronizar com Google Sheets
-    if(typeof syncToSheets === 'function'){
-        syncToSheets('questions', qs).catch(err => console.error('Erro ao sincronizar perguntas:', err));
-    }
+    // Sheets só é atualizado ao clicar em "Sincronizar agora" ou "Finalizar treino e sincronizar"
 }
 
 function loadResponses(){
@@ -81,38 +101,41 @@ function loadResponses(){
 }
 function saveResponses(r){
     localStorage.setItem(STORAGE_KEYS.RESPONSES, JSON.stringify(r));
-    // Sincronizar com Google Sheets (precisa das perguntas para criar cabeçalho)
-    // Incluir treinos também para coletar todas as respostas
-    if(typeof syncToSheets === 'function'){
-        const questions = loadQuestions();
-        const trainings = loadTrainings();
-        const payload = {
-            type: 'responses',
-            data: r,
-            questions: questions,
-            trainings: trainings
-        };
-        // Usar a função syncToSheets se disponível, senão usar URL dinâmica
-        const backendUrl = (typeof getBackendUrl === 'function' ? getBackendUrl() : (window.BACKEND_URL || 'http://localhost:5000'));
-        fetch(`${backendUrl}/sync`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        }).catch(err => console.error('Erro ao sincronizar respostas:', err));
-    }
+    // Sheets só é atualizado ao finalizar treino ou ao clicar em "Sincronizar" / "Limpar treinos"
 }
 
 // Treinos (sessões de treino)
 function loadTrainings(){
-    try{
-        return JSON.parse(localStorage.getItem(STORAGE_KEYS.TRAININGS)) || [];
-    }catch(e){return []}
+    try {
+        const raw = localStorage.getItem(STORAGE_KEYS.TRAININGS);
+        if (raw == null || raw === "") return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
+    } catch (e) {
+        console.warn("loadTrainings: falha ao ler localStorage", e);
+        return [];
+    }
 }
 function saveTrainings(trainings){
-    localStorage.setItem(STORAGE_KEYS.TRAININGS, JSON.stringify(trainings));
-    // Sincronizar com Google Sheets
-    if(typeof syncToSheets === 'function'){
-        syncToSheets('trainings', trainings).catch(err => console.error('Erro ao sincronizar treinos:', err));
+    if (!Array.isArray(trainings)) return;
+    try {
+        localStorage.setItem(STORAGE_KEYS.TRAININGS, JSON.stringify(trainings));
+    } catch (e) {
+        console.error("Erro ao salvar treinos:", e);
+    }
+}
+
+/**
+ * Limpa treinos e respostas no localStorage e no Google Sheets.
+ * Use após "Limpar treinos" para zerar tudo e permitir recomeçar (ex.: recriar abas pre/pos no Sheets).
+ */
+function clearTrainingsAndResponses() {
+    localStorage.setItem(STORAGE_KEYS.TRAININGS, "[]");
+    localStorage.setItem(STORAGE_KEYS.RESPONSES, "[]");
+    if (typeof cancelSyncDebounce === "function") cancelSyncDebounce();
+    if (typeof syncAllToSheets === "function") {
+        syncAllToSheets().catch(function (err) { console.error("Erro ao limpar Sheets:", err); });
     }
 }
 
@@ -121,7 +144,7 @@ if(!localStorage.getItem(STORAGE_KEYS.QUESTIONS)){
     saveQuestions(defaultQuestions);
 }
 if(!localStorage.getItem(STORAGE_KEYS.PLAYERS)){
-    savePlayers([]);
+    savePlayers(defaultPlayers);
 }
 if(!localStorage.getItem(STORAGE_KEYS.RESPONSES)){
     saveResponses([]);

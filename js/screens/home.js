@@ -30,7 +30,7 @@ function goHome(){
                     <i data-feather="list"></i>
                     <div>Lista de Treinos</div>
                 </button>
-                <button class="home-btn home-btn-secondary" onclick="goPlayers()">
+                <button class="home-btn home-btn-secondary" id="home-btn-jogadores" type="button" onclick="abrirJogadores()">
                     <i data-feather="users"></i>
                     <div>Jogadores</div>
                 </button>
