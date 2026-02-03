@@ -58,14 +58,24 @@ function renderSettingsData(){
                 </button>
             </div>
 
-            <div class="item-title" style="margin-bottom:.5rem;">Perguntas padrão</div>
+            <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Perguntas (localStorage)</div>
             <div class="item-sub" style="margin-bottom:.5rem;">
-                Copie as perguntas atuais (do localStorage) para colar no suporte e atualizar o padrão do app.
+                As perguntas ficam no <strong>localStorage</strong> do navegador. Cada dispositivo/navegador tem o seu. Para usar as mesmas perguntas no app do Render (ou em outro aparelho): exporte aqui, abra o app no outro lugar, importe abaixo.
             </div>
             <button class="small-solid-btn" type="button" onclick="copyCurrentQuestionsAsDefault()">
-                Copiar perguntas atuais (JSON)
+                Exportar perguntas (copiar JSON)
             </button>
             <div id="copyQuestionsFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
+
+            <div class="item-title" style="margin-bottom:.5rem;margin-top:1rem;">Importar perguntas</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                Cole o JSON das perguntas (exportado de outro navegador ou deste) e clique em Importar.
+            </div>
+            <textarea id="importQuestionsJson" placeholder='Cole aqui o JSON (ex: {"pre":[...],"post":[...]})' style="width:100%;min-height:80px;padding:0.5rem;border-radius:var(--radius-md);border:2px solid rgba(255,255,255,0.2);background:#000;color:var(--text-main);font-size:0.875rem;resize:vertical;"></textarea>
+            <button class="small-solid-btn" type="button" onclick="importQuestionsFromJson()">
+                Importar perguntas
+            </button>
+            <div id="importQuestionsFeedback" style="font-size:0.875rem;margin-top:0.25rem;display:none;"></div>
 
             <div>
                 <div class="item-title" style="margin-bottom:.5rem;">Últimas respostas</div>
@@ -90,7 +100,7 @@ function copyCurrentQuestionsAsDefault(){
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(json).then(function(){
             var el = document.getElementById("copyQuestionsFeedback");
-            if (el) { el.style.display = "block"; el.textContent = "Copiado. Cole no suporte para atualizar o padrão."; el.style.color = "var(--accent)"; }
+            if (el) { el.style.display = "block"; el.textContent = "Copiado. Abra o app no Render (ou outro navegador), vá em Configurações > Dados e importe abaixo."; el.style.color = "var(--accent)"; }
             setTimeout(function(){ if (el) { el.style.display = "none"; } }, 3000);
         }).catch(function(){
             fallbackCopy(json);
@@ -107,7 +117,37 @@ function fallbackCopy(text){
     try {
         document.execCommand("copy");
         var el = document.getElementById("copyQuestionsFeedback");
-        if (el) { el.style.display = "block"; el.textContent = "Copiado. Cole no suporte para atualizar o padrão."; }
+        if (el) { el.style.display = "block"; el.textContent = "Copiado. Cole na tela de Importar no outro navegador (ex.: no Render)."; }
     } catch(e) {}
     document.body.removeChild(ta);
+}
+
+function importQuestionsFromJson(){
+    var elInput = document.getElementById("importQuestionsJson");
+    var elFeedback = document.getElementById("importQuestionsFeedback");
+    if (!elInput || !elFeedback) return;
+    var raw = (elInput.value || "").trim();
+    if (!raw) {
+        elFeedback.style.display = "block";
+        elFeedback.style.color = "rgba(239,68,68,.9)";
+        elFeedback.textContent = "Cole o JSON das perguntas no campo acima.";
+        setTimeout(function(){ elFeedback.style.display = "none"; }, 4000);
+        return;
+    }
+    try {
+        var data = JSON.parse(raw);
+        if (!data || typeof data !== "object") throw new Error("JSON inválido");
+        var pre = Array.isArray(data.pre) ? data.pre : [];
+        var post = Array.isArray(data.post) ? data.post : [];
+        saveQuestions({ pre: pre, post: post });
+        elFeedback.style.display = "block";
+        elFeedback.style.color = "var(--accent)";
+        elFeedback.textContent = "Perguntas importadas (" + pre.length + " pré, " + post.length + " pós). Recarregue a tela de perguntas se precisar.";
+        elInput.value = "";
+        setTimeout(function(){ elFeedback.style.display = "none"; }, 5000);
+    } catch (e) {
+        elFeedback.style.display = "block";
+        elFeedback.style.color = "rgba(239,68,68,.9)";
+        elFeedback.textContent = "Erro: " + (e && e.message ? e.message : "JSON inválido. Verifique o texto colado.");
+    }
 }
