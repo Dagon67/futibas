@@ -45,6 +45,11 @@ function finalizeQuestionnaireAndSave(){
         state.pendingByMode[mode].splice(idx,1);
     }
 
+    // Quando todos responderam, atualizar o Sheets automaticamente
+    if (state.pendingByMode[mode] && state.pendingByMode[mode].length === 0 && typeof syncAllToSheets === "function") {
+        syncAllToSheets().catch(function(err){ console.error("Erro ao sincronizar com Sheets:", err); });
+    }
+
     // limpar respostas temporárias
     state.tempAnswers = {};
     state.currentPlayerId = null;

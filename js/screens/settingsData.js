@@ -30,7 +30,7 @@ function renderSettingsData(){
         <div style="display:flex;flex-direction:column;gap:1rem;">
             <div class="item-title" style="margin-bottom:.5rem;">Sincronizar com Google Sheets</div>
             <div class="item-sub" style="margin-bottom:.5rem;">
-                O Sheets só é atualizado quando você clica em "Sincronizar agora" ou "Finalizar treino e sincronizar" na tela do treino.
+                O Sheets é atualizado ao clicar em "Sincronizar agora" ou "Finalizar treino e sincronizar", e <strong>automaticamente quando todos os jogadores respondem</strong> a um treino.
             </div>
             <button class="small-solid-btn" type="button" onclick="syncAllToSheets().then(function(){ alert('Planilha atualizada.'); }).catch(function(e){ alert('Erro: ' + (e && e.message ? e.message : e)); });" style="margin-bottom:1rem;">
                 Sincronizar agora
@@ -76,6 +76,24 @@ function renderSettingsData(){
                 Importar perguntas
             </button>
             <div id="importQuestionsFeedback" style="font-size:0.875rem;margin-top:0.25rem;display:none;"></div>
+
+            <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Jogadores (localStorage)</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                A lista de jogadores também fica no localStorage. Exporte/importe para usar a mesma lista no app do Render ou em outro aparelho.
+            </div>
+            <button class="small-solid-btn" type="button" onclick="copyCurrentPlayersAsJson()">
+                Exportar jogadores (copiar JSON)
+            </button>
+            <div id="copyPlayersFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
+            <div class="item-title" style="margin-bottom:.5rem;margin-top:1rem;">Importar jogadores</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                Cole o JSON da lista de jogadores e clique em Importar (substitui a lista atual).
+            </div>
+            <textarea id="importPlayersJson" placeholder='Cole aqui o JSON (ex: [{"id":"...","name":"...","number":10,...}])' style="width:100%;min-height:80px;padding:0.5rem;border-radius:var(--radius-md);border:2px solid rgba(255,255,255,0.2);background:#000;color:var(--text-main);font-size:0.875rem;resize:vertical;"></textarea>
+            <button class="small-solid-btn" type="button" onclick="importPlayersFromJson()">
+                Importar jogadores
+            </button>
+            <div id="importPlayersFeedback" style="font-size:0.875rem;margin-top:0.25rem;display:none;"></div>
 
             <div>
                 <div class="item-title" style="margin-bottom:.5rem;">Últimas respostas</div>
@@ -143,6 +161,60 @@ function importQuestionsFromJson(){
         elFeedback.style.display = "block";
         elFeedback.style.color = "var(--accent)";
         elFeedback.textContent = "Perguntas importadas (" + pre.length + " pré, " + post.length + " pós). Recarregue a tela de perguntas se precisar.";
+        elInput.value = "";
+        setTimeout(function(){ elFeedback.style.display = "none"; }, 5000);
+    } catch (e) {
+        elFeedback.style.display = "block";
+        elFeedback.style.color = "rgba(239,68,68,.9)";
+        elFeedback.textContent = "Erro: " + (e && e.message ? e.message : "JSON inválido. Verifique o texto colado.");
+    }
+}
+
+function copyCurrentPlayersAsJson(){
+    var players = typeof loadPlayers === "function" ? loadPlayers() : [];
+    var json = JSON.stringify(players, null, 2);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(json).then(function(){
+            var el = document.getElementById("copyPlayersFeedback");
+            if (el) { el.style.display = "block"; el.textContent = "Copiado. Abra o app no Render (ou outro navegador) e importe jogadores abaixo."; el.style.color = "var(--accent)"; }
+            setTimeout(function(){ if (el) { el.style.display = "none"; } }, 3000);
+        }).catch(function(){ fallbackCopyPlayers(json); });
+    } else {
+        fallbackCopyPlayers(json);
+    }
+}
+function fallbackCopyPlayers(text){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand("copy");
+        var el = document.getElementById("copyPlayersFeedback");
+        if (el) { el.style.display = "block"; el.textContent = "Copiado. Cole na tela de Importar no outro navegador."; }
+    } catch(e) {}
+    document.body.removeChild(ta);
+}
+
+function importPlayersFromJson(){
+    var elInput = document.getElementById("importPlayersJson");
+    var elFeedback = document.getElementById("importPlayersFeedback");
+    if (!elInput || !elFeedback) return;
+    var raw = (elInput.value || "").trim();
+    if (!raw) {
+        elFeedback.style.display = "block";
+        elFeedback.style.color = "rgba(239,68,68,.9)";
+        elFeedback.textContent = "Cole o JSON dos jogadores no campo acima.";
+        setTimeout(function(){ elFeedback.style.display = "none"; }, 4000);
+        return;
+    }
+    try {
+        var data = JSON.parse(raw);
+        if (!Array.isArray(data)) throw new Error("O JSON deve ser um array de jogadores.");
+        savePlayers(data);
+        elFeedback.style.display = "block";
+        elFeedback.style.color = "var(--accent)";
+        elFeedback.textContent = "Jogadores importados (" + data.length + ").";
         elInput.value = "";
         setTimeout(function(){ elFeedback.style.display = "none"; }, 5000);
     } catch (e) {
