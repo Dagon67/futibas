@@ -9,6 +9,10 @@ function goQuestionnaire(){
     const player = getPlayerById(state.currentPlayerId);
     const allQuestions = loadQuestions();
     const qsList = mode==="pre" ? allQuestions.pre : allQuestions.post;
+    // Guardar textos na ordem exata usada na tela (evita discrepância com localStorage no clique)
+    state.currentQuestionTexts = qsList.map(function(q){
+        return typeof q === "string" ? q : (q && q.texto ? q.texto : "");
+    });
     
     // Botão de voltar - verificar de onde veio
     let backButtonHTML = "";
@@ -37,13 +41,13 @@ function goQuestionnaire(){
         
         let inputHTML = "";
         if(q.tipo === "texto"){
-            inputHTML = `<textarea class="q-input" rows="3" id="${safeId}" oninput="captureAnswer('${qText}', this.value)" placeholder="Digite aqui..." required></textarea>`;
+            inputHTML = `<textarea class="q-input" rows="3" id="${safeId}" oninput="captureAnswerByIndex(${idx}, this.value)" placeholder="Digite aqui..." required></textarea>`;
         }else if(q.tipo === "nota"){
             const notaMax = q.notaMax || 10;
             const scale = Array.from({length: notaMax + 1}, (_, i) => i);
             inputHTML = `<div class="rating-scale" id="${qId}">
                 ${scale.map(n=>
-                    `<button type="button" class="rating-btn" onclick="selectRating('${qText}', ${n}, '${qId}')">${n}</button>`
+                    `<button type="button" class="rating-btn" onclick="selectRatingByIndex(${idx}, ${n}, '${qId}')">${n}</button>`
                 ).join("")}
             </div>`;
         }else if(q.tipo === "escolha"){
@@ -51,7 +55,7 @@ function goQuestionnaire(){
                 inputHTML = `<div id="${qId}">
                     ${q.opcoes.map((opt,optIdx)=>
                         `<label class="radio-option">
-                            <input type="radio" name="${safeId}" value="${opt}" onchange="captureAnswer('${qText}', this.value)" required>
+                            <input type="radio" name="${safeId}" value="${opt}" onchange="captureAnswerByIndex(${idx}, this.value)" required>
                             <span>${opt}</span>
                         </label>`
                     ).join("")}
@@ -64,7 +68,7 @@ function goQuestionnaire(){
                 inputHTML = `<div id="${qId}">
                     ${q.opcoes.map((opt,optIdx)=>
                         `<label class="checkbox-option">
-                            <input type="checkbox" name="${safeId}" value="${opt}" onchange="captureCheckboxAnswer('${qText}', this.value, this.checked)">
+                            <input type="checkbox" name="${safeId}" value="${opt}" onchange="captureCheckboxAnswerByIndex(${idx}, this.value, this.checked)">
                             <span>${opt}</span>
                         </label>`
                     ).join("")}
@@ -113,40 +117,56 @@ function goQuestionnaire(){
     updateSettingsButtonVisibility();
 }
 
+/** Retorna o texto da pergunta pelo índice. Usa a lista gravada ao abrir o questionário (state.currentQuestionTexts) para não depender de loadQuestions() no clique. */
+function getQuestionTextByIndex(idx){
+    if (state.currentQuestionTexts && Array.isArray(state.currentQuestionTexts) && state.currentQuestionTexts[idx] !== undefined) {
+        return state.currentQuestionTexts[idx];
+    }
+    var qs = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
+    var list = state.currentMode === "pre" ? qs.pre : qs.post;
+    var q = list[idx];
+    if (typeof q === "string") return q;
+    return (q && q.texto) ? q.texto : "";
+}
+
 function captureAnswer(qText, val){
     state.tempAnswers[qText] = val;
+}
+function captureAnswerByIndex(idx, val){
+    var qText = getQuestionTextByIndex(idx);
+    if (qText) state.tempAnswers[qText] = val;
 }
 
 function selectRating(qText, value, containerId){
     state.tempAnswers[qText] = value.toString();
-    // Atualizar visual dos botões
-    const container = document.getElementById(containerId);
+    var container = document.getElementById(containerId);
     if(container){
-        const buttons = container.querySelectorAll('.rating-btn');
-        buttons.forEach((btn,idx)=>{
-            if(idx === value){
-                btn.classList.add('selected');
-            }else{
-                btn.classList.remove('selected');
-            }
-        });
+        var buttons = container.querySelectorAll('.rating-btn');
+        buttons.forEach(function(btn, i){ btn.classList.toggle('selected', i === value); });
+    }
+}
+function selectRatingByIndex(idx, value, containerId){
+    var qText = getQuestionTextByIndex(idx);
+    if (qText) state.tempAnswers[qText] = value.toString();
+    var container = document.getElementById(containerId);
+    if(container){
+        var buttons = container.querySelectorAll('.rating-btn');
+        buttons.forEach(function(btn, i){ btn.classList.toggle('selected', i === value); });
     }
 }
 
 function captureCheckboxAnswer(qText, value, checked){
-    if(!state.tempAnswers[qText]){
-        state.tempAnswers[qText] = [];
-    }
-    if(!Array.isArray(state.tempAnswers[qText])){
-        state.tempAnswers[qText] = [];
-    }
+    if(!state.tempAnswers[qText]) state.tempAnswers[qText] = [];
+    if(!Array.isArray(state.tempAnswers[qText])) state.tempAnswers[qText] = [];
     if(checked){
-        if(!state.tempAnswers[qText].includes(value)){
-            state.tempAnswers[qText].push(value);
-        }
+        if(!state.tempAnswers[qText].includes(value)) state.tempAnswers[qText].push(value);
     }else{
-        state.tempAnswers[qText] = state.tempAnswers[qText].filter(v => v !== value);
+        state.tempAnswers[qText] = state.tempAnswers[qText].filter(function(v){ return v !== value; });
     }
+}
+function captureCheckboxAnswerByIndex(idx, value, checked){
+    var qText = getQuestionTextByIndex(idx);
+    if (qText) captureCheckboxAnswer(qText, value, checked);
 }
 
 function submitAnswers(){

@@ -10,6 +10,7 @@ let state = {
     selectedPlayerIds: [],    // jogadores selecionados para este treino
     currentPlayerId: null,     // id jogador atual respondendo
     tempAnswers: {},           // respostas atuais antes de salvar
+    currentQuestionTexts: null, // textos das perguntas da tela atual (mesma ordem do questionário aberto)
     cameFromScreen: null,      // tela de onde veio para o questionário (para saber para onde voltar)
     // controle de quem já respondeu nesta rodada:
     pendingByMode: {

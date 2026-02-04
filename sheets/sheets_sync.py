@@ -136,26 +136,12 @@ class SheetsSync:
             if t:
                 post_questions.append(t)
 
-        # --- Aba "pre": estrutura igual ao tester - pre.csv ---
-        # Colunas: ID Treino, Data Treino, Modo, ID Jogador, Nome Jogador, Data/Hora, Comentário, [8 perguntas], Estado atual
-        # Mapeamento coluna do Sheets -> texto da pergunta no app (para buscar em answers)
-        pre_column_to_question = [
-            "Qualidade Total de Recuperação",
-            "Bem Estar [Fadiga]",           # -> Nível de fadiga
-            "Bem Estar [Qualidade de Sono]", # -> Nível de sono
-            "Bem Estar [Dor Muscular]",     # -> Nível de dor
-            "Bem Estar [Nível de Estresse]", # -> Nível de estresse
-            "Bem Estar [Humor]",            # -> Nível de humor
-            "Pontos de Dor",                 # -> Pontos de dor
-            "Pontos de Dor Articular",       # -> Pontos de dor articular
-        ]
+        # --- Aba "pre": usa os textos das perguntas do payload (igual ao app) para buscar em answers ---
+        # Assim as chaves enviadas pelo frontend (ex: "Nível de fadiga") batem com o que o backend procura
         worksheet_pre = self._get_or_create_worksheet("pre")
         header_pre = [
-            "ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário",
-            "Qualidade Total de Recuperação", "Nível de fadiga", "Nível de sono", "Nível de dor",
-            "Nível de estresse", "Nível de humor", "Pontos de dor", "Pontos de dor articular",
-            "Estado atual"
-        ]
+            "ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"
+        ] + pre_questions + ["Estado atual"]
         rows_pre = [header_pre]
         for response in pre_responses:
             answers = response.get("answers", {})
@@ -168,7 +154,7 @@ class SheetsSync:
                 self._str(response.get("timestamp", "")),
                 self._str(response.get("comment", "")),
             ]
-            for q_text in pre_column_to_question:
+            for q_text in pre_questions:
                 answer = answers.get(q_text, "")
                 if isinstance(answer, list):
                     answer = "; ".join(str(a) for a in answer)
