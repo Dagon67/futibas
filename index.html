@@ -1239,22 +1239,27 @@
     };
 </script>
 <script>
-    // Sistema de bloqueio por senha
+    // Sistema de bloqueio por senha (senha não fica em texto no código)
     (function() {
-        const LOCK_PASSWORD = '362514';
+        const LOCK_PASSWORD_HASH = 'e9bd5307735327f44ef5ceedf1b0f4964d4d843445cc60f180823b133a82d91f';
         const lockScreen = document.getElementById('lock-screen');
         const passwordInput = document.getElementById('lock-password');
         const submitBtn = document.getElementById('lock-submit');
         const errorMsg = document.getElementById('lock-error');
         const appShell = document.getElementById('app-shell');
 
-        // Desbloqueia o app
+        function sha256Hex(str) {
+            return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
+                .then(function(buf) {
+                    return Array.from(new Uint8Array(buf)).map(function(x) { return x.toString(16).padStart(2, '0'); }).join('');
+                });
+        }
+
         function unlockApp() {
             lockScreen.setAttribute('data-unlocked', 'true');
             appShell.style.display = 'flex';
         }
 
-        // Bloqueia o app novamente (sem focus programático para evitar aviso de autofocus)
         function lockApp() {
             lockScreen.setAttribute('data-unlocked', 'false');
             appShell.style.display = 'none';
@@ -1263,25 +1268,23 @@
             passwordInput.classList.remove('error');
         }
 
-        // Mostra erro
         function showError() {
             passwordInput.classList.add('error');
             errorMsg.classList.add('show');
             passwordInput.value = '';
-            setTimeout(() => {
+            setTimeout(function() {
                 passwordInput.classList.remove('error');
                 errorMsg.classList.remove('show');
             }, 2000);
         }
 
-        // Verifica senha
         function checkPassword() {
-            const input = passwordInput.value.trim();
-            if (input === LOCK_PASSWORD) {
-                unlockApp();
-            } else {
-                showError();
-            }
+            var input = (passwordInput.value || '').trim();
+            if (!input) { showError(); return; }
+            sha256Hex(input).then(function(hash) {
+                if (hash === LOCK_PASSWORD_HASH) unlockApp();
+                else showError();
+            });
         }
 
         // Event listeners

@@ -143,9 +143,7 @@ function clearTrainingsAndResponses() {
 if(!localStorage.getItem(STORAGE_KEYS.QUESTIONS)){
     saveQuestions(defaultQuestions);
 }
-if(!localStorage.getItem(STORAGE_KEYS.PLAYERS)){
-    savePlayers(defaultPlayers);
-}
+// Jogadores: carregados do servidor (jogadores.json) em app.js quando localStorage vazio
 if(!localStorage.getItem(STORAGE_KEYS.RESPONSES)){
     saveResponses([]);
 }

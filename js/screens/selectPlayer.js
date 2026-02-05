@@ -97,12 +97,26 @@ function selectPlayer(playerId){
     goQuestionnaire();
 }
 
+var TRAINING_PASSWORD_HASH = "e9bd5307735327f44ef5ceedf1b0f4964d4d843445cc60f180823b133a82d91f";
+function sha256HexTraining(str) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str))
+        .then(function(buf) {
+            return Array.from(new Uint8Array(buf)).map(function(x) { return x.toString(16).padStart(2, "0"); }).join("");
+        });
+}
 function checkTrainingPassword(){
-    const passwordInput = document.getElementById("trainingPassword");
-    const startBtn = document.getElementById("startIncompleteBtn");
-    
-    if(passwordInput && startBtn){
-        if(passwordInput.value === "362514"){
+    var passwordInput = document.getElementById("trainingPassword");
+    var startBtn = document.getElementById("startIncompleteBtn");
+    if (!passwordInput || !startBtn) return;
+    var value = (passwordInput.value || "").trim();
+    if (!value) {
+        startBtn.disabled = true;
+        startBtn.style.opacity = "0.5";
+        startBtn.style.cursor = "not-allowed";
+        return;
+    }
+    sha256HexTraining(value).then(function(hash) {
+        if (hash === TRAINING_PASSWORD_HASH) {
             startBtn.disabled = false;
             startBtn.style.opacity = "1";
             startBtn.style.cursor = "pointer";
@@ -111,7 +125,7 @@ function checkTrainingPassword(){
             startBtn.style.opacity = "0.5";
             startBtn.style.cursor = "not-allowed";
         }
-    }
+    });
 }
 
 function startTraining(){
@@ -163,12 +177,21 @@ function startTraining(){
 }
 
 function startTrainingIncomplete(){
-    const passwordInput = document.getElementById("trainingPassword");
-    if(!passwordInput || passwordInput.value !== "362514"){
+    var passwordInput = document.getElementById("trainingPassword");
+    var value = passwordInput ? (passwordInput.value || "").trim() : "";
+    if (!value) {
         alert("Senha incorreta.");
         return;
     }
-    
+    sha256HexTraining(value).then(function(hash) {
+        if (hash !== TRAINING_PASSWORD_HASH) {
+            alert("Senha incorreta.");
+            return;
+        }
+        doStartTrainingIncomplete();
+    });
+}
+function doStartTrainingIncomplete(){
     // Marcar treino como iniciado (mas incompleto)
     const trainingId = state.currentTrainingId;
     const mode = state.currentMode;
