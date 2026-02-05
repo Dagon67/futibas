@@ -31,17 +31,17 @@ const defaultPlayers = [
     { id: "default_91", number: 91, name: "Menegazzo", position: "Goleiro", lateralidade: null }
 ];
 
-// Perguntas padrão (modelo do Sheet: 1ª = Qualidade Total de Recuperação, etc. – ordem igual ao CSV de exportação)
+// Perguntas padrão: Qualidade 1–20; fadiga/sono/dor/estresse/humor 1–5; Pontos de dor A–Z; Pontos articular 1–9
 const defaultQuestions = {
     pre: [
-        {tipo:"nota",texto:"Qualidade Total de Recuperação",opcoes:[],imagem:"pre/recupera.png",notaMax:10},
-        {tipo:"nota",texto:"Bem Estar [Fadiga]",opcoes:[],imagem:"pre/fadiga.jpg",notaMax:10},
-        {tipo:"nota",texto:"Bem Estar [Qualidade de Sono]",opcoes:[],imagem:"pre/sono.jpg",notaMax:5},
-        {tipo:"nota",texto:"Bem Estar [Dor Muscular]",opcoes:[],imagem:"pre/musculo.png",notaMax:10},
-        {tipo:"nota",texto:"Bem Estar [Nível de Estresse]",opcoes:[],imagem:"pre/estresse.jpg",notaMax:10},
-        {tipo:"nota",texto:"Bem Estar [Humor]",opcoes:[],imagem:"pre/humor.jpg",notaMax:10},
-        {tipo:"texto",texto:"Pontos de Dor",opcoes:[],imagem:"pre/dor.jpg"},
-        {tipo:"texto",texto:"Pontos de Dor Articular",opcoes:[],imagem:"pre/articula.png"}
+        {tipo:"nota",texto:"Qualidade Total de Recuperação",opcoes:[],imagem:"pre/recupera.png",notaMin:1,notaMax:20},
+        {tipo:"nota",texto:"Nível de fadiga",opcoes:[],imagem:"pre/fadiga.jpg",notaMin:1,notaMax:5},
+        {tipo:"nota",texto:"Nível de sono",opcoes:[],imagem:"pre/sono.jpg",notaMin:1,notaMax:5},
+        {tipo:"nota",texto:"Nível de dor",opcoes:[],imagem:"pre/dor.jpg",notaMin:1,notaMax:5},
+        {tipo:"nota",texto:"Nível de estresse",opcoes:[],imagem:"pre/estresse.jpg",notaMin:1,notaMax:5},
+        {tipo:"nota",texto:"Nível de humor",opcoes:[],imagem:"pre/humor.jpg",notaMin:1,notaMax:5},
+        {tipo:"escolha",texto:"Pontos de dor",opcoes:["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],imagem:"pre/musculo.png"},
+        {tipo:"escolha",texto:"Pontos de dor articular",opcoes:["1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
     ],
     post: [
         {tipo:"texto",texto:"Como você está se sentindo após o treino?",opcoes:[],imagem:null},
@@ -75,13 +75,16 @@ function loadQuestions(){
                         // Migrar string para objeto
                         migrated[mode].push({tipo:"texto",texto:q,opcoes:[],imagem:null});
                     }else if(q && typeof q === 'object'){
-                        // Já está no formato novo
-                        migrated[mode].push({
+                        // Já está no formato novo (preservar notaMin/notaMax para escalas)
+                        const obj = {
                             tipo:q.tipo || "texto",
                             texto:q.texto || q,
                             opcoes:Array.isArray(q.opcoes) ? q.opcoes : [],
                             imagem:q.imagem || null
-                        });
+                        };
+                        if (q.notaMin != null) obj.notaMin = q.notaMin;
+                        if (q.notaMax != null) obj.notaMax = q.notaMax;
+                        migrated[mode].push(obj);
                     }
                 });
             }

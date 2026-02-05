@@ -43,8 +43,9 @@ function goQuestionnaire(){
         if(q.tipo === "texto"){
             inputHTML = `<textarea class="q-input" rows="3" id="${safeId}" oninput="captureAnswerByIndex(${idx}, this.value)" placeholder="Digite aqui..." required></textarea>`;
         }else if(q.tipo === "nota"){
-            const notaMax = q.notaMax || 10;
-            const scale = Array.from({length: notaMax + 1}, (_, i) => i);
+            const notaMin = q.notaMin != null ? q.notaMin : 0;
+            const notaMax = q.notaMax != null ? q.notaMax : 10;
+            const scale = Array.from({length: notaMax - notaMin + 1}, (_, i) => notaMin + i);
             inputHTML = `<div class="rating-scale" id="${qId}">
                 ${scale.map(n=>
                     `<button type="button" class="rating-btn" onclick="selectRatingByIndex(${idx}, ${n}, '${qId}')">${n}</button>`

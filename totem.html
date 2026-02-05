@@ -907,13 +907,16 @@ function loadQuestions(){
                         // Migrar string para objeto
                         migrated[mode].push({tipo:"texto",texto:q,opcoes:[],imagem:null});
                     }else if(q && typeof q === 'object'){
-                        // Já está no formato novo
-                        migrated[mode].push({
+                        // Já está no formato novo (preservar notaMin/notaMax)
+                        const obj = {
                             tipo:q.tipo || "texto",
                             texto:q.texto || q,
                             opcoes:Array.isArray(q.opcoes) ? q.opcoes : [],
                             imagem:q.imagem || null
-                        });
+                        };
+                        if (q.notaMin != null) obj.notaMin = q.notaMin;
+                        if (q.notaMax != null) obj.notaMax = q.notaMax;
+                        migrated[mode].push(obj);
                     }
                 });
             }
@@ -1315,8 +1318,9 @@ function goQuestionnaire(){
         if(q.tipo === "texto"){
             inputHTML = `<textarea class="q-input" rows="3" id="${safeId}" oninput="captureAnswerByIndex(${idx}, this.value)" placeholder="Digite aqui..." required></textarea>`;
         }else if(q.tipo === "nota"){
-            const notaMax = q.notaMax || 10;
-            const scale = Array.from({length: notaMax + 1}, (_, i) => i);
+            const notaMin = q.notaMin != null ? q.notaMin : 0;
+            const notaMax = q.notaMax != null ? q.notaMax : 10;
+            const scale = Array.from({length: notaMax - notaMin + 1}, (_, i) => notaMin + i);
             inputHTML = `<div class="rating-scale" id="${qId}">
                 ${scale.map(n=>
                     `<button type="button" class="rating-btn" onclick="selectRatingByIndex(${idx}, ${n}, '${qId}')">${n}</button>`
