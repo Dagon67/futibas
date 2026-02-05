@@ -27,6 +27,13 @@ function setSettingsTab(tab){
     renderSettings();
 }
 
+/** Restaura as perguntas (pré e pós) ao conjunto padrão do app. Apenas administradores alteram perguntas. */
+function restoreDefaultQuestions(){
+    if (!confirm("Restaurar todas as perguntas ao padrão? As perguntas atuais serão substituídas.")) return;
+    saveQuestions(defaultQuestions);
+    renderSettings();
+}
+
 function renderSettings(){
     const tab = state.settingsTab;
 

@@ -44,10 +44,7 @@ const defaultQuestions = {
         {tipo:"escolha",texto:"Pontos de dor articular",opcoes:["1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
     ],
     post: [
-        {tipo:"texto",texto:"Como você está se sentindo após o treino?",opcoes:[],imagem:null},
-        {tipo:"texto",texto:"Sentiu dor aguda em algum momento?",opcoes:[],imagem:null},
-        {tipo:"nota",texto:"Nível de esforço hoje?",opcoes:[],imagem:"pos/esforço.png",notaMax:10},
-        {tipo:"escolha",texto:"Você acha que consegue treinar igual amanhã?",opcoes:["Sim","Não","Talvez"],imagem:null}
+        {tipo:"nota",texto:"Estado atual",opcoes:[],imagem:"pos/esforço.png",notaMax:10}
     ]
 };
 

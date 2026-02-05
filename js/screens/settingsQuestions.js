@@ -69,6 +69,12 @@ function renderSettingsQuestions(mode){
 
     return `
         <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div style="margin-bottom:0.5rem;">
+                <button type="button" class="small-solid-btn" onclick="restoreDefaultQuestions()" style="width:100%;background:rgba(254,236,2,0.2);border-color:var(--pre-color);color:var(--text-main);">
+                    Restaurar perguntas ao padrão
+                </button>
+                <div class="item-sub" style="margin-top:0.35rem;">Substitui pré e pós pelo conjunto oficial. Use apenas se tiver alterado as perguntas.</div>
+            </div>
             <div>
                 <div class="item-title" style="margin-bottom:.5rem;">Adicionar pergunta (${labelMode})</div>
                 <div style="display:flex;flex-direction:column;gap:1rem;">
