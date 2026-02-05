@@ -40,8 +40,8 @@ const defaultQuestions = {
         {tipo:"nota",texto:"Nível de dor",opcoes:[],imagem:"pre/dor.jpg",notaMin:1,notaMax:5},
         {tipo:"nota",texto:"Nível de estresse",opcoes:[],imagem:"pre/estresse.jpg",notaMin:1,notaMax:5},
         {tipo:"nota",texto:"Nível de humor",opcoes:[],imagem:"pre/humor.jpg",notaMin:1,notaMax:5},
-        {tipo:"escolha",texto:"Pontos de dor",opcoes:["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],imagem:"pre/musculo.png"},
-        {tipo:"escolha",texto:"Pontos de dor articular",opcoes:["1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
+        {tipo:"checkbox",texto:"Pontos de dor",opcoes:["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],imagem:"pre/musculo.png"},
+        {tipo:"checkbox",texto:"Pontos de dor articular",opcoes:["1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
     ],
     post: [
         {tipo:"nota",texto:"Estado atual",opcoes:[],imagem:"pos/esforço.png",notaMax:10}

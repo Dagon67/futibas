@@ -13,103 +13,28 @@ function renderSettingsQuestions(mode){
     const qs = loadQuestions();
     const list = mode==="pre" ? qs.pre : qs.post;
     const labelMode = mode==="pre" ? "pré treino" : "pós treino";
-    
-    // Carregar imagens automaticamente após renderizar
-    setTimeout(() => {
-        loadAvailableImages(mode);
-    }, 100);
 
     const listHTML = list.map((qObj,idx)=>{
         const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
         const qText = q.texto || qObj;
-        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota (0-" + (q.notaMax || 10) + ")" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
+        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
         const hasImage = q.imagem ? `<small style="color:var(--accent);">📷 Com imagem</small>` : "";
         return `
-        <div class="item-row">
+        <div class="item-row" style="align-items:flex-start;">
             <div class="item-main">
                 <div class="item-title">Pergunta ${idx+1} • ${tipoLabel}</div>
                 <div class="item-sub">${qText}</div>
                 ${hasImage}
             </div>
-            <button class="danger-btn" onclick="removeQuestion('${mode}', ${idx})">
-                Remover
-            </button>
         </div>`;
     }).join("");
 
-    const needsOptions = questionFormState.tipo === "escolha" || questionFormState.tipo === "checkbox";
-    const optionsHTML = needsOptions ? `
-        <div class="label-col">
-            <label>Opções (adicione uma por vez)</label>
-            <div class="option-list" id="optionList_${mode}">
-                ${questionFormState.opcoes.map((opt,optIdx)=>`
-                    <div class="option-item">
-                        <input type="text" value="${opt}" onchange="updateQuestionOption(${optIdx}, this.value, '${mode}')" placeholder="Opção ${optIdx+1}">
-                        <button class="option-remove-btn" onclick="removeQuestionOption(${optIdx}, '${mode}')">Remover</button>
-                    </div>
-                `).join("")}
-            </div>
-            <button class="add-option-btn" onclick="addQuestionOption('${mode}')">+ Adicionar Opção</button>
-        </div>
-    ` : "";
-
-    const imageFolder = mode === "pre" ? "pre" : "pos";
-    const imageHTML = `
-        <div class="label-col">
-            <label>Selecionar Imagem (pasta: ${imageFolder}/)</label>
-            <select id="newQuestionImage_${mode}" onchange="handleImageSelect(this.value, '${mode}')" style="margin-bottom:0.5rem;">
-                <option value="">-- Selecione uma imagem --</option>
-            </select>
-            <button type="button" class="small-solid-btn" onclick="loadAvailableImages('${mode}')" style="width:100%;margin-bottom:0.5rem;">
-                Atualizar Lista de Imagens
-            </button>
-            ${questionFormState.imagemPreview ? `<img src="${questionFormState.imagemPreview}" alt="Preview" class="image-preview" id="imagePreview_${mode}">` : ""}
-        </div>
-    `;
-
     return `
         <div style="display:flex;flex-direction:column;gap:1rem;">
-            <div style="margin-bottom:0.5rem;">
-                <button type="button" class="small-solid-btn" onclick="restoreDefaultQuestions()" style="width:100%;background:rgba(254,236,2,0.2);border-color:var(--pre-color);color:var(--text-main);">
-                    Restaurar perguntas ao padrão
-                </button>
-                <div class="item-sub" style="margin-top:0.35rem;">Substitui pré e pós pelo conjunto oficial. Use apenas se tiver alterado as perguntas.</div>
-            </div>
+            <div class="item-sub" style="margin-bottom:0.5rem;">As perguntas são fixas e iguais para todos. Apenas visualização.</div>
             <div>
-                <div class="item-title" style="margin-bottom:.5rem;">Adicionar pergunta (${labelMode})</div>
-                <div style="display:flex;flex-direction:column;gap:1rem;">
-                    <div class="label-col">
-                        <label>Tipo de Pergunta</label>
-                        <select id="newQuestionType_${mode}" onchange="changeQuestionType(this.value, '${mode}')">
-                            <option value="texto" ${questionFormState.tipo === "texto" ? "selected" : ""}>Aberta (texto livre)</option>
-                            <option value="nota" ${questionFormState.tipo === "nota" ? "selected" : ""}>Nota (escala configurável)</option>
-                            <option value="escolha" ${questionFormState.tipo === "escolha" ? "selected" : ""}>Escolha única (radio)</option>
-                            <option value="checkbox" ${questionFormState.tipo === "checkbox" ? "selected" : ""}>Múltipla escolha (checkbox)</option>
-                        </select>
-                    </div>
-                    ${questionFormState.tipo === "nota" ? `
-                    <div class="label-col">
-                        <label>Nota máxima (escala de 0 a)</label>
-                        <select id="newQuestionNotaMax_${mode}" onchange="questionFormState.notaMax=parseInt(this.value);">
-                            <option value="5" ${questionFormState.notaMax === 5 ? "selected" : ""}>0 a 5</option>
-                            <option value="10" ${questionFormState.notaMax === 10 ? "selected" : ""}>0 a 10</option>
-                            <option value="20" ${questionFormState.notaMax === 20 ? "selected" : ""}>0 a 20</option>
-                        </select>
-                    </div>
-                    ` : ""}
-                    <div class="label-col">
-                        <label>Texto da Pergunta</label>
-                        <textarea id="newQuestionText_${mode}" rows="2" placeholder="Ex: Sentiu algum desconforto muscular específico?"></textarea>
-                    </div>
-                    ${optionsHTML}
-                    ${imageHTML}
-                    <button class="small-solid-btn" onclick="addQuestion('${mode}')">Adicionar Pergunta</button>
-                </div>
-            </div>
-
-            <div>
-                <div class="item-title" style="margin-bottom:.5rem;">Perguntas atuais (${labelMode})</div>
-                ${list.length? listHTML : `<div class="item-sub">Nenhuma pergunta cadastrada.</div>`}
+                <div class="item-title" style="margin-bottom:.5rem;">Perguntas (${labelMode})</div>
+                ${list.length ? listHTML : `<div class="item-sub">Nenhuma pergunta.</div>`}
             </div>
         </div>
     `;

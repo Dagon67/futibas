@@ -66,13 +66,11 @@ function goQuestionnaire(){
             }
         }else if(q.tipo === "checkbox"){
             if(q.opcoes && q.opcoes.length > 0){
-                inputHTML = `<div id="${qId}">
-                    ${q.opcoes.map((opt,optIdx)=>
-                        `<label class="checkbox-option">
-                            <input type="checkbox" name="${safeId}" value="${opt}" onchange="captureCheckboxAnswerByIndex(${idx}, this.value, this.checked)">
-                            <span>${opt}</span>
-                        </label>`
-                    ).join("")}
+                inputHTML = `<div class="rating-scale choice-buttons-multi" id="${qId}">
+                    ${q.opcoes.map((opt)=>{
+                        const optEsc = (opt+"").replace(/"/g, "&quot;");
+                        return `<button type="button" class="rating-btn choice-btn-multi" data-value="${optEsc}" onclick="toggleCheckboxByIndex(${idx}, this.getAttribute('data-value'), '${qId}')">${opt}</button>`;
+                    }).join("")}
                 </div>`;
             }else{
                 inputHTML = `<div class="item-sub">Nenhuma opção configurada</div>`;
@@ -175,6 +173,32 @@ function captureCheckboxAnswerByIndex(idx, value, checked){
     if (qText) captureCheckboxAnswer(qText, value, checked);
 }
 
+/** Alterna uma opção nas perguntas de múltipla escolha (botões quadrados). */
+function toggleCheckboxByIndex(idx, value, containerId){
+    if (value == null) return;
+    var qText = getQuestionTextByIndex(idx);
+    if (!qText) return;
+    if (!state.tempAnswers[qText]) state.tempAnswers[qText] = [];
+    if (!Array.isArray(state.tempAnswers[qText])) state.tempAnswers[qText] = [];
+    var arr = state.tempAnswers[qText];
+    if (arr.includes(value)) {
+        state.tempAnswers[qText] = arr.filter(function(v){ return v !== value; });
+    } else {
+        state.tempAnswers[qText] = arr.slice();
+        state.tempAnswers[qText].push(value);
+    }
+    var container = document.getElementById(containerId);
+    if (container) {
+        var btns = container.querySelectorAll(".rating-btn");
+        for (var i = 0; i < btns.length; i++) {
+            if (btns[i].getAttribute("data-value") === value) {
+                btns[i].classList.toggle("selected", state.tempAnswers[qText].includes(value));
+                break;
+            }
+        }
+    }
+}
+
 /** Lê todas as respostas do formulário no DOM e preenche state.tempAnswers. Usa índice como fonte da chave (state.currentQuestionTexts[i]) para garantir mesma chave que o backend no Sheets. */
 function collectAnswersFromDOM(){
     var items = document.querySelectorAll(".q-item");
@@ -198,8 +222,13 @@ function collectAnswersFromDOM(){
         } else {
             var scale = item.querySelector(".rating-scale");
             if (scale) {
-                var sel = scale.querySelector(".rating-btn.selected");
-                val = sel ? (sel.textContent || "").trim() : "";
+                if (scale.classList.contains("choice-buttons-multi")) {
+                    var selectedBtns = scale.querySelectorAll(".rating-btn.selected");
+                    val = Array.prototype.slice.call(selectedBtns).map(function(b){ return b.getAttribute("data-value") || b.textContent.trim(); });
+                } else {
+                    var sel = scale.querySelector(".rating-btn.selected");
+                    val = sel ? (sel.textContent || "").trim() : "";
+                }
             } else {
                 var radio = item.querySelector('input[type="radio"]:checked');
                 if (radio) val = radio.value || "";
@@ -228,7 +257,7 @@ function submitAnswers(){
         var qText = q.texto || qObj;
         var answer = state.tempAnswers[qText];
         var isEmpty = !answer || (Array.isArray(answer) ? answer.length === 0 : answer.toString().trim() === "");
-        if (isEmpty) missing.push(qText);
+        if (isEmpty && q.tipo !== "checkbox") missing.push(qText);
     }
     if (missing.length > 0 && !confirm("Faltam " + missing.length + " pergunta(s) sem resposta. Enviar mesmo assim? (as que tiver serão salvas)")) {
         return;

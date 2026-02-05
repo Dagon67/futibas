@@ -49,13 +49,13 @@
       "notaMax": 5
     },
     {
-      "tipo": "escolha",
+      "tipo": "checkbox",
       "texto": "Pontos de dor",
       "opcoes": ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],
       "imagem": "pre/musculo.png"
     },
     {
-      "tipo": "escolha",
+      "tipo": "checkbox",
       "texto": "Pontos de dor articular",
       "opcoes": ["1","2","3","4","5","6","7","8","9"],
       "imagem": "pre/articula.png"
