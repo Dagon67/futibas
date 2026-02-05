@@ -59,35 +59,9 @@ function savePlayers(players){
     // Sheets só é atualizado ao clicar em "Sincronizar agora" ou "Finalizar treino e sincronizar"
 }
 
+/** Perguntas são sempre as mesmas para todos (definidas no app). Não usa localStorage. */
 function loadQuestions(){
-    try{
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUESTIONS));
-        if(!saved) return defaultQuestions;
-        // Migrar perguntas antigas (strings) para novo formato (objetos)
-        const migrated = {pre:[],post:[]};
-        ['pre','post'].forEach(mode=>{
-            if(Array.isArray(saved[mode])){
-                saved[mode].forEach(q=>{
-                    if(typeof q === 'string'){
-                        // Migrar string para objeto
-                        migrated[mode].push({tipo:"texto",texto:q,opcoes:[],imagem:null});
-                    }else if(q && typeof q === 'object'){
-                        // Já está no formato novo (preservar notaMin/notaMax para escalas)
-                        const obj = {
-                            tipo:q.tipo || "texto",
-                            texto:q.texto || q,
-                            opcoes:Array.isArray(q.opcoes) ? q.opcoes : [],
-                            imagem:q.imagem || null
-                        };
-                        if (q.notaMin != null) obj.notaMin = q.notaMin;
-                        if (q.notaMax != null) obj.notaMax = q.notaMax;
-                        migrated[mode].push(obj);
-                    }
-                });
-            }
-        });
-        return migrated;
-    }catch(e){return defaultQuestions}
+    return defaultQuestions;
 }
 function saveQuestions(qs){
     localStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(qs));
@@ -139,10 +113,7 @@ function clearTrainingsAndResponses() {
     }
 }
 
-// garantir defaults
-if(!localStorage.getItem(STORAGE_KEYS.QUESTIONS)){
-    saveQuestions(defaultQuestions);
-}
+// garantir defaults (perguntas vêm sempre de defaultQuestions, não são gravadas)
 // Jogadores: carregados do servidor (jogadores.json) em app.js quando localStorage vazio
 if(!localStorage.getItem(STORAGE_KEYS.RESPONSES)){
     saveResponses([]);
