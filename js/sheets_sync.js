@@ -120,6 +120,18 @@ async function syncAllToSheets() {
 }
 
 /**
+ * Acorda o backend no Render em produção (ping /health em background).
+ * No plano gratuito o serviço dorme após ~15 min; ao abrir o app já disparamos um request
+ * para ele começar a acordar, assim quando o usuário clicar em Sincronizar pode já estar pronto.
+ */
+function wakeBackendIfNeeded() {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return;
+    var url = (typeof getBackendUrl === "function" ? getBackendUrl() : (window.BACKEND_URL || "")) + "/health";
+    if (!url || url === "/health") return;
+    fetch(url, { method: "GET" }).catch(function () {});
+}
+
+/**
  * Verifica se o serviço está disponível
  */
 async function checkSheetsService() {

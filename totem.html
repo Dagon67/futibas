@@ -2027,6 +2027,10 @@ function renderSettingsData(){
 
 // Inicializar
 goMenu(); // tela inicial (já chama updateSettingsButtonVisibility dentro)
+// Acordar backend (Render) em produção para reduzir 502 no primeiro sync
+if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.BACKEND_URL) {
+    fetch(window.BACKEND_URL + '/health', { method: 'GET' }).catch(function(){});
+}
 
 // Limpar intervalo ao sair da página
 window.addEventListener('beforeunload', function(){
