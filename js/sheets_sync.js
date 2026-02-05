@@ -72,6 +72,10 @@ async function syncAllToSheets() {
             responses: typeof loadResponses === "function" ? loadResponses() : [],
             questions: typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] }
         };
+        const numTrainings = (allData.trainings || []).length;
+        const numResponses = (allData.responses || []).length;
+        const preResponses = (allData.trainings || []).filter(function(t){ return t.mode === "pre"; }).reduce(function(acc, t){ return acc + (t.responses || []).length; }, 0);
+        console.debug("[SHEETS] Enviando sync: " + numTrainings + " treino(s), " + numResponses + " resposta(s) no array, " + preResponses + " resposta(s) pré nos treinos");
         const response = await fetch(SHEETS_SYNC_ALL_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -83,11 +87,15 @@ async function syncAllToSheets() {
             try {
                 const body = JSON.parse(text);
                 const raw = body && (body.error ?? body.message);
-                msg = typeof raw === "string" ? raw : (raw ? JSON.stringify(raw) : msg);
+                msg = typeof raw === "string" ? raw : (raw ? JSON.stringify(raw) : text || msg);
             } catch (_) {
                 if (text && text.length < 500) msg = text;
             }
             if (typeof msg !== "string") msg = String(msg);
+            if (response.status === 502) {
+                msg = "502 Bad Gateway: o servidor (ex.: Render) pode estar iniciando ou indisponível. Aguarde 1–2 min e tente de novo.";
+                console.log("💡 Se abriu o app por arquivo local (file://), use um servidor local (ex.: npx serve .) para evitar CORS com origin null.");
+            }
             console.error("❌ Erro ao sincronizar todos os dados: " + msg);
             if (msg.indexOf("429") !== -1 || msg.indexOf("RATE_LIMIT") !== -1 || msg.indexOf("Quota exceeded") !== -1) {
                 console.log("💡 Limite do Google Sheets (60 writes/min). Aguarde ~1 minuto e tente de novo.");
@@ -99,7 +107,14 @@ async function syncAllToSheets() {
         return result;
     } catch (error) {
         console.error("❌ Erro ao conectar com serviço de sincronização:", error);
-        console.log("💡 Certifique-se de que o serviço Flask está rodando (python sheets/app.py)");
+        var hint = "Certifique-se de que o backend está rodando (local: python sheets/app.py). ";
+        if (typeof window !== "undefined" && window.location && window.location.protocol === "file:") {
+            hint += "Abriu por file:// — use um servidor local (ex.: npx serve . ou Live Server) para evitar CORS (origin null). ";
+        }
+        if (String(error.message || "").indexOf("fetch") !== -1 || String(error.message || "").indexOf("Failed") !== -1) {
+            hint += "Se o backend está no Render, pode estar acordando (502); aguarde 1–2 min e tente de novo.";
+        }
+        console.log("💡 " + hint);
         return { success: false, error: error.message };
     }
 }

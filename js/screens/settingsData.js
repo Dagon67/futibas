@@ -36,6 +36,15 @@ function renderSettingsData(){
                 Sincronizar agora
             </button>
 
+            <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Teste de envio (pré-treino)</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                Preenche todas as perguntas pré com valores de teste usando o primeiro jogador cadastrado, envia para o Sheets e, após 60 segundos, verifica se os dados chegaram na planilha. Abra o console (F12) para ver os logs de debug.
+            </div>
+            <button class="small-solid-btn" type="button" onclick="runTestSyncSheets()" style="background:var(--post-color);color:#000;">
+                Teste envio Sheets
+            </button>
+            <div id="testSyncFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
+
             <div class="item-title" style="margin-bottom:.5rem;">Limpar treinos</div>
             <div class="item-sub" style="margin-bottom:.5rem;">
                 Apaga todos os treinos e respostas no app e na planilha (Sheets). Use para recomeçar e recriar as abas pre/pos corretamente.
@@ -222,4 +231,141 @@ function importPlayersFromJson(){
         elFeedback.style.color = "rgba(239,68,68,.9)";
         elFeedback.textContent = "Erro: " + (e && e.message ? e.message : "JSON inválido. Verifique o texto colado.");
     }
+}
+
+/**
+ * Teste de envio: preenche todas as perguntas pré com um jogador, envia ao Sheets e após 60s verifica se chegou.
+ * Use o console (F12) para ver os logs de debug.
+ */
+function runTestSyncSheets(){
+    var feedbackEl = document.getElementById("testSyncFeedback");
+    function setFeedback(msg, isError){
+        if (feedbackEl) {
+            feedbackEl.style.display = "block";
+            feedbackEl.textContent = msg;
+            feedbackEl.style.color = isError ? "rgba(239,68,68,.9)" : "var(--accent)";
+        }
+    }
+    console.debug("[TESTE SHEETS] Iniciando...");
+    var players = typeof loadPlayers === "function" ? loadPlayers() : [];
+    if (!players.length) {
+        console.debug("[TESTE SHEETS] Nenhum jogador cadastrado.");
+        setFeedback("Cadastre pelo menos um jogador para testar.", true);
+        return;
+    }
+    var firstPlayer = players[0];
+    console.debug("[TESTE SHEETS] Jogador de teste:", firstPlayer.name, firstPlayer.id);
+    var qs = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
+    var preList = qs.pre || [];
+    if (!preList.length) {
+        console.debug("[TESTE SHEETS] Nenhuma pergunta pré cadastrada.");
+        setFeedback("Cadastre perguntas pré para testar.", true);
+        return;
+    }
+    var answers = {};
+    for (var i = 0; i < preList.length; i++) {
+        var q = preList[i];
+        var texto = typeof q === "string" ? q : (q && q.texto ? q.texto : "");
+        if (!texto) continue;
+        var tipo = (q && q.tipo) ? q.tipo : "nota";
+        answers[texto] = tipo === "texto" ? "teste envio" : "7";
+    }
+    console.debug("[TESTE SHEETS] Respostas de teste (por pergunta):", answers);
+    var ts = typeof nowTimestamp === "function" ? nowTimestamp() : new Date().toISOString();
+    var trainingId = "teste_" + Date.now();
+    var dateFormatted = typeof luxon !== "undefined" && luxon.DateTime ? luxon.DateTime.now().toFormat("dd/LL/yyyy") : new Date().toLocaleDateString("pt-BR");
+    var response = {
+        playerId: firstPlayer.id,
+        playerName: firstPlayer.name,
+        playerNumber: firstPlayer.number != null ? firstPlayer.number : "",
+        timestamp: ts,
+        answers: answers
+    };
+    var training = {
+        id: trainingId,
+        mode: "pre",
+        date: new Date().toISOString().slice(0, 10),
+        dateFormatted: dateFormatted,
+        datetime: ts,
+        period: "",
+        playerIds: [firstPlayer.id],
+        responses: [response]
+    };
+    var trainings = typeof loadTrainings === "function" ? loadTrainings() : [];
+    trainings.push(training);
+    if (typeof saveTrainings === "function") saveTrainings(trainings);
+    console.debug("[TESTE SHEETS] Treino de teste salvo. trainingId:", trainingId);
+    var responses = typeof loadResponses === "function" ? loadResponses() : [];
+    responses.push({
+        mode: "pre",
+        trainingId: trainingId,
+        trainingDate: dateFormatted,
+        playerId: response.playerId,
+        playerName: response.playerName,
+        playerNumber: response.playerNumber,
+        timestamp: response.timestamp,
+        answers: response.answers
+    });
+    if (typeof saveResponses === "function") saveResponses(responses);
+    console.debug("[TESTE SHEETS] Respostas salvas. Enviando sync...");
+    setFeedback("Enviando teste... Aguarde.", false);
+    var backendUrl = typeof getBackendUrl === "function" ? getBackendUrl() : (window.BACKEND_URL || "http://localhost:5000");
+    if (typeof syncAllToSheets !== "function") {
+        setFeedback("Função syncAllToSheets não disponível.", true);
+        return;
+    }
+    syncAllToSheets()
+        .then(function(result){
+            console.debug("[TESTE SHEETS] Sync concluído:", result);
+            if (result && result.success === false) {
+                setFeedback((result.error || "Erro ao sincronizar.") + " (Abra F12 para mais detalhes.)", true);
+                return;
+            }
+            setFeedback("Teste enviado. Em 60 segundos será verificada a planilha...", false);
+            setTimeout(function(){
+                console.debug("[TESTE SHEETS] Verificando aba pre no Sheets (após 60s)...");
+                setFeedback("Verificando planilha...", false);
+                fetch(backendUrl + "/verify/pre?last=5")
+                    .then(function(r){ return r.json(); })
+                    .then(function(data){
+                        console.debug("[TESTE SHEETS] Resposta /verify/pre:", data);
+                        if (!data.success || !data.rows || !data.rows.length) {
+                            setFeedback("Verificação: não foi possível ler a aba pre ou está vazia. Veja o console.", true);
+                            return;
+                        }
+                        var rows = data.rows;
+                        var header = rows[0] || [];
+                        var dataRows = rows.slice(1);
+                        var nomeCol = header.indexOf("Nome Jogador");
+                        if (nomeCol === -1) nomeCol = 4;
+                        var found = false;
+                        for (var r = 0; r < dataRows.length; r++) {
+                            var row = dataRows[r];
+                            var nome = (row[nomeCol] || "").toString().trim();
+                            if (nome === firstPlayer.name) {
+                                var hasSeven = row.some(function(cell){ return (cell || "").toString().trim() === "7"; });
+                                var hasTeste = row.some(function(cell){ return (cell || "").toString().indexOf("teste") !== -1; });
+                                if (hasSeven || hasTeste) {
+                                    found = true;
+                                    console.debug("[TESTE SHEETS] Linha do teste encontrada na planilha:", row);
+                                    break;
+                                }
+                            }
+                        }
+                        if (found) {
+                            setFeedback("Sucesso: os dados do teste chegaram na planilha (aba pre).", false);
+                        } else {
+                            setFeedback("A planilha foi lida, mas a linha do teste não foi encontrada. Confira a aba pre manualmente.", true);
+                        }
+                    })
+                    .catch(function(err){
+                        console.debug("[TESTE SHEETS] Erro ao verificar:", err);
+                        setFeedback("Erro ao verificar planilha: " + (err && err.message ? err.message : err), true);
+                    });
+            }, 60000);
+        })
+        .catch(function(err){
+            console.debug("[TESTE SHEETS] Erro no sync:", err);
+            setFeedback("Erro ao enviar: " + (err && err.message ? err.message : err), true);
+        });
 }

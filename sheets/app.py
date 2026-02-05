@@ -13,7 +13,9 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  # Permite requisições do frontend
+# CORS: permitir qualquer origem (localhost, file:// com origin null, app hospedado)
+# Sem isso, ao abrir index.html por file:// o navegador bloqueia por origin 'null'
+CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
 
 # Configuração de upload
 UPLOAD_FOLDER = 'uploads/players'
@@ -211,6 +213,18 @@ def sync_all():
         else:
             return jsonify(result), 500
             
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/verify/pre', methods=['GET'])
+def verify_pre():
+    """Retorna as últimas linhas da aba 'pre' do Sheets (para teste/verificação após envio)."""
+    try:
+        last = request.args.get('last', 5, type=int)
+        last = min(max(1, last), 50)
+        result = sync_data("verify_pre", last)
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

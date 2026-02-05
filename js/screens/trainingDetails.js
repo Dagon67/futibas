@@ -113,7 +113,7 @@ function viewTrainingDetails(trainingId){
     feather.replace();
 }
 
-/** Finaliza o treino enviando os dados atuais (localStorage) para o Google Sheets. */
+/** Finaliza o treino enviando os dados atuais (localStorage) para o Google Sheets. Envia as respostas que tiver, mesmo que o formulário esteja incompleto. */
 function finalizeTrainingAndSyncToSheets(trainingId) {
     if (typeof syncAllToSheets !== "function") {
         alert("Sincronização com Sheets não disponível.");

@@ -9,13 +9,30 @@ function finalizeQuestionnaireAndSave(){
     const player = getPlayerById(playerId);
     if(!player || !trainingId) return;
 
-    // Criar resposta (incluir número para planilha legível)
+    // Montar answers com uma entrada por pergunta (mesma ordem/chave que o backend usa no Sheets)
+    const allQuestions = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
+    const qsList = mode === "pre" ? (allQuestions.pre || []) : (allQuestions.post || []);
+    const answers = {};
+    for (let i = 0; i < qsList.length; i++) {
+        const q = qsList[i];
+        const qText = typeof q === "string" ? q : (q && q.texto ? q.texto : "");
+        if (!qText) continue;
+        let val = state.tempAnswers[qText];
+        if (val === undefined || val === null) val = "";
+        if (Array.isArray(val) && val.length === 0) val = "";
+        answers[qText] = val;
+    }
+    // Incluir qualquer resposta extra que veio do DOM e não está na lista (compatibilidade)
+    Object.keys(state.tempAnswers).forEach(function(k) {
+        if (answers[k] === undefined) answers[k] = state.tempAnswers[k];
+    });
+
     const response = {
         playerId,
         playerName: player.name,
         playerNumber: player.number != null ? player.number : "",
         timestamp: nowTimestamp(),
-        answers: {...state.tempAnswers}
+        answers: answers
     };
 
     // Salvar no treino

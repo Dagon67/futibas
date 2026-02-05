@@ -105,20 +105,33 @@ class SheetsSync:
         self._delete_worksheet_if_exists("Respostas")
         self._delete_worksheet_if_exists("Respostas Pós Treino")
 
-        # Se trainings for fornecido, coletar todas as respostas de todos os treinos
+        # Coletar respostas: de training.responses e também do array "responses" (totem pode só enviar responses)
         all_responses = []
+        seen = set()  # (playerId, trainingId, mode, timestamp) para evitar duplicata
         if trainings:
             for training in trainings:
                 training_responses = training.get("responses", [])
                 for resp in training_responses:
-                    all_responses.append({
-                        **resp,
-                        "mode": training.get("mode", ""),
-                        "trainingId": training.get("id", ""),
-                        "trainingDate": training.get("dateFormatted", training.get("date", ""))
-                    })
-        else:
-            all_responses = responses
+                    key = (resp.get("playerId"), training.get("id"), training.get("mode", ""), resp.get("timestamp", ""))
+                    if key not in seen:
+                        seen.add(key)
+                        all_responses.append({
+                            **resp,
+                            "mode": training.get("mode", ""),
+                            "trainingId": training.get("id", ""),
+                            "trainingDate": training.get("dateFormatted", training.get("date", ""))
+                        })
+        # Incluir respostas do payload (ex.: totem que não salva no treino)
+        for resp in (responses or []):
+            key = (resp.get("playerId"), resp.get("trainingId", ""), resp.get("mode", ""), resp.get("timestamp", ""))
+            if key not in seen:
+                seen.add(key)
+                all_responses.append({
+                    **resp,
+                    "mode": resp.get("mode", ""),
+                    "trainingId": resp.get("trainingId", ""),
+                    "trainingDate": resp.get("trainingDate", resp.get("dateFormatted", ""))
+                })
 
         pre_responses = [r for r in all_responses if r.get("mode") == "pre"]
         post_responses = [r for r in all_responses if r.get("mode") == "post"]
@@ -136,15 +149,15 @@ class SheetsSync:
             if t:
                 post_questions.append(t)
 
-        # --- Aba "pre": usa os textos das perguntas do payload (igual ao app) para buscar em answers ---
-        # Assim as chaves enviadas pelo frontend (ex: "Nível de fadiga") batem com o que o backend procura
+        # --- Aba "pre": formato igual ao tester - pre.csv (referência) ---
+        # Colunas: ID Treino, Data Treino, Modo, ID Jogador, Nome Jogador, Data/Hora, Comentário, depois uma coluna por pergunta (sem "Estado atual")
         worksheet_pre = self._get_or_create_worksheet("pre")
         header_pre = [
             "ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"
-        ] + pre_questions + ["Estado atual"]
+        ] + pre_questions
         rows_pre = [header_pre]
         for response in pre_responses:
-            answers = response.get("answers", {})
+            answers = response.get("answers", {}) or {}
             row = [
                 self._str(response.get("trainingId", "")),
                 self._str(response.get("trainingDate", "")),
@@ -154,17 +167,33 @@ class SheetsSync:
                 self._str(response.get("timestamp", "")),
                 self._str(response.get("comment", "")),
             ]
-            for q_text in pre_questions:
-                answer = answers.get(q_text, "")
+            # Se answers vier como lista por índice (fallback), usar por posição
+            answers_list = response.get("answers_list")
+            if answers_list is None and isinstance(answers, list):
+                answers_list = answers
+            for idx, q_text in enumerate(pre_questions):
+                answer = ""
+                if isinstance(answers, dict):
+                    answer = answers.get(q_text)
+                    if answer is None and q_text:
+                        for k, v in answers.items():
+                            if (k or "").strip() == (q_text or "").strip():
+                                answer = v
+                                break
+                if answer is None and answers_list is not None and 0 <= idx < len(answers_list):
+                    answer = answers_list[idx]
                 if isinstance(answer, list):
                     answer = "; ".join(str(a) for a in answer)
                 else:
-                    answer = str(answer) if answer is not None else ""
+                    answer = str(answer) if answer is not None and answer != "" else ""
                 row.append(self._str(answer))
-            row.append("")  # Estado atual (pre)
             rows_pre.append(row)
         self._update_worksheet_batch(worksheet_pre, rows_pre)
         print(f"✅ {len(pre_responses)} respostas (pré-treino) sincronizadas na aba pre")
+        for i, r in enumerate(pre_responses):
+            name = r.get("playerName", "")
+            n_answers = len(r.get("answers") or {})
+            print(f"   [DEBUG] pré resposta {i+1}: jogador={name}, respostas={n_answers}")
 
         # --- Aba "pos": estrutura igual ao tester - pos.csv ---
         # ID Treino, Data Treino, Modo, ID Jogador, Nome Jogador, Data/Hora, Comentário, Estado atual (coluna H)
@@ -228,6 +257,22 @@ class SheetsSync:
         self.sync_responses(responses, questions, trainings)
         self.sync_questions(questions)
         print("✅ Sincronização completa finalizada!")
+
+    def get_pre_last_rows(self, n: int = 5) -> List[List[Any]]:
+        """Lê as últimas N linhas da aba 'pre' (para verificação após teste). Retorna lista de linhas (cada linha é lista de células)."""
+        try:
+            worksheet = self.spreadsheet.worksheet("pre")
+            all_rows = worksheet.get_all_values()
+            if not all_rows:
+                return []
+            # Primeira linha é cabeçalho; pegar últimas n linhas de dados
+            header = all_rows[0]
+            data_rows = all_rows[1:] if len(all_rows) > 1 else []
+            last_n = data_rows[-n:] if len(data_rows) >= n else data_rows
+            return [header] + last_n
+        except Exception as e:
+            print(f"⚠️ get_pre_last_rows: {e}")
+            return []
 
 
 def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
@@ -314,6 +359,11 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
         
         sync = SheetsSync(use_oauth=use_oauth, credentials_path=credentials_path)
         
+        if data_type == "verify_pre":
+            n = int(data) if data is not None else 5
+            rows = sync.get_pre_last_rows(n)
+            print(f"🔍 [DEBUG] Verificação aba pre: {len(rows)} linha(s) lida(s)")
+            return {"success": True, "rows": rows}
         if data_type == "players":
             sync.sync_players(data)
         elif data_type == "trainings":

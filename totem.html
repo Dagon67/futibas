@@ -993,17 +993,56 @@ function getPlayerById(id){
 function finalizeQuestionnaireAndSave(){
     const mode = state.currentMode;
     const playerId = state.currentPlayerId;
+    const trainingId = state.currentTrainingId;
     const player = getPlayerById(playerId);
     if(!player) return;
 
-    // salvar no array principal de respostas
+    // Montar answers com uma entrada por pergunta (mesma ordem/chave que o backend no Sheets)
+    const allQuestions = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
+    const qsList = mode === "pre" ? (allQuestions.pre || []) : (allQuestions.post || []);
+    const answers = {};
+    for (let i = 0; i < qsList.length; i++) {
+        const q = qsList[i];
+        const qText = typeof q === "string" ? q : (q && q.texto ? q.texto : "");
+        if (!qText) continue;
+        let val = state.tempAnswers[qText];
+        if (val === undefined || val === null) val = "";
+        if (Array.isArray(val) && val.length === 0) val = "";
+        answers[qText] = val;
+    }
+    Object.keys(state.tempAnswers).forEach(function(k) {
+        if (answers[k] === undefined) answers[k] = state.tempAnswers[k];
+    });
+
+    const response = {
+        playerId,
+        playerName: player.name,
+        playerNumber: player.number != null ? player.number : "",
+        timestamp: nowTimestamp(),
+        answers: answers
+    };
+    if (trainingId) response.trainingId = trainingId;
+    const trainingDate = state.currentTrainingDate || "";
+    if (trainingDate) response.trainingDate = trainingDate;
+
+    // Salvar no treino se tiver trainingId
+    if (trainingId) {
+        const trainings = loadTrainings();
+        const training = trainings.find(t => t.id === trainingId);
+        if (training) {
+            if (!training.responses) training.responses = [];
+            training.responses = training.responses.filter(r => r.playerId !== playerId);
+            training.responses.push({ ...response, mode, trainingId, trainingDate: training.dateFormatted || training.date });
+            saveTrainings(trainings);
+        }
+    }
+
     const responses = loadResponses();
     responses.push({
         mode,
-        playerId,
-        playerName: player.name,
-        timestamp: nowTimestamp(),
-        answers: {...state.tempAnswers}
+        trainingId: trainingId || "",
+        trainingDate: trainingDate,
+        ...response
     });
     saveResponses(responses);
 
@@ -1312,9 +1351,9 @@ function goQuestionnaire(){
         }
         
         const imageHTML = q.imagem ? `<img src="${q.imagem}" alt="Imagem da pergunta" class="q-image">` : "";
-        
+        const qTextEscaped = (qText || "").replace(/"/g, "&quot;");
         return `
-        <div class="q-item">
+        <div class="q-item" data-question-index="${idx}" data-question-text="${qTextEscaped}">
             ${imageHTML}
             <div class="q-text">${qText} <span style="color:var(--pre-color);">*</span></div>
             ${inputHTML}
@@ -1398,47 +1437,81 @@ function captureCheckboxAnswerByIndex(idx, value, checked){
     if (qText) captureCheckboxAnswer(qText, value, checked);
 }
 
+function collectAnswersFromDOM(){
+    const items = document.querySelectorAll(".q-item");
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        // Chave sempre pela lista de perguntas (mesma que loadQuestions / backend no Sheets)
+        let qText = state.currentQuestionTexts && state.currentQuestionTexts[i];
+        if (!qText) {
+            qText = item.getAttribute("data-question-text");
+            if (qText) qText = qText.replace(/&quot;/g, '"').trim();
+            if (!qText) {
+                const textDiv = item.querySelector(".q-text");
+                if (textDiv) qText = (textDiv.textContent || "").replace(/\s*\*\s*$/, "").trim();
+            }
+        }
+        if (!qText) continue;
+        let val = "";
+        const textarea = item.querySelector("textarea.q-input");
+        if (textarea) {
+            val = (textarea.value || "").trim();
+        } else {
+            const scale = item.querySelector(".rating-scale");
+            if (scale) {
+                const sel = scale.querySelector(".rating-btn.selected");
+                val = sel ? (sel.textContent || "").trim() : "";
+            } else {
+                const radio = item.querySelector('input[type="radio"]:checked');
+                if (radio) val = radio.value || "";
+                else {
+                    const checks = item.querySelectorAll('input[type="checkbox"]:checked');
+                    val = Array.from(checks).map(c => c.value);
+                }
+            }
+        }
+        state.tempAnswers[qText] = val;
+    }
+}
+
 function submitAnswers(){
-    // validação simples: nenhuma pergunta vazia
     const mode = state.currentMode;
     const allQuestions = loadQuestions();
-    const qsList = mode==="pre" ? allQuestions.pre : allQuestions.post;
+    const qsList = mode === "pre" ? allQuestions.pre : allQuestions.post;
 
-    for (let i=0;i<qsList.length;i++){
+    collectAnswersFromDOM();
+
+    for (let i = 0; i < qsList.length; i++) {
         const qObj = qsList[i];
-        const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
+        const q = typeof qObj === "string" ? { tipo: "texto", texto: qObj, opcoes: [], imagem: null } : qObj;
         const qText = q.texto || qObj;
-        
-        if(!(qText in state.tempAnswers)){
+
+        if (!(qText in state.tempAnswers)) {
             alert("Responda todas as perguntas antes de enviar.");
             return;
         }
-        
+
         const answer = state.tempAnswers[qText];
-        if(q.tipo === "checkbox"){
-            if(!Array.isArray(answer) || answer.length === 0){
+        if (q.tipo === "checkbox") {
+            if (!Array.isArray(answer) || answer.length === 0) {
                 alert("Selecione pelo menos uma opção para todas as perguntas.");
                 return;
             }
-        }else if(q.tipo === "escolha" || q.tipo === "nota"){
-            if(!answer || answer.toString().trim() === ""){
+        } else if (q.tipo === "escolha" || q.tipo === "nota") {
+            if (!answer || answer.toString().trim() === "") {
                 alert("Responda todas as perguntas antes de enviar.");
                 return;
             }
-        }else{
-            if(!answer || answer.toString().trim() === ""){
+        } else {
+            if (!answer || answer.toString().trim() === "") {
                 alert("Responda todas as perguntas antes de enviar.");
                 return;
             }
         }
     }
 
-    // trava botão pra evitar duplo toque
     const btn = document.getElementById("submitAnswersBtn");
-    if(btn){
-        btn.disabled = true;
-        btn.textContent = "Enviando...";
-    }
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
 
     finalizeQuestionnaireAndSave();
 }

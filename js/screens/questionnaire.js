@@ -79,9 +79,9 @@ function goQuestionnaire(){
         }
         
         const imageHTML = q.imagem ? `<img src="${q.imagem}" alt="Imagem da pergunta" class="q-image">` : "";
-        
+        const qTextEscaped = (qText || "").replace(/"/g, "&quot;");
         return `
-        <div class="q-item">
+        <div class="q-item" data-question-index="${idx}" data-question-text="${qTextEscaped}">
             <div class="q-text">${qText} <span style="color:var(--pre-color);">*</span></div>
             ${imageHTML}
             ${inputHTML}
@@ -169,47 +169,67 @@ function captureCheckboxAnswerByIndex(idx, value, checked){
     if (qText) captureCheckboxAnswer(qText, value, checked);
 }
 
+/** Lê todas as respostas do formulário no DOM e preenche state.tempAnswers. Usa índice como fonte da chave (state.currentQuestionTexts[i]) para garantir mesma chave que o backend no Sheets. */
+function collectAnswersFromDOM(){
+    var items = document.querySelectorAll(".q-item");
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        // Chave sempre pela lista de perguntas (mesma que loadQuestions / backend)
+        var qText = state.currentQuestionTexts && state.currentQuestionTexts[i];
+        if (!qText) {
+            qText = item.getAttribute("data-question-text");
+            if (qText) qText = qText.replace(/&quot;/g, '"').trim();
+            if (!qText) {
+                var textDiv = item.querySelector(".q-text");
+                if (textDiv) qText = (textDiv.textContent || "").replace(/\s*\*\s*$/, "").trim();
+            }
+        }
+        if (!qText) continue;
+        var val = "";
+        var textarea = item.querySelector("textarea.q-input");
+        if (textarea) {
+            val = (textarea.value || "").trim();
+        } else {
+            var scale = item.querySelector(".rating-scale");
+            if (scale) {
+                var sel = scale.querySelector(".rating-btn.selected");
+                val = sel ? (sel.textContent || "").trim() : "";
+            } else {
+                var radio = item.querySelector('input[type="radio"]:checked');
+                if (radio) val = radio.value || "";
+                else {
+                    var checks = item.querySelectorAll('input[type="checkbox"]:checked');
+                    val = Array.prototype.slice.call(checks).map(function(c){ return c.value; });
+                }
+            }
+        }
+        state.tempAnswers[qText] = val;
+    }
+}
+
 function submitAnswers(){
-    // validação simples: nenhuma pergunta vazia
-    const mode = state.currentMode;
-    const allQuestions = loadQuestions();
-    const qsList = mode==="pre" ? allQuestions.pre : allQuestions.post;
+    var mode = state.currentMode;
+    var allQuestions = loadQuestions();
+    var qsList = mode === "pre" ? allQuestions.pre : allQuestions.post;
 
-    for (let i=0;i<qsList.length;i++){
-        const qObj = qsList[i];
-        const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
-        const qText = q.texto || qObj;
-        
-        if(!(qText in state.tempAnswers)){
-            alert("Responda todas as perguntas antes de enviar.");
-            return;
-        }
-        
-        const answer = state.tempAnswers[qText];
-        if(q.tipo === "checkbox"){
-            if(!Array.isArray(answer) || answer.length === 0){
-                alert("Selecione pelo menos uma opção para todas as perguntas.");
-                return;
-            }
-        }else if(q.tipo === "escolha" || q.tipo === "nota"){
-            if(!answer || answer.toString().trim() === ""){
-                alert("Responda todas as perguntas antes de enviar.");
-                return;
-            }
-        }else{
-            if(!answer || answer.toString().trim() === ""){
-                alert("Responda todas as perguntas antes de enviar.");
-                return;
-            }
-        }
+    // Coletar todas as respostas do DOM (chave = data-question-text de cada .q-item)
+    collectAnswersFromDOM();
+
+    var missing = [];
+    for (var i = 0; i < qsList.length; i++) {
+        var qObj = qsList[i];
+        var q = typeof qObj === "string" ? { tipo: "texto", texto: qObj, opcoes: [], imagem: null } : qObj;
+        var qText = q.texto || qObj;
+        var answer = state.tempAnswers[qText];
+        var isEmpty = !answer || (Array.isArray(answer) ? answer.length === 0 : answer.toString().trim() === "");
+        if (isEmpty) missing.push(qText);
+    }
+    if (missing.length > 0 && !confirm("Faltam " + missing.length + " pergunta(s) sem resposta. Enviar mesmo assim? (as que tiver serão salvas)")) {
+        return;
     }
 
-    // trava botão pra evitar duplo toque
-    const btn = document.getElementById("submitAnswersBtn");
-    if(btn){
-        btn.disabled = true;
-        btn.textContent = "Enviando...";
-    }
+    var btn = document.getElementById("submitAnswersBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
 
     finalizeQuestionnaireAndSave();
 }
