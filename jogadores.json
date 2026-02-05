@@ -1,0 +1,20 @@
+[
+  {"id":"id_47ve5fq","name":"Bruninho","position":"Ala","lateralidade":"Destro","number":7,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/bruno seixa bruninho.jpg"},
+  {"id":"id_gcrp48o","name":"Tatinho","position":"Ala","lateralidade":"Canhoto","number":2,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/renato de sa tatinho.jpg"},
+  {"id":"id_l5va4d5","name":"Leco","position":"Fixo","lateralidade":"Destro","number":8,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/alex rosa leco.jpg"},
+  {"id":"id_3x2umi7","name":"Pedrinho","position":"Ala","lateralidade":"Canhoto","number":10,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/pedro henrique pedrinho.jpg"},
+  {"id":"id_8j80w7d","name":"William","position":"Ala","lateralidade":"Destro","number":11,"age":25,"height":null,"weight":null,"photo":"fotos jogadores/willian medeiros.jpg"},
+  {"id":"id_7z942f7","name":"Eka","position":"Pivô","lateralidade":null,"number":14,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/edson markes eka.jpg"},
+  {"id":"id_zpbbs4r","name":"Caetano","position":"Fixo","lateralidade":null,"number":16,"age":null,"height":null,"weight":null},
+  {"id":"id_30wu4y1","name":"João Roberto","position":"Pivô","lateralidade":null,"number":20,"age":null,"height":null,"weight":null},
+  {"id":"id_12cqnf3","name":"Nicolas","position":"Goleiro","lateralidade":null,"number":22,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/nicolas souza.jpg"},
+  {"id":"id_puqtjti","name":"Bruno Rafae","position":"Ala","lateralidade":"Destro","number":26,"age":null,"height":null,"weight":null},
+  {"id":"id_ymf1kuf","name":"Nenen Ribeiro","position":"Fixo","lateralidade":null,"number":28,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/jemerson ribeiro nenem ribeiro.jpg"},
+  {"id":"id_tbcuibq","name":"Gui Uesler","position":"Fixo","lateralidade":null,"number":30,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/guilherme uesler gui uesler.jpg"},
+  {"id":"id_ynt8zoa","name":"Valenga","position":"Goleiro","lateralidade":null,"number":31,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/guilherme valenga.jpg"},
+  {"id":"id_93p1zpd","name":"Cadu","position":"Goleiro","lateralidade":null,"number":33,"age":null,"height":null,"weight":null},
+  {"id":"id_z33hgsf","name":"Matheus","position":"Ala","lateralidade":"Destro","number":44,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/Yan matheus.jpg"},
+  {"id":"id_lxwz2kd","name":"Marcênio","position":"Fixo","lateralidade":null,"number":88,"age":null,"height":null,"weight":null,"photo":"fotos jogadores/marcenio ribeiro.jpg"},
+  {"id":"id_v4ozhxh","name":"Santiago","position":"Ala","lateralidade":"Canhoto","number":90,"age":null,"height":null,"weight":null},
+  {"id":"id_qowzhvp","name":"Menegazzo","position":"Goleiro","lateralidade":null,"number":91,"age":null,"height":null,"weight":null}
+]
