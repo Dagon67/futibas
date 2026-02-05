@@ -112,7 +112,12 @@ function goQuestionnaire(){
             </button>
         </div>
     `);
-    
+
+    // Sempre começar do topo da página ao abrir/trocar de jogador no questionário (melhor navegabilidade)
+    window.scrollTo(0, 0);
+    const qList = document.querySelector(".q-list");
+    if (qList) qList.scrollTop = 0;
+
     // Ocultar botão de configurações
     updateSettingsButtonVisibility();
 }

@@ -113,7 +113,7 @@ function viewTrainingDetails(trainingId){
     feather.replace();
 }
 
-/** Finaliza o treino enviando os dados atuais (localStorage) para o Google Sheets. Envia as respostas que tiver, mesmo que o formulário esteja incompleto. */
+/** Finaliza o treino enviando os dados atuais (localStorage) para o Google Sheets. Envia as respostas que tiver, mesmo que o formulário esteja incompleto. Marca o treino como finalizado para que saia da lista de treinos. */
 function finalizeTrainingAndSyncToSheets(trainingId) {
     if (typeof syncAllToSheets !== "function") {
         alert("Sincronização com Sheets não disponível.");
@@ -121,7 +121,15 @@ function finalizeTrainingAndSyncToSheets(trainingId) {
     }
     syncAllToSheets()
         .then(function () {
+            const trainings = loadTrainings();
+            const training = trainings.find(t => t.id === trainingId);
+            if (training) {
+                training.status = "completed";
+                training.completedAt = training.completedAt || nowTimestamp();
+                saveTrainings(trainings);
+            }
             alert("Treino sincronizado com a planilha.");
+            goTrainingsList();
         })
         .catch(function (err) {
             alert("Erro ao sincronizar: " + (err && err.message ? err.message : String(err)));

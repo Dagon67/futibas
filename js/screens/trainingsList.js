@@ -8,8 +8,10 @@ function goTrainingsList(){
     state.currentScreen = "trainingsList";
     setHeaderModeLabel("Lista de Treinos");
 
-    const trainings = loadTrainings();
-    
+    const allTrainings = loadTrainings();
+    // Mostrar apenas treinos não finalizados (sem status "completed" ou "incomplete")
+    const trainings = allTrainings.filter(t => t.status !== "completed" && t.status !== "incomplete");
+
     // Ordenar por data (mais recente primeiro)
     const sortedTrainings = [...trainings].sort((a, b) => {
         return new Date(b.datetime) - new Date(a.datetime);
