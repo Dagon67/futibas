@@ -200,28 +200,17 @@ function doStartTrainingIncomplete(){
         const trainings = loadTrainings();
         const training = trainings.find(t => t.id === trainingId);
         if(training){
-            // Preservar todas as informações do treino
+            // Não alterar training.responses: as respostas já foram salvas por finalizeQuestionnaireAndSave
+            if(!training.responses) training.responses = [];
             training.status = "incomplete";
             training.completedAt = nowTimestamp();
             training.incompleteReason = "Iniciado com questionários incompletos";
-            
-            // Garantir que todas as respostas já coletadas estejam salvas
-            // (isso já foi feito durante o fluxo, mas garantimos que está tudo ok)
-            if(!training.responses){
-                training.responses = [];
-            }
-            
-            // Garantir que os jogadores selecionados estejam preservados
             if(!training.playerIds || training.playerIds.length === 0){
                 training.playerIds = [...state.selectedPlayerIds];
             }
-            
-            // Salvar informações sobre quem não respondeu
             const pending = state.pendingByMode[mode] || [];
-            training.pendingPlayers = pending; // IDs dos jogadores que não responderam
-            
-            // Salvar o treino
-            saveTrainings(trainings);
+            training.pendingPlayers = pending;
+            saveTrainings(JSON.parse(JSON.stringify(trainings)));
         }
     }
     

@@ -9,8 +9,8 @@ function goTrainingsList(){
     setHeaderModeLabel("Lista de Treinos");
 
     const allTrainings = loadTrainings();
-    // Mostrar apenas treinos não finalizados (sem status "completed" ou "incomplete")
-    const trainings = allTrainings.filter(t => t.status !== "completed" && t.status !== "incomplete");
+    // Mostrar treinos não finalizados (completed some da lista); incomplete continua visível para completar pendentes
+    const trainings = allTrainings.filter(t => t.status !== "completed");
 
     // Ordenar por data (mais recente primeiro)
     const sortedTrainings = [...trainings].sort((a, b) => {
