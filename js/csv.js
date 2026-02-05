@@ -19,7 +19,9 @@ function finalizeQuestionnaireAndSave(){
         if (!qText) continue;
         let val = state.tempAnswers[qText];
         if (val === undefined || val === null) val = "";
-        if (Array.isArray(val) && val.length === 0) val = "";
+        if (Array.isArray(val)) {
+            val = val.length === 0 ? "" : val.join("");
+        }
         answers[qText] = val;
     }
     // Incluir qualquer resposta extra que veio do DOM e não está na lista (compatibilidade)
@@ -35,15 +37,14 @@ function finalizeQuestionnaireAndSave(){
         answers: answers
     };
 
-    // Salvar no treino
+    // Salvar no treino (cópia profunda para garantir que o localStorage persista corretamente)
     const trainings = loadTrainings();
     const training = trainings.find(t => t.id === trainingId);
     if(training){
         if(!training.responses) training.responses = [];
-        // Remover resposta anterior do mesmo jogador se existir
         training.responses = training.responses.filter(r => r.playerId !== playerId);
         training.responses.push(response);
-        saveTrainings(trainings);
+        saveTrainings(JSON.parse(JSON.stringify(trainings)));
     }
 
     // Também salvar no array principal de respostas (para compatibilidade com CSV)
@@ -131,19 +132,17 @@ function generateCSV(){
         row.push(r.playerName || "");
         row.push(r.mode === "pre" ? "Pré" : "Pós");
 
-        // Respostas pré (por ordem: 1ª pergunta cadastrada = Qualidade Total de Recuperação)
+        // Respostas pré (por ordem; Pontos de dor/articular já vêm como string sem separador)
         for (let i = 0; i < EXPORT_HEADERS_PRE.length; i++) {
             const qText = preQs[i] ? preQs[i].texto : null;
-            const val = r.mode === "pre" && qText && r.answers[qText] != null
-                ? (Array.isArray(r.answers[qText]) ? r.answers[qText].join("; ") : String(r.answers[qText]))
-                : "";
+            const raw = r.mode === "pre" && qText && r.answers[qText] != null ? r.answers[qText] : "";
+            const val = Array.isArray(raw) ? raw.join("") : String(raw);
             row.push((val || "").replace(/\r?\n/g, " "));
         }
         // Respostas pós (por ordem)
         postQs.forEach(q => {
-            const val = r.mode === "post" && r.answers[q.texto] != null
-                ? (Array.isArray(r.answers[q.texto]) ? r.answers[q.texto].join("; ") : String(r.answers[q.texto]))
-                : "";
+            const raw = r.mode === "post" && r.answers[q.texto] != null ? r.answers[q.texto] : "";
+            const val = Array.isArray(raw) ? raw.join("") : String(raw);
             row.push((val || "").replace(/\r?\n/g, " "));
         });
         row.push((r.comment || "").replace(/\r?\n/g, " "));

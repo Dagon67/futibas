@@ -146,7 +146,10 @@ function selectRating(qText, value, containerId){
     var container = document.getElementById(containerId);
     if(container){
         var buttons = container.querySelectorAll('.rating-btn');
-        buttons.forEach(function(btn, i){ btn.classList.toggle('selected', i === value); });
+        var valueStr = String(value);
+        buttons.forEach(function(btn){
+            btn.classList.toggle('selected', (btn.textContent || '').trim() === valueStr);
+        });
     }
 }
 function selectRatingByIndex(idx, value, containerId){
@@ -155,7 +158,10 @@ function selectRatingByIndex(idx, value, containerId){
     var container = document.getElementById(containerId);
     if(container){
         var buttons = container.querySelectorAll('.rating-btn');
-        buttons.forEach(function(btn, i){ btn.classList.toggle('selected', i === value); });
+        var valueStr = String(value);
+        buttons.forEach(function(btn){
+            btn.classList.toggle('selected', (btn.textContent || '').trim() === valueStr);
+        });
     }
 }
 
