@@ -8,7 +8,9 @@ function tryRestoreResumeState() {
     var saved = typeof loadResumeState === "function" ? loadResumeState() : null;
     if (!saved || !saved.currentScreen) return false;
     var lockEl = document.getElementById("lock-screen");
+    var appShell = document.getElementById("app-shell");
     if (lockEl) lockEl.setAttribute("data-unlocked", "true");
+    if (appShell) appShell.style.display = "flex";
     if (saved.currentScreen === "questionnaire" && saved.currentTrainingId && saved.currentPlayerId) {
         state.currentScreen = saved.currentScreen;
         state.currentMode = saved.currentMode;
