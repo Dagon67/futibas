@@ -85,8 +85,7 @@ function goSelectPlayer(mode){
             ${actionButtonsHTML}
         </div>
     `);
-    
-    // Ocultar botão de configurações
+    if (typeof saveResumeState === "function") saveResumeState();
     updateSettingsButtonVisibility();
     feather.replace();
 }

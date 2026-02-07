@@ -24,3 +24,36 @@ let state = {
 function resetPendingForMode(mode){
     state.pendingByMode[mode] = [...state.selectedPlayerIds];
 }
+
+const RESUME_STATE_KEY = "treino_resume_state";
+
+function saveResumeState(){
+    try {
+        var s = state;
+        if (s.currentScreen !== "questionnaire" && s.currentScreen !== "selectPlayer") return;
+        var payload = {
+            currentScreen: s.currentScreen,
+            currentMode: s.currentMode,
+            currentTrainingId: s.currentTrainingId,
+            currentPlayerId: s.currentPlayerId,
+            selectedPlayerIds: s.selectedPlayerIds || [],
+            pendingByMode: s.pendingByMode ? { pre: (s.pendingByMode.pre || []).slice(), post: (s.pendingByMode.post || []).slice() } : { pre: [], post: [] },
+            cameFromScreen: s.cameFromScreen,
+            tempAnswers: s.tempAnswers ? JSON.parse(JSON.stringify(s.tempAnswers)) : {},
+            currentQuestionTexts: s.currentQuestionTexts || null
+        };
+        localStorage.setItem(RESUME_STATE_KEY, JSON.stringify(payload));
+    } catch (e) { console.warn("saveResumeState:", e); }
+}
+
+function loadResumeState(){
+    try {
+        var raw = localStorage.getItem(RESUME_STATE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch (e) { return null; }
+}
+
+function clearResumeState(){
+    try { localStorage.removeItem(RESUME_STATE_KEY); } catch (e) {}
+}

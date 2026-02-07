@@ -6,7 +6,8 @@ const STORAGE_KEYS = {
     PLAYERS: "treino_players",
     QUESTIONS: "treino_questions",
     RESPONSES: "treino_responses",
-    TRAININGS: "treino_trainings"  // Sessões de treino
+    TRAININGS: "treino_trainings",
+    RESUME_STATE: "treino_resume_state"
 };
 
 // Jogadores padrão da temporada (usados quando não há dados salvos ou ao restaurar padrão)

@@ -3,11 +3,10 @@
    =========================== */
 
 function goHome(){
-    // Sempre mostrar tela de bloqueio quando voltar para home
+    if (typeof clearResumeState === "function") clearResumeState();
     if (typeof window.showLockScreen === 'function') {
         window.showLockScreen();
     }
-
     state.currentScreen = "home";
     state.currentMode = null;
     state.currentTrainingId = null;

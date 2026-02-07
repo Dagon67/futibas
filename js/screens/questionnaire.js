@@ -14,23 +14,7 @@ function goQuestionnaire(){
         return typeof q === "string" ? q : (q && q.texto ? q.texto : "");
     });
     
-    // Botão de voltar - verificar de onde veio
-    let backButtonHTML = "";
-    const cameFrom = state.cameFromScreen;
-    
-    if(cameFrom === "addPlayerToTraining" || cameFrom === "trainingDetails"){
-        // Se veio de adicionar jogador atrasado ou detalhes do treino, voltar para detalhes
-        backButtonHTML = `<button class="back-btn" onclick="viewTrainingDetails('${state.currentTrainingId}')">
-            <i data-feather="arrow-left"></i>
-            <span>${player ? player.name : "Voltar"}</span>
-        </button>`;
-    } else {
-        // Caso normal (fluxo de questionários), voltar para seleção de jogador
-        backButtonHTML = `<button class="back-btn" onclick="goSelectPlayer('${mode}')">
-            <i data-feather="arrow-left"></i>
-            <span>${player ? player.name : "Voltar"}</span>
-        </button>`;
-    }
+    // Sem botão voltar: jogador não pode sair até terminar o questionário
 
     // montar inputs baseado no tipo de pergunta
     const qItemsHTML = qsList.map((qObj,idx)=>{
@@ -77,7 +61,8 @@ function goQuestionnaire(){
             }
         }
         
-        const imageHTML = q.imagem ? `<img src="${q.imagem}" alt="Imagem da pergunta" class="q-image">` : "";
+        const imgSrc = q.imagem ? (q.imagem + "?v=" + (window.__IMAGE_VERSION != null ? window.__IMAGE_VERSION : Date.now())) : "";
+        const imageHTML = imgSrc ? `<img src="${imgSrc}" alt="Imagem da pergunta" class="q-image">` : "";
         const qTextEscaped = (qText || "").replace(/"/g, "&quot;");
         return `
         <div class="q-item" data-question-index="${idx}" data-question-text="${qTextEscaped}">
@@ -90,7 +75,6 @@ function goQuestionnaire(){
     renderScreen(`
         <div class="questionnaire-wrapper">
             <div class="back-row">
-                ${backButtonHTML}
                 <div>
                     <div class="screen-title">
                         ${mode==="pre" ? "Questionário Pré Treino" : "Questionário Pós Treino"}
@@ -112,13 +96,51 @@ function goQuestionnaire(){
         </div>
     `);
 
-    // Sempre começar do topo da página ao abrir/trocar de jogador no questionário (melhor navegabilidade)
     window.scrollTo(0, 0);
     const qList = document.querySelector(".q-list");
     if (qList) qList.scrollTop = 0;
 
-    // Ocultar botão de configurações
+    applyTempAnswersToDOM();
+    if (typeof saveResumeState === "function") saveResumeState();
     updateSettingsButtonVisibility();
+}
+
+function applyTempAnswersToDOM(){
+    if (!state.currentQuestionTexts || !state.tempAnswers) return;
+    var items = document.querySelectorAll(".q-item");
+    for (var i = 0; i < items.length; i++) {
+        var qText = state.currentQuestionTexts[i];
+        if (!qText) continue;
+        var val = state.tempAnswers[qText];
+        if (val === undefined || val === null) continue;
+        var item = items[i];
+        var textarea = item.querySelector("textarea.q-input");
+        if (textarea) {
+            textarea.value = Array.isArray(val) ? val.join(", ") : String(val);
+            continue;
+        }
+        var scale = item.querySelector(".rating-scale");
+        if (scale && !scale.classList.contains("choice-buttons-multi")) {
+            var valueStr = Array.isArray(val) ? (val[0] != null ? String(val[0]) : "") : String(val);
+            scale.querySelectorAll(".rating-btn").forEach(function(btn){
+                btn.classList.toggle("selected", (btn.textContent || "").trim() === valueStr);
+            });
+            continue;
+        }
+        if (scale && scale.classList.contains("choice-buttons-multi")) {
+            var arr = Array.isArray(val) ? val : (val ? [val] : []);
+            scale.querySelectorAll(".rating-btn").forEach(function(btn){
+                var v = btn.getAttribute("data-value");
+                btn.classList.toggle("selected", arr.indexOf(v) !== -1);
+            });
+            continue;
+        }
+        var radios = item.querySelectorAll('input[type="radio"]');
+        if (radios.length) {
+            var radioVal = Array.isArray(val) ? (val[0] != null ? String(val[0]) : "") : String(val);
+            radios.forEach(function(r){ r.checked = (r.value === radioVal); });
+        }
+    }
 }
 
 /** Retorna o texto da pergunta pelo índice. Usa a lista gravada ao abrir o questionário (state.currentQuestionTexts) para não depender de loadQuestions() no clique. */
