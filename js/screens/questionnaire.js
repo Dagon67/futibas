@@ -285,7 +285,7 @@ function submitAnswers(){
         var qText = q.texto || qObj;
         var answer = state.tempAnswers[qText];
         var isEmpty = !answer || (Array.isArray(answer) ? answer.length === 0 : answer.toString().trim() === "");
-        if (isEmpty && q.tipo !== "checkbox") missing.push(qText);
+        if (isEmpty) missing.push(qText);
     }
     if (missing.length > 0) {
         alert("Responda todas as perguntas antes de enviar. Faltam " + missing.length + " pergunta(s).");
