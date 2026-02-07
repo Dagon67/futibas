@@ -10,34 +10,36 @@ function tryRestoreResumeState() {
     var lockEl = document.getElementById("lock-screen");
     var appShell = document.getElementById("app-shell");
     if (lockEl) lockEl.setAttribute("data-unlocked", "true");
-    if (appShell) appShell.style.display = "flex";
-    if (saved.currentScreen === "questionnaire" && saved.currentTrainingId && saved.currentPlayerId) {
-        state.currentScreen = saved.currentScreen;
-        state.currentMode = saved.currentMode;
-        state.currentTrainingId = saved.currentTrainingId;
-        state.currentPlayerId = saved.currentPlayerId;
-        state.selectedPlayerIds = saved.selectedPlayerIds || [];
-        state.pendingByMode = saved.pendingByMode || { pre: [], post: [] };
-        state.cameFromScreen = saved.cameFromScreen;
-        state.tempAnswers = saved.tempAnswers || {};
-        state.currentQuestionTexts = saved.currentQuestionTexts;
-        if (state.currentMode) setHeaderModeLabel(state.currentMode === "pre" ? "Pré Treino" : "Pós Treino");
-        goQuestionnaire();
-        return true;
+    function showAppAndRestore() {
+        if (appShell) appShell.style.display = "flex";
+        if (saved.currentScreen === "questionnaire" && saved.currentTrainingId && saved.currentPlayerId) {
+            state.currentScreen = saved.currentScreen;
+            state.currentMode = saved.currentMode;
+            state.currentTrainingId = saved.currentTrainingId;
+            state.currentPlayerId = saved.currentPlayerId;
+            state.selectedPlayerIds = saved.selectedPlayerIds || [];
+            state.pendingByMode = saved.pendingByMode || { pre: [], post: [] };
+            state.cameFromScreen = saved.cameFromScreen;
+            state.tempAnswers = saved.tempAnswers || {};
+            state.currentQuestionTexts = saved.currentQuestionTexts;
+            if (state.currentMode) setHeaderModeLabel(state.currentMode === "pre" ? "Pré Treino" : "Pós Treino");
+            goQuestionnaire();
+            return;
+        }
+        if (saved.currentScreen === "selectPlayer" && saved.currentMode) {
+            state.currentScreen = saved.currentScreen;
+            state.currentMode = saved.currentMode;
+            state.currentTrainingId = saved.currentTrainingId;
+            state.selectedPlayerIds = saved.selectedPlayerIds || [];
+            state.pendingByMode = saved.pendingByMode || { pre: [], post: [] };
+            state.currentPlayerId = null;
+            state.tempAnswers = {};
+            setHeaderModeLabel(saved.currentMode === "pre" ? "Pré Treino" : "Pós Treino");
+            goSelectPlayer(saved.currentMode);
+        }
     }
-    if (saved.currentScreen === "selectPlayer" && saved.currentMode) {
-        state.currentScreen = saved.currentScreen;
-        state.currentMode = saved.currentMode;
-        state.currentTrainingId = saved.currentTrainingId;
-        state.selectedPlayerIds = saved.selectedPlayerIds || [];
-        state.pendingByMode = saved.pendingByMode || { pre: [], post: [] };
-        state.currentPlayerId = null;
-        state.tempAnswers = {};
-        setHeaderModeLabel(saved.currentMode === "pre" ? "Pré Treino" : "Pós Treino");
-        goSelectPlayer(saved.currentMode);
-        return true;
-    }
-    return false;
+    setTimeout(showAppAndRestore, 0);
+    return true;
 }
 
 // Carregar lista padrão de jogadores (com fotos) do servidor quando não houver dados no localStorage
