@@ -113,14 +113,18 @@ function viewTrainingDetails(trainingId){
     feather.replace();
 }
 
-/** Finaliza o treino enviando os dados atuais (localStorage) para o Google Sheets. Envia as respostas que tiver, mesmo que o formulário esteja incompleto. Marca o treino como finalizado para que saia da lista de treinos. */
+/** Finaliza o treino e sincroniza apenas as respostas desse treino com o Google Sheets (não envia outros treinos). */
 function finalizeTrainingAndSyncToSheets(trainingId) {
-    if (typeof syncAllToSheets !== "function") {
+    if (typeof syncSingleTrainingToSheets !== "function") {
         alert("Sincronização com Sheets não disponível.");
         return;
     }
-    syncAllToSheets()
-        .then(function () {
+    syncSingleTrainingToSheets(trainingId)
+        .then(function (result) {
+            if (result && result.success === false && result.error) {
+                alert("Erro ao sincronizar: " + result.error);
+                return;
+            }
             const trainings = loadTrainings();
             const training = trainings.find(t => t.id === trainingId);
             if (training) {

@@ -228,6 +228,78 @@ class SheetsSync:
             print(f"✅ {len(post_responses)} respostas (pós-treino) sincronizadas na aba pos (coluna H = Estado atual)")
         else:
             print("ℹ️ Aba 'pos' criada/atualizada (sem linhas de pós-treino ainda)")
+
+    def sync_single_training_responses(self, training: Dict[str, Any], questions: Dict[str, List[Dict[str, Any]]]):
+        """Atualiza o Sheets apenas com as respostas de um treino: remove linhas antigas desse treino e adiciona as atuais."""
+        training_id = self._str(training.get("id", ""))
+        training_responses = training.get("responses", [])
+        all_responses = []
+        for resp in training_responses:
+            all_responses.append({
+                **resp,
+                "mode": training.get("mode", ""),
+                "trainingId": training.get("id", ""),
+                "trainingDate": training.get("dateFormatted", training.get("date", ""))
+            })
+        pre_responses = [r for r in all_responses if r.get("mode") == "pre"]
+        post_responses = [r for r in all_responses if r.get("mode") == "post"]
+        pre_questions = [q.get("texto", "") for q in questions.get("pre", []) if q.get("texto")]
+        post_questions = [q.get("texto", "") for q in questions.get("post", []) if q.get("texto")]
+
+        def build_pre_row(response):
+            answers = response.get("answers", {}) or {}
+            row = [
+                self._str(response.get("trainingId", "")),
+                self._str(response.get("trainingDate", "")),
+                "Pré",
+                self._str(response.get("playerId", response.get("playerNumber", ""))),
+                self._str(response.get("playerName", "")),
+                self._str(response.get("timestamp", "")),
+                self._str(response.get("comment", "")),
+            ]
+            for q_text in pre_questions:
+                answer = answers.get(q_text)
+                if isinstance(answer, list):
+                    answer = "; ".join(str(a) for a in answer)
+                else:
+                    answer = str(answer) if answer is not None and answer != "" else ""
+                row.append(self._str(answer))
+            return row
+
+        def build_post_row(response):
+            answers = response.get("answers", {}) or {}
+            parts = [str(answers.get(q_text, "")) for q_text in post_questions if answers.get(q_text)]
+            estado_atual = "; ".join(parts) if parts else ""
+            return [
+                self._str(response.get("trainingId", "")),
+                self._str(response.get("trainingDate", "")),
+                "Pós",
+                self._str(response.get("playerId", response.get("playerNumber", ""))),
+                self._str(response.get("playerName", "")),
+                self._str(response.get("timestamp", "")),
+                self._str(response.get("comment", "")),
+                self._str(estado_atual),
+            ]
+
+        worksheet_pre = self._get_or_create_worksheet("pre")
+        all_rows_pre = worksheet_pre.get_all_values()
+        header_pre = (all_rows_pre[0] if all_rows_pre else ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"] + pre_questions)
+        if len(header_pre) < 7 + len(pre_questions):
+            header_pre = header_pre + [""] * (7 + len(pre_questions) - len(header_pre))
+        kept_pre = [r for r in (all_rows_pre[1:] if len(all_rows_pre) > 1 else []) if (r[0] if len(r) > 0 else "") != training_id]
+        new_pre = [build_pre_row(r) for r in pre_responses]
+        rows_pre = [header_pre] + kept_pre + new_pre
+        self._update_worksheet_batch(worksheet_pre, rows_pre)
+        print(f"✅ Respostas do treino {training_id} (pré): {len(new_pre)} linha(s) atualizadas na aba pre")
+
+        worksheet_pos = self._get_or_create_worksheet("pos")
+        header_post = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário", "Estado atual"]
+        all_rows_pos = worksheet_pos.get_all_values()
+        kept_pos = [r for r in (all_rows_pos[1:] if len(all_rows_pos) > 1 else []) if (r[0] if len(r) > 0 else "") != training_id]
+        new_pos = [build_post_row(r) for r in post_responses]
+        rows_post = [header_post] + kept_pos + new_pos
+        self._update_worksheet_batch(worksheet_pos, rows_post)
+        print(f"✅ Respostas do treino {training_id} (pós): {len(new_pos)} linha(s) atualizadas na aba pos")
     
     def sync_questions(self, questions: Dict[str, List[Dict[str, Any]]]):
         """Sincroniza configuração de perguntas na aba 'Perguntas'"""
@@ -391,6 +463,11 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
                 )
             else:
                 raise ValueError("Para 'all', data deve ser um dict com 'players', 'trainings', etc.")
+        elif data_type == "single_training":
+            if isinstance(data, dict) and "training" in data and "questions" in data:
+                sync.sync_single_training_responses(data["training"], data["questions"])
+            else:
+                raise ValueError("Para 'single_training', data deve ser um dict com 'training' e 'questions'.")
         else:
             raise ValueError(f"Tipo de dado desconhecido: {data_type}")
         

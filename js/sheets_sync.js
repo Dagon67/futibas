@@ -22,6 +22,7 @@ function getBackendUrl() {
 const BACKEND_BASE_URL = getBackendUrl();
 const SHEETS_SYNC_URL = `${BACKEND_BASE_URL}/sync`;
 const SHEETS_SYNC_ALL_URL = `${BACKEND_BASE_URL}/sync/all`;
+const SHEETS_SYNC_TRAINING_URL = `${BACKEND_BASE_URL}/sync/training`;
 
 // Flag para habilitar/desabilitar sincronização
 let sheetsSyncEnabled = true;
@@ -115,6 +116,44 @@ async function syncAllToSheets() {
             hint += "Se o backend está no Render, pode estar acordando (502); aguarde 1–2 min e tente de novo.";
         }
         console.log("💡 " + hint);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Sincroniza apenas as respostas de um treino específico com o Sheets (não envia outros treinos/respostas).
+ */
+async function syncSingleTrainingToSheets(trainingId) {
+    if (!sheetsSyncEnabled) {
+        console.log("📊 Sincronização com Sheets desabilitada");
+        return;
+    }
+    try {
+        const trainings = typeof loadTrainings === "function" ? loadTrainings() : [];
+        const training = trainings.find(function (t) { return t.id === trainingId; });
+        if (!training) {
+            console.warn("[SHEETS] Treino não encontrado:", trainingId);
+            return { success: false, error: "Treino não encontrado" };
+        }
+        const questions = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
+        const payload = { training: training, questions: questions };
+        const response = await fetch(SHEETS_SYNC_TRAINING_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            let msg = text;
+            try { var b = JSON.parse(text); msg = b.error || b.message || text; } catch (_) {}
+            console.error("❌ Erro ao sincronizar treino:", msg);
+            return { success: false, error: msg };
+        }
+        const result = await response.json();
+        console.log("✅ Treino " + trainingId + " sincronizado com o Sheets");
+        return result;
+    } catch (error) {
+        console.error("❌ Erro ao conectar:", error);
         return { success: false, error: error.message };
     }
 }

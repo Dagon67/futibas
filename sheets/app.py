@@ -38,7 +38,8 @@ def root():
         "endpoints": {
             "health": "/health",
             "sync": "/sync",
-            "sync_all": "/sync/all"
+            "sync_all": "/sync/all",
+            "sync_training": "/sync/training"
         }
     })
 
@@ -213,6 +214,21 @@ def sync_all():
         else:
             return jsonify(result), 500
             
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/sync/training', methods=['POST'])
+def sync_training():
+    """Sincroniza apenas as respostas de um treino específico (substitui linhas desse treino no Sheets)."""
+    try:
+        data = request.json
+        if not data or "training" not in data or "questions" not in data:
+            return jsonify({"success": False, "error": "Envie { training, questions }"}), 400
+        result = sync_data("single_training", data)
+        if result["success"]:
+            return jsonify(result), 200
+        return jsonify(result), 500
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
