@@ -300,7 +300,32 @@ class SheetsSync:
         rows_post = [header_post] + kept_pos + new_pos
         self._update_worksheet_batch(worksheet_pos, rows_post)
         print(f"✅ Respostas do treino {training_id} (pós): {len(new_pos)} linha(s) atualizadas na aba pos")
-    
+
+        # Atualizar aba Treinos: inserir/atualizar linha deste treino
+        worksheet_treinos = self._get_or_create_worksheet("Treinos")
+        header_treinos = ["ID", "Data", "Data Formatada", "Data/Hora", "Modo", "Período", "Jogadores IDs", "Número de Respostas"]
+        all_rows_treinos = worksheet_treinos.get_all_values()
+        data_rows_treinos = all_rows_treinos[1:] if len(all_rows_treinos) > 1 else []
+        kept_treinos = [r for r in data_rows_treinos if (r[0] if len(r) > 0 else "") != training_id]
+        player_ids_raw = training.get("playerIds") or training.get("player_ids") or []
+        if not isinstance(player_ids_raw, list):
+            player_ids_raw = []
+        player_ids_str = ",".join(str(pid) for pid in player_ids_raw)
+        num_responses = len(training_responses) if isinstance(training_responses, list) else 0
+        new_row_treinos = [
+            self._str(training.get("id")),
+            self._str(training.get("date")),
+            self._str(training.get("dateFormatted")),
+            self._str(training.get("datetime")),
+            self._str(training.get("mode")),
+            self._str(training.get("period")),
+            player_ids_str,
+            str(num_responses),
+        ]
+        rows_treinos = [header_treinos] + kept_treinos + [new_row_treinos]
+        self._update_worksheet_batch(worksheet_treinos, rows_treinos)
+        print(f"✅ Treino {training_id} registrado na aba Treinos")
+
     def sync_questions(self, questions: Dict[str, List[Dict[str, Any]]]):
         """Sincroniza configuração de perguntas na aba 'Perguntas'"""
         worksheet = self._get_or_create_worksheet("Perguntas")
