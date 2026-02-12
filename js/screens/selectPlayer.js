@@ -11,14 +11,9 @@ function goSelectPlayer(mode){
     const players = loadPlayers();
     const pending = state.pendingByMode[mode]; // ids restantes
     
-    // Só pode voltar ao home se todos responderam
+    // Tela sem botão Voltar: só sai quando todos responderem e clicarem em Iniciar Treino
     const canGoBack = pending.length === 0;
-    const backButtonHTML = canGoBack 
-        ? `<button class="back-btn" onclick="goHome()">
-            <i data-feather="arrow-left"></i>
-            <span>Voltar</span>
-        </button>`
-        : ``;
+    const backButtonHTML = ``;
 
     const playerCardsHTML = players.length===0 
     ? `<div style="color:var(--text-dim);font-size:var(--touch-font-md);text-align:center;width:100%;">Nenhum jogador cadastrado ainda.</div>`

@@ -28,6 +28,15 @@ function renderSettingsData(){
 
     return `
         <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="item-title" style="margin-bottom:.5rem;">Exportar local storage para o Sheets</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                Envia tudo que está no local storage (treinos, respostas, jogadores) para o Google Sheets. Use como backup antes de resetar o dispositivo.
+            </div>
+            <button class="small-solid-btn" type="button" id="exportStorageBtn" onclick="exportLocalStorageToSheets()" style="margin-bottom:1rem;">
+                Exportar local storage
+            </button>
+            <div id="exportStorageFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
+
             <div class="item-title" style="margin-bottom:.5rem;">Limpar local storage (resetar dispositivo)</div>
             <div class="item-sub" style="margin-bottom:.5rem;">
                 Apaga todos os dados do app neste dispositivo (treinos, respostas, jogadores salvos, estado). Use quando alguém tiver problema por dados antigos ou versão anterior. A página recarrega após limpar.
@@ -124,6 +133,39 @@ function confirmClearAllAppStorage(){
     if (!confirm("Isso vai apagar TODOS os dados do app neste dispositivo (treinos, respostas, jogadores, perguntas). A página vai recarregar. Use para resetar quando houver problema. Continuar?")) return;
     if (clearAllAppStorage()) location.reload();
     else alert("Não foi possível limpar. Tente novamente.");
+}
+
+function exportLocalStorageToSheets(){
+    var btn = document.getElementById("exportStorageBtn");
+    var feedback = document.getElementById("exportStorageFeedback");
+    if (btn) { btn.disabled = true; btn.textContent = "Enviando…"; }
+    if (feedback) { feedback.style.display = "none"; }
+    if (typeof syncAllToSheets !== "function") {
+        if (feedback) { feedback.style.display = "block"; feedback.textContent = "Sincronização não disponível."; feedback.style.color = "var(--text-dim)"; }
+        if (btn) { btn.disabled = false; btn.textContent = "Exportar local storage"; }
+        return;
+    }
+    syncAllToSheets().then(function(result){
+        if (btn) { btn.disabled = false; btn.textContent = "Exportar local storage"; }
+        if (feedback) {
+            feedback.style.display = "block";
+            if (result && result.success === false) {
+                feedback.textContent = "Erro: " + (result.error || "desconhecido");
+                feedback.style.color = "#fca5a5";
+            } else {
+                feedback.textContent = "Dados do local storage enviados ao Sheets. Pode usar \"Limpar local storage\" depois.";
+                feedback.style.color = "var(--accent)";
+            }
+        }
+        setTimeout(function(){ if (feedback) feedback.style.display = "none"; }, 8000);
+    }).catch(function(err){
+        if (btn) { btn.disabled = false; btn.textContent = "Exportar local storage"; }
+        if (feedback) {
+            feedback.style.display = "block";
+            feedback.textContent = "Erro: " + (err && err.message ? err.message : String(err));
+            feedback.style.color = "#fca5a5";
+        }
+    });
 }
 
 function copyCurrentQuestionsAsDefault(){
