@@ -63,10 +63,7 @@ function finalizeQuestionnaireAndSave(){
         state.pendingByMode[mode].splice(idx,1);
     }
 
-    // Quando todos responderam, atualizar o Sheets automaticamente
-    if (state.pendingByMode[mode] && state.pendingByMode[mode].length === 0 && typeof syncAllToSheets === "function") {
-        syncAllToSheets().catch(function(err){ console.error("Erro ao sincronizar com Sheets:", err); });
-    }
+    // Não sincronizar aqui: o Sheets só recebe ao clicar "Iniciar Treino" (só esse treino) ou "Finalizar e sincronizar" em Treinos
 
     // limpar respostas temporárias
     state.tempAnswers = {};

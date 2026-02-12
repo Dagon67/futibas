@@ -137,41 +137,46 @@ function startTraining(){
         return;
     }
     
-    // Marcar treino como iniciado/completo
     const trainingId = state.currentTrainingId;
-    if(trainingId){
+    if (trainingId) {
         const trainings = loadTrainings();
         const training = trainings.find(t => t.id === trainingId);
-        if(training){
-            // Preservar todas as informações do treino
+        if (training) {
             training.status = "completed";
             training.completedAt = nowTimestamp();
-            
-            // Garantir que todas as respostas estejam salvas
-            if(!training.responses){
-                training.responses = [];
-            }
-            
-            // Garantir que os jogadores selecionados estejam preservados
-            if(!training.playerIds || training.playerIds.length === 0){
-                training.playerIds = [...state.selectedPlayerIds];
-            }
-            
-            // Limpar pending players se existir (treino completo)
+            if (!training.responses) training.responses = [];
+            if (!training.playerIds || training.playerIds.length === 0) training.playerIds = [...state.selectedPlayerIds];
             training.pendingPlayers = [];
-            
-            // Salvar o treino
             saveTrainings(trainings);
         }
+        state.currentTrainingId = null;
+        state.currentMode = null;
+        state.selectedPlayerIds = [];
+        state.pendingByMode[mode] = [];
+        if (typeof clearResumeState === "function") clearResumeState();
+        if (typeof syncSingleTrainingToSheets === "function") {
+            syncSingleTrainingToSheets(trainingId).then(function () {
+                var all = loadTrainings();
+                var filtered = all.filter(function (t) { return t.id !== trainingId; });
+                saveTrainings(filtered);
+                goHome();
+            }).catch(function (err) {
+                console.error("Erro ao sincronizar treino:", err);
+                var all = loadTrainings();
+                var filtered = all.filter(function (t) { return t.id !== trainingId; });
+                saveTrainings(filtered);
+                goHome();
+            });
+            return;
+        }
+        var all = loadTrainings();
+        saveTrainings(all.filter(function (t) { return t.id !== trainingId; }));
+    } else {
+        state.currentTrainingId = null;
+        state.currentMode = null;
+        state.selectedPlayerIds = [];
+        state.pendingByMode[mode] = [];
     }
-    
-    // Limpar estado
-    state.currentTrainingId = null;
-    state.currentMode = null;
-    state.selectedPlayerIds = [];
-    state.pendingByMode[mode] = [];
-    
-    // Voltar para home
     goHome();
 }
 

@@ -125,13 +125,9 @@ function finalizeTrainingAndSyncToSheets(trainingId) {
                 alert("Erro ao sincronizar: " + result.error);
                 return;
             }
-            const trainings = loadTrainings();
-            const training = trainings.find(t => t.id === trainingId);
-            if (training) {
-                training.status = "completed";
-                training.completedAt = training.completedAt || nowTimestamp();
-                saveTrainings(trainings);
-            }
+            var trainings = loadTrainings();
+            var filtered = trainings.filter(function (t) { return t.id !== trainingId; });
+            saveTrainings(filtered);
             alert("Treino sincronizado com a planilha.");
             goTrainingsList();
         })
