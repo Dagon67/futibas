@@ -155,13 +155,15 @@ function startTraining(){
         state.pendingByMode[mode] = [];
         if (typeof clearResumeState === "function") clearResumeState();
         if (typeof syncSingleTrainingToSheets === "function") {
-            syncSingleTrainingToSheets(trainingId).then(function () {
+            syncSingleTrainingToSheets(trainingId).then(function (result) {
                 var all = loadTrainings();
                 var filtered = all.filter(function (t) { return t.id !== trainingId; });
                 saveTrainings(filtered);
+                if (result && result.success !== false) alert("Treino enviado ao Sheets com sucesso.");
                 goHome();
             }).catch(function (err) {
                 console.error("Erro ao sincronizar treino:", err);
+                alert("Erro ao enviar para o Sheets. Verifique a internet e tente de novo na lista de treinos.");
                 var all = loadTrainings();
                 var filtered = all.filter(function (t) { return t.id !== trainingId; });
                 saveTrainings(filtered);

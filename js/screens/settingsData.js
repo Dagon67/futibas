@@ -28,9 +28,17 @@ function renderSettingsData(){
 
     return `
         <div style="display:flex;flex-direction:column;gap:1rem;">
+            <div class="item-title" style="margin-bottom:.5rem;">Limpar local storage (resetar dispositivo)</div>
+            <div class="item-sub" style="margin-bottom:.5rem;">
+                Apaga todos os dados do app neste dispositivo (treinos, respostas, jogadores salvos, estado). Use quando alguém tiver problema por dados antigos ou versão anterior. A página recarrega após limpar.
+            </div>
+            <button class="small-solid-btn" type="button" onclick="confirmClearAllAppStorage()" style="background:rgba(239,68,68,0.25);border-color:rgba(239,68,68,0.6);color:#fca5a5;margin-bottom:1rem;">
+                Limpar local storage
+            </button>
+
             <div class="item-title" style="margin-bottom:.5rem;">Sincronizar com Google Sheets</div>
             <div class="item-sub" style="margin-bottom:.5rem;">
-                O Sheets é atualizado ao clicar em "Sincronizar agora" ou "Finalizar treino e sincronizar", e <strong>automaticamente quando todos os jogadores respondem</strong> a um treino.
+                O Sheets é atualizado ao clicar em <strong>"Iniciar Treino"</strong> (quando todos responderam) ou <strong>"Finalizar treino e sincronizar"</strong> na lista de treinos. Em tablet/celular, confira se apareceu a mensagem de sucesso e se há internet.
             </div>
             <button class="small-solid-btn" type="button" onclick="syncAllToSheets().then(function(){ alert('Planilha atualizada.'); }).catch(function(e){ alert('Erro: ' + (e && e.message ? e.message : e)); });" style="margin-bottom:1rem;">
                 Sincronizar agora
@@ -110,6 +118,12 @@ function confirmClearTrainingsAndResponses(){
     if (el) { el.style.display = "block"; el.textContent = "Treinos e respostas apagados. Planilha está sendo atualizada."; el.style.color = "var(--accent)"; }
     setTimeout(function(){ if (el) { el.style.display = "none"; } }, 5000);
     setTimeout(function(){ renderSettingsData(); renderSettings(); }, 1500);
+}
+
+function confirmClearAllAppStorage(){
+    if (!confirm("Isso vai apagar TODOS os dados do app neste dispositivo (treinos, respostas, jogadores, perguntas). A página vai recarregar. Use para resetar quando houver problema. Continuar?")) return;
+    if (clearAllAppStorage()) location.reload();
+    else alert("Não foi possível limpar. Tente novamente.");
 }
 
 function copyCurrentQuestionsAsDefault(){

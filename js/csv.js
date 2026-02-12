@@ -20,8 +20,10 @@ function finalizeQuestionnaireAndSave(){
         let val = state.tempAnswers[qText];
         if (val === undefined || val === null) val = "";
         if (Array.isArray(val)) {
-            val = val.length === 0 ? "" : val.join("");
-        }
+            if (val.length === 0) val = "";
+            else if ((qText === "Pontos de dor" || qText === "Pontos de dor articular") && val.indexOf("Sem dor") !== -1) val = "";
+            else val = val.join("");
+        } else if ((qText === "Pontos de dor" || qText === "Pontos de dor articular") && val === "Sem dor") val = "";
         answers[qText] = val;
     }
     // Incluir qualquer resposta extra que veio do DOM e não está na lista (compatibilidade)

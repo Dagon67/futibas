@@ -41,8 +41,8 @@ const defaultQuestions = {
         {tipo:"nota",texto:"Nível de dor",opcoes:[],imagem:"pre/dor.jpg",notaMin:1,notaMax:5},
         {tipo:"nota",texto:"Nível de estresse",opcoes:[],imagem:"pre/estresse.jpg",notaMin:1,notaMax:5},
         {tipo:"nota",texto:"Nível de humor",opcoes:[],imagem:"pre/humor.jpg",notaMin:1,notaMax:5},
-        {tipo:"checkbox",texto:"Pontos de dor",opcoes:["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],imagem:"pre/musculo.png"},
-        {tipo:"checkbox",texto:"Pontos de dor articular",opcoes:["1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
+        {tipo:"checkbox",texto:"Pontos de dor",opcoes:["Sem dor","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],imagem:"pre/musculo.png"},
+        {tipo:"checkbox",texto:"Pontos de dor articular",opcoes:["Sem dor","1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
     ],
     post: [
         {tipo:"nota",texto:"Estado atual",opcoes:[],imagem:"pos/esforço.png",notaMax:10}
@@ -98,6 +98,25 @@ function saveTrainings(trainings){
         localStorage.setItem(STORAGE_KEYS.TRAININGS, JSON.stringify(trainings));
     } catch (e) {
         console.error("Erro ao salvar treinos:", e);
+    }
+}
+
+/**
+ * Limpa todo o localStorage usado pelo app (treinos, respostas, jogadores, perguntas, estado de continuar).
+ * Use para resetar o dispositivo quando houver problema com versão anterior ou dados antigos.
+ * Após limpar, a página recarrega e o app volta ao estado inicial.
+ */
+function clearAllAppStorage() {
+    try {
+        localStorage.removeItem(STORAGE_KEYS.TRAININGS);
+        localStorage.removeItem(STORAGE_KEYS.RESPONSES);
+        localStorage.removeItem(STORAGE_KEYS.PLAYERS);
+        localStorage.removeItem(STORAGE_KEYS.QUESTIONS);
+        localStorage.removeItem(STORAGE_KEYS.RESUME_STATE);
+        return true;
+    } catch (e) {
+        console.error("clearAllAppStorage:", e);
+        return false;
     }
 }
 
