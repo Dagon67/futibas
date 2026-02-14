@@ -76,6 +76,7 @@
         align-items:center;
         justify-content:center;
         padding:var(--safe-pad);
+        overflow:hidden;
     }
     #lock-screen[data-unlocked="true"]{
         display:none;
@@ -184,6 +185,42 @@
     .lock-error-msg.show{
         opacity:1;
     }
+
+    /* Logo SPARK na tela de bloqueio (pequeno, canto, sem rolagem) */
+    #lock-screen .lock-spark-wrap{
+        position:absolute;
+        right:clamp(10px,2vw,20px);
+        bottom:clamp(10px,2vh,20px);
+        transform:scale(0.48);
+        transform-origin:bottom right;
+        z-index:1;
+        pointer-events:none;
+    }
+    #lock-screen .lock-spark-wrap .spark-brand{
+        position:relative;display:inline-grid;place-items:center;padding:10px 14px;border-radius:10px;isolation:isolate;
+        --o:rgba(255,140,40,.98);--gl:rgba(255,140,40,.26);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68);
+    }
+    #lock-screen .lock-spark-wrap .spark-brand::before{
+        content:"";position:absolute;inset:-6px;border-radius:14px;
+        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.1),transparent 70%);filter:blur(2px);opacity:.5;z-index:-1;pointer-events:none;
+    }
+    #lock-screen .lock-spark-wrap .logo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px}
+    #lock-screen .lock-spark-wrap .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:22px;letter-spacing:.06em;color:var(--tx);text-shadow:0 0 10px rgba(255,140,40,.12)}
+    #lock-screen .lock-spark-wrap .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:7px;letter-spacing:.22em;color:var(--mu);text-transform:uppercase}
+    #lock-screen .lock-spark-wrap .bolt{position:absolute;z-index:3;width:70px;height:36px;opacity:0;pointer-events:none;mix-blend-mode:screen;transform:translate(var(--x),var(--y)) rotate(var(--r));transform-origin:center}
+    #lock-screen .lock-spark-wrap .bolt path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+    #lock-screen .lock-spark-wrap .bolt .g{stroke:var(--gl);stroke-width:10;filter:blur(1px);opacity:.9}
+    #lock-screen .lock-spark-wrap .bolt .c{stroke:var(--o);stroke-width:2.5;filter:drop-shadow(0 0 4px rgba(255,140,40,.3))}
+    #lock-screen .lock-spark-wrap .bolt.fire{opacity:1;animation:lockBoltFo 160ms ease-out forwards}
+    #lock-screen .lock-spark-wrap .bolt.fire path{stroke-dasharray:var(--l);stroke-dashoffset:var(--l);animation:lockBoltDr 80ms cubic-bezier(.15,.95,.3,1) forwards}
+    #lock-screen .lock-spark-wrap .bolt.fire .g{animation:lockBoltDr 80ms cubic-bezier(.15,.95,.3,1) forwards,lockBoltFl 160ms ease-out forwards}
+    @keyframes lockBoltDr{0%{stroke-dashoffset:var(--l)}100%{stroke-dashoffset:0}}
+    @keyframes lockBoltFo{0%{opacity:1}100%{opacity:0}}
+    @keyframes lockBoltFl{0%{opacity:.95}100%{opacity:.1}}
+    #lock-screen .lock-spark-wrap .b1{--x:-75px;--y:-12px;--r:-15deg}
+    #lock-screen .lock-spark-wrap .b2{--x:82px;--y:-10px;--r:15deg}
+    #lock-screen .lock-spark-wrap .c1{--x:0;--y:0;--r:8deg;width:100px;height:48px}
+    @media (prefers-reduced-motion:reduce){#lock-screen .lock-spark-wrap .bolt{display:none}}
 
     /* ---------- LAYOUT GERAL ---------- */
     #app-shell{
@@ -1217,6 +1254,14 @@
             <div id="lock-error" class="lock-error-msg">Senha incorreta</div>
         </div>
     </div>
+    <div class="lock-spark-wrap" aria-hidden="true">
+        <div class="spark-brand" id="sparkBrandLock" aria-label="SPARK Technologies">
+            <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
+            <svg class="bolt b1" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
+            <svg class="bolt b2" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
+            <svg class="bolt c1" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
+        </div>
+    </div>
 </div>
 
 <div id="app-shell">
@@ -1346,6 +1391,39 @@
 
         // Torna a função lockApp disponível globalmente
         window.showLockScreen = lockApp;
+
+        // Animação dos raios do logo SPARK na tela de bloqueio
+        (function(){
+            var r=document.getElementById('sparkBrandLock');
+            if(!r) return;
+            var b=[].slice.call(r.querySelectorAll('.bolt'));
+            function path(w,h){
+                w=w||240;h=h||140;
+                var n=6+Math.random()*12,x=12+Math.random()*12,y=25+Math.random()*(h-50),vx=12+Math.random()*8,vy=(Math.random()-0.5)*6,pts=[{x:x,y:y}],i;
+                for(i=0;i<n;i++){
+                    vx=vx*0.6+(Math.random()-0.2)*8;vy=vy*0.5+(Math.random()-0.5)*12;
+                    x+=vx;y+=vy;
+                    if(x<8)x=8;if(x>w*0.85)x=w*0.85;if(y<15)y=15;if(y>h-15)y=h-15;
+                    pts.push({x:x,y:y});
+                }
+                var d='M '+pts[0].x.toFixed(0)+' '+pts[0].y.toFixed(0);
+                for(i=1;i<pts.length;i++) d+=' L '+pts[i].x.toFixed(0)+' '+pts[i].y.toFixed(0);
+                return d;
+            }
+            function fire(svg){
+                var g=svg.querySelector('.g'),c=svg.querySelector('.c'),d=path();
+                g.setAttribute('d',d);c.setAttribute('d',d);
+                svg.style.setProperty('--l',c.getTotalLength().toFixed(0));
+                svg.classList.remove('fire');
+                requestAnimationFrame(function(){ requestAnimationFrame(function(){ svg.classList.add('fire'); setTimeout(function(){ svg.classList.remove('fire'); },200); }); });
+            }
+            function loop(){
+                if(!r.isConnected || lockScreen.getAttribute('data-unlocked')==='true') return;
+                fire(b[Math.floor(Math.random()*b.length)]);
+                setTimeout(loop,400+Math.random()*600);
+            }
+            setTimeout(loop,500);
+        })();
     })();
 </script>
 
