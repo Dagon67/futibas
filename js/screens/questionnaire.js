@@ -29,7 +29,8 @@ function goQuestionnaire(){
         }else if(q.tipo === "nota"){
             const notaMin = q.notaMin != null ? q.notaMin : 0;
             const notaMax = q.notaMax != null ? q.notaMax : 10;
-            const scale = Array.from({length: notaMax - notaMin + 1}, (_, i) => notaMin + i);
+            let scale = Array.from({length: notaMax - notaMin + 1}, (_, i) => notaMin + i);
+            if (notaMin === 1 && notaMax === 5) scale = scale.reverse();
             inputHTML = `<div class="rating-scale" id="${qId}">
                 ${scale.map(n=>
                     `<button type="button" class="rating-btn" onclick="selectRatingByIndex(${idx}, ${n}, '${qId}')">${n}</button>`
@@ -75,7 +76,7 @@ function goQuestionnaire(){
     renderScreen(`
         <div class="questionnaire-wrapper">
             <div class="back-row">
-                <div>
+                <div style="flex:1;min-width:0;">
                     <div class="screen-title">
                         ${mode==="pre" ? "Questionário Pré Treino" : "Questionário Pós Treino"}
                     </div>
@@ -83,6 +84,9 @@ function goQuestionnaire(){
                         Todas as perguntas são obrigatórias. Responda com sinceridade.
                     </div>
                 </div>
+                <button type="button" class="small-solid-btn" onclick="exitQuestionnaireWithPassword()" style="flex-shrink:0;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.3);color:var(--text-dim);font-size:0.875rem;">
+                    Sair (senha)
+                </button>
             </div>
 
             <div class="q-list">
@@ -296,4 +300,22 @@ function submitAnswers(){
     if (btn) { btn.disabled = true; btn.textContent = "Enviando..."; }
 
     finalizeQuestionnaireAndSave();
+}
+
+var QUESTIONNAIRE_EXIT_PASSWORD = "362514";
+function exitQuestionnaireWithPassword() {
+    var value = prompt("Digite a senha para sair do questionário:");
+    if (value === null) return;
+    if ((value || "").trim() !== QUESTIONNAIRE_EXIT_PASSWORD) {
+        alert("Senha incorreta.");
+        return;
+    }
+    if (typeof clearResumeState === "function") clearResumeState();
+    if (state.cameFromScreen === "trainingDetails" && state.currentTrainingId) {
+        if (typeof viewTrainingDetails === "function") viewTrainingDetails(state.currentTrainingId);
+    } else if (state.cameFromScreen === "selectPlayer" && state.currentMode) {
+        if (typeof goSelectPlayer === "function") goSelectPlayer(state.currentMode);
+    } else {
+        if (typeof goHome === "function") goHome();
+    }
 }

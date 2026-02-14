@@ -39,7 +39,10 @@ function renderSettingsData(){
 
             <div class="item-title" style="margin-bottom:.5rem;">Limpar local storage (resetar dispositivo)</div>
             <div class="item-sub" style="margin-bottom:.5rem;">
-                Apaga todos os dados do app neste dispositivo (treinos, respostas, jogadores salvos, estado). Use quando alguém tiver problema por dados antigos ou versão anterior. A página recarrega após limpar.
+                Apaga <strong>tudo</strong> que o app guarda neste navegador: lista de treinos, respostas, jogadores cadastrados, perguntas personalizadas e o estado "continuar de onde parou". A página recarrega em seguida.
+            </div>
+            <div class="item-sub" style="margin-bottom:.5rem;padding:0.75rem;background:rgba(0,0,0,0.2);border-radius:var(--radius-md);font-size:0.875rem;">
+                <strong>O que acontece após limpar?</strong> O app volta a abrir na tela inicial. A lista de jogadores e as perguntas voltam ao padrão. Não haverá mais treinos nem respostas neste dispositivo (faça "Exportar local storage" antes se quiser backup no Sheets).
             </div>
             <button class="small-solid-btn" type="button" onclick="confirmClearAllAppStorage()" style="background:rgba(239,68,68,0.25);border-color:rgba(239,68,68,0.6);color:#fca5a5;margin-bottom:1rem;">
                 Limpar local storage

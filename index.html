@@ -1163,6 +1163,44 @@
             grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
         }
     }
+
+    /* iPad / tablet: layout mais compacto para caber mais na tela */
+    @media (min-width: 768px) and (max-width: 1024px){
+        :root{
+            --touch-font-xl: 1.75rem;
+            --touch-font-lg: 1.2rem;
+            --touch-font-md: 0.95rem;
+            --touch-gap: 12px;
+            --safe-pad: 16px;
+        }
+        .glass-card{ padding: 14px 18px; }
+        .action-btn{
+            min-height: 200px;
+            padding: 24px 20px;
+            font-size: 1.4rem;
+        }
+        .action-btn .sub{ font-size: 0.9rem; margin-top: 8px; }
+        .player-card{ padding: 14px; min-height: 0; }
+        .player-grid{
+            grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+            gap: 12px;
+        }
+        .screen-title{ font-size: 1.15rem; }
+        .screen-sub{ font-size: 0.9rem; }
+        .q-item{ padding: 0.75rem 1rem; gap: 0.5rem; }
+        .q-text{ font-size: 0.95rem; }
+        .rating-scale{ gap: 8px; }
+        .rating-btn{
+            min-width: 42px;
+            min-height: 42px;
+            font-size: 1rem;
+        }
+        .settings-wrapper .settings-panel-scroll,
+        .settings-panel-area{ padding: 12px; }
+        .item-row{ padding: 10px 0; }
+        .submit-btn{ padding: 12px 24px; font-size: 1rem; }
+        .back-row{ gap: 0.75rem; }
+    }
 </style>
 </head>
 <body>

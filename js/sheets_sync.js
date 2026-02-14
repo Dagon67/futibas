@@ -135,8 +135,15 @@ async function syncSingleTrainingToSheets(trainingId) {
             console.warn("[SHEETS] Treino não encontrado:", trainingId);
             return { success: false, error: "Treino não encontrado" };
         }
+        // Garantir dados do treino (período, data formatada) para a aba Treinos no Sheets
+        const trainingToSend = {
+            ...training,
+            dateFormatted: training.dateFormatted || training.date,
+            datetime: training.datetime || (training.date ? training.date + "T12:00:00.000Z" : new Date().toISOString()),
+            period: training.period != null ? training.period : null
+        };
         const questions = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
-        const payload = { training: training, questions: questions };
+        const payload = { training: trainingToSend, questions: questions };
         const response = await fetch(SHEETS_SYNC_TRAINING_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
