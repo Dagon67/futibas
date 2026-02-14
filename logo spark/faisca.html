@@ -12,14 +12,14 @@
 <style>
 /* Tema amarelo (padrão): texto escuro, raios brancos */
 .spark-brand{position:relative;display:inline-grid;place-items:center;padding:12px 18px;border-radius:12px;isolation:isolate}
-.spark-brand--yellow{--o:rgba(255,255,255,.98);--gl:rgba(255,255,255,.45);--tx:#1a1a1a;--mu:#5c4526}
+.spark-brand--yellow{--o:rgba(255,255,255,.98);--gl:rgba(255,255,255,.45);--tx:rgba(255,255,255,.98);--mu:rgba(255,255,255,.75)}
 .spark-brand--dark{--o:rgba(255,140,40,.98);--gl:rgba(255,140,40,.26);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68)}
 .spark-brand::before{content:"";position:absolute;inset:-8px;border-radius:18px;z-index:-1;pointer-events:none}
 .spark-brand--yellow::before{background:radial-gradient(55% 70% at 50% 45%,rgba(0,0,0,.06),transparent 70%);filter:blur(2px);opacity:1}
 .spark-brand--dark::before{background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.1),transparent 70%);filter:blur(2px);opacity:.6}
 .logo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:3px}
 .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:28px;letter-spacing:.08em;color:var(--tx)}
-.spark-brand--yellow .spark{text-shadow:0 1px 2px rgba(0,0,0,.12)}
+.spark-brand--yellow .spark{text-shadow:0 1px 3px rgba(0,0,0,.2)}
 .spark-brand--dark .spark{text-shadow:0 0 12px rgba(255,140,40,.12)}
 .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:9px;letter-spacing:.28em;color:var(--mu);text-transform:uppercase}
 .bolt{position:absolute;z-index:3;width:70px;height:36px;opacity:0;pointer-events:none;transform:translate(var(--x),var(--y)) rotate(var(--r));transform-origin:center}
