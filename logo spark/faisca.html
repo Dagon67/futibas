@@ -10,9 +10,9 @@
 </div>
 
 <style>
-/* Tema amarelo (padrão): texto escuro, raios laranja escuro, sem screen blend */
+/* Tema amarelo (padrão): texto escuro, raios brancos */
 .spark-brand{position:relative;display:inline-grid;place-items:center;padding:12px 18px;border-radius:12px;isolation:isolate}
-.spark-brand--yellow{--o:#a84e00;--gl:rgba(168,78,0,.5);--tx:#1a1a1a;--mu:#5c4526}
+.spark-brand--yellow{--o:rgba(255,255,255,.98);--gl:rgba(255,255,255,.45);--tx:#1a1a1a;--mu:#5c4526}
 .spark-brand--dark{--o:rgba(255,140,40,.98);--gl:rgba(255,140,40,.26);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68)}
 .spark-brand::before{content:"";position:absolute;inset:-8px;border-radius:18px;z-index:-1;pointer-events:none}
 .spark-brand--yellow::before{background:radial-gradient(55% 70% at 50% 45%,rgba(0,0,0,.06),transparent 70%);filter:blur(2px);opacity:1}
@@ -28,7 +28,7 @@
 .bolt path{fill:none;stroke-linecap:round;stroke-linejoin:round}
 .bolt .g{stroke:var(--gl);stroke-width:10;filter:blur(1px);opacity:.9}
 .bolt .c{stroke:var(--o);stroke-width:2.5}
-.spark-brand--yellow .bolt .c{filter:drop-shadow(0 0 3px rgba(168,78,0,.35))}
+.spark-brand--yellow .bolt .c{filter:drop-shadow(0 0 4px rgba(255,255,255,.5))}
 .spark-brand--dark .bolt .c{filter:drop-shadow(0 0 4px rgba(255,140,40,.3))}
 .bolt.fire{opacity:1;animation:fo 160ms ease-out forwards}
 .bolt.fire path{stroke-dasharray:var(--l);stroke-dashoffset:var(--l);animation:dr 80ms cubic-bezier(.15,.95,.3,1) forwards}
