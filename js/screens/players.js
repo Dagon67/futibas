@@ -120,6 +120,13 @@ function goPlayers(){
                         </div>
 
                         <div>
+                            <div class="item-title" style="margin-bottom:.5rem;">Lista no Sheets</div>
+                            <div class="item-sub" style="margin-bottom:.5rem;">Envie a lista atual para o Google Sheets para que outros aparelhos recebam ao entrar com a senha.</div>
+                            <button type="button" class="small-solid-btn" id="btnUpdatePlayersSheets" onclick="updatePlayersListToSheets()">Atualizar lista de jogadores</button>
+                            <div id="playersSyncFeedback" style="margin-top:.5rem;font-size:.875rem;display:none;"></div>
+                        </div>
+
+                        <div>
                             <div class="item-title" style="margin-bottom:.5rem;">Jogadores cadastrados (${players.length})</div>
                             ${playersHTML}
                         </div>
