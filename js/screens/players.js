@@ -445,6 +445,34 @@ async function savePlayerEdit(oldId){
     goPlayers();
 }
 
+function updatePlayersListToSheets() {
+    var btn = document.getElementById("btnUpdatePlayersSheets");
+    var feedback = document.getElementById("playersSyncFeedback");
+    if (!btn || !feedback) return;
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+    feedback.style.display = "none";
+    var run = typeof pushPlayersToSheets === "function" ? pushPlayersToSheets() : Promise.resolve({ success: false, error: "Função não disponível" });
+    run.then(function (result) {
+        btn.disabled = false;
+        btn.textContent = "Atualizar lista de jogadores";
+        feedback.style.display = "block";
+        if (result.success) {
+            feedback.textContent = "Lista enviada para o Sheets. Outros aparelhos receberão ao entrar com a senha.";
+            feedback.style.color = "var(--accent)";
+        } else {
+            feedback.textContent = "Erro: " + (result.error || "Não foi possível enviar.");
+            feedback.style.color = "var(--text-dim)";
+        }
+    }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = "Atualizar lista de jogadores";
+        feedback.style.display = "block";
+        feedback.textContent = "Erro: " + (err && err.message ? err.message : "Falha ao enviar.");
+        feedback.style.color = "var(--text-dim)";
+    });
+}
+
 if (typeof window !== 'undefined') {
     window.goPlayers = goPlayers;
 }

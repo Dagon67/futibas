@@ -212,9 +212,14 @@ async function fetchPlayersFromSheets() {
         }
         const result = await response.json();
         if (result.success && Array.isArray(result.players) && typeof savePlayers === "function") {
-            savePlayers(result.players);
-            console.log("✅ Lista de jogadores atualizada do Sheets (" + result.players.length + " jogadores)");
-            return { success: true, players: result.players };
+            var local = typeof loadPlayers === "function" ? loadPlayers() : [];
+            var sheetsIds = {};
+            result.players.forEach(function (p) { sheetsIds[p.id] = true; });
+            var onlyLocal = local.filter(function (p) { return p && p.id && !sheetsIds[p.id]; });
+            var merged = result.players.concat(onlyLocal);
+            savePlayers(merged);
+            console.log("✅ Lista de jogadores atualizada do Sheets (" + result.players.length + " do Sheets, " + onlyLocal.length + " só locais = " + merged.length + " total)");
+            return { success: true, players: merged };
         }
         return result;
     } catch (error) {

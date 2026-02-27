@@ -227,23 +227,15 @@ class SheetsSync:
             n_answers = len(r.get("answers") or {})
             print(f"   [DEBUG] pré resposta {i+1}: jogador={name}, respostas={n_answers}")
 
-        # --- Aba "pos": estrutura igual ao tester - pos.csv ---
-        # ID Treino, Data Treino, Modo, ID Jogador, Nome Jogador, Data/Hora, Comentário, Estado atual (coluna H)
+        # --- Aba "pos": uma coluna por pergunta (igual ao pre) ---
+        # Colunas: ID Treino, Data Treino, Modo, ID Jogador, Nome Jogador, Data/Hora, Comentário, depois uma por pergunta
         worksheet_pos = self._get_or_create_worksheet("pos")
-        header_post = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário", "Estado atual"]
+        header_post = [
+            "ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"
+        ] + post_questions
         rows_post = [header_post]
         for response in post_responses:
-            answers = response.get("answers", {})
-            parts = []
-            for q_text in post_questions:
-                answer = answers.get(q_text, "")
-                if isinstance(answer, list):
-                    answer = "; ".join(str(a) for a in answer)
-                else:
-                    answer = str(answer) if answer is not None else ""
-                if answer:
-                    parts.append(answer)
-            estado_atual = "; ".join(parts) if parts else ""
+            answers = response.get("answers", {}) or {}
             row = [
                 self._str(response.get("trainingId", "")),
                 self._str(response.get("trainingDate", "")),
@@ -252,12 +244,23 @@ class SheetsSync:
                 self._str(response.get("playerName", "")),
                 self._str(response.get("timestamp", "")),
                 self._str(response.get("comment", "")),
-                self._str(estado_atual),  # coluna H = Estado atual
             ]
+            for q_text in post_questions:
+                answer = answers.get(q_text)
+                if answer is None and q_text:
+                    for k, v in answers.items():
+                        if (k or "").strip() == (q_text or "").strip():
+                            answer = v
+                            break
+                if isinstance(answer, list):
+                    answer = "; ".join(str(a) for a in answer)
+                else:
+                    answer = str(answer) if answer is not None and answer != "" else ""
+                row.append(self._str(answer))
             rows_post.append(row)
         self._update_worksheet_batch(worksheet_pos, rows_post)
         if post_responses:
-            print(f"✅ {len(post_responses)} respostas (pós-treino) sincronizadas na aba pos (coluna H = Estado atual)")
+            print(f"✅ {len(post_responses)} respostas (pós-treino) sincronizadas na aba pos (uma coluna por pergunta)")
         else:
             print("ℹ️ Aba 'pos' criada/atualizada (sem linhas de pós-treino ainda)")
 
@@ -300,9 +303,7 @@ class SheetsSync:
 
         def build_post_row(response):
             answers = response.get("answers", {}) or {}
-            parts = [str(answers.get(q_text, "")) for q_text in post_questions if answers.get(q_text)]
-            estado_atual = "; ".join(parts) if parts else ""
-            return [
+            row = [
                 self._str(response.get("trainingId", "")),
                 self._str(response.get("trainingDate", "")),
                 "Pós",
@@ -310,8 +311,15 @@ class SheetsSync:
                 self._str(response.get("playerName", "")),
                 self._str(response.get("timestamp", "")),
                 self._str(response.get("comment", "")),
-                self._str(estado_atual),
             ]
+            for q_text in post_questions:
+                answer = answers.get(q_text)
+                if isinstance(answer, list):
+                    answer = "; ".join(str(a) for a in answer)
+                else:
+                    answer = str(answer) if answer is not None and answer != "" else ""
+                row.append(self._str(answer))
+            return row
 
         worksheet_pre = self._get_or_create_worksheet("pre")
         all_rows_pre = worksheet_pre.get_all_values()
@@ -325,7 +333,7 @@ class SheetsSync:
         print(f"✅ Respostas do treino {training_id} (pré): {len(new_pre)} linha(s) atualizadas na aba pre")
 
         worksheet_pos = self._get_or_create_worksheet("pos")
-        header_post = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário", "Estado atual"]
+        header_post = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"] + post_questions
         all_rows_pos = worksheet_pos.get_all_values()
         kept_pos = [r for r in (all_rows_pos[1:] if len(all_rows_pos) > 1 else []) if (r[0] if len(r) > 0 else "") != training_id]
         new_pos = [build_post_row(r) for r in post_responses]
