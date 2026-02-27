@@ -68,6 +68,12 @@
       "opcoes": [],
       "imagem": "pos/esforço.png",
       "notaMax": 10
+    },
+    {
+      "tipo": "duracao",
+      "texto": "Quanto tempo de treino foi feito?",
+      "opcoes": [],
+      "imagem": null
     }
   ]
 }

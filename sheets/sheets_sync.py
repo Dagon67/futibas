@@ -49,7 +49,7 @@ class SheetsSync:
     def sync_players(self, players: List[Dict[str, Any]]):
         """Sincroniza lista de jogadores na aba 'Jogadores'"""
         worksheet = self._get_or_create_worksheet("Jogadores")
-        header = ["ID", "Nome", "Número", "Posição", "Idade", "Altura (cm)", "Peso (kg)"]
+        header = ["ID", "Nome", "Número", "Posição", "Lateralidade", "Idade", "Altura (cm)", "Peso (kg)"]
         rows = [header]
         if players:
             for player in players:
@@ -58,12 +58,44 @@ class SheetsSync:
                     self._str(player.get("name")),
                     self._str(player.get("number")),
                     self._str(player.get("position")),
+                    self._str(player.get("lateralidade")),
                     self._str(player.get("age")),
                     self._str(player.get("height")),
                     self._str(player.get("weight")),
                 ])
         self._update_worksheet_batch(worksheet, rows)
         print(f"✅ {len(players)} jogadores sincronizados")
+
+    def get_players(self) -> List[Dict[str, Any]]:
+        """Lê a lista de jogadores da aba 'Jogadores'. Retorna lista de dict com id, name, number, position, lateralidade."""
+        try:
+            worksheet = self.spreadsheet.worksheet("Jogadores")
+            all_rows = worksheet.get_all_values()
+            if not all_rows or len(all_rows) < 2:
+                return []
+            # Cabeçalho: ID, Nome, Número, Posição, Lateralidade, ...
+            data_rows = all_rows[1:]
+            result = []
+            for row in data_rows:
+                if not row or not self._str(row[0]).strip():
+                    continue
+                num_val = None
+                if len(row) > 2 and row[2].strip():
+                    try:
+                        num_val = int(float(str(row[2]).replace(",", ".")))
+                    except (ValueError, TypeError):
+                        num_val = row[2]
+                result.append({
+                    "id": self._str(row[0]).strip() or None,
+                    "name": self._str(row[1]).strip() if len(row) > 1 else "",
+                    "number": num_val if num_val is not None else (row[2] if len(row) > 2 else None),
+                    "position": self._str(row[3]).strip() if len(row) > 3 else "",
+                    "lateralidade": self._str(row[4]).strip() if len(row) > 4 else None,
+                })
+            return result
+        except Exception as e:
+            print(f"⚠️ get_players: {e}")
+            raise
     
     def _str(self, val):
         """Converte valor para string de forma segura (evita erro 500 por tipo inesperado)."""
@@ -456,6 +488,9 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
         
         sync = SheetsSync(use_oauth=use_oauth, credentials_path=credentials_path)
         
+        if data_type == "get_players":
+            players = sync.get_players()
+            return {"success": True, "players": players}
         if data_type == "verify_pre":
             n = int(data) if data is not None else 5
             rows = sync.get_pre_last_rows(n)

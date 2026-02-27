@@ -17,7 +17,7 @@ function renderSettingsQuestions(mode){
     const listHTML = list.map((qObj,idx)=>{
         const q = typeof qObj === 'string' ? {tipo:"texto",texto:qObj,opcoes:[],imagem:null} : qObj;
         const qText = q.texto || qObj;
-        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota" : q.tipo === "escolha" ? "Escolha única" : "Múltipla escolha";
+        const tipoLabel = q.tipo === "texto" ? "Aberta" : q.tipo === "nota" ? "Nota" : q.tipo === "escolha" ? "Escolha única" : q.tipo === "duracao" ? "Duração" : "Múltipla escolha";
         const hasImage = q.imagem ? `<small style="color:var(--accent);">📷 Com imagem</small>` : "";
         return `
         <div class="item-row" style="align-items:flex-start;">

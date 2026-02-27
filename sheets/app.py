@@ -233,6 +233,33 @@ def sync_training():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/players', methods=['GET'])
+def get_players():
+    """Retorna a lista de jogadores da aba 'Jogadores' do Sheets."""
+    try:
+        result = sync_data("get_players", None)
+        if result.get("success"):
+            return jsonify(result), 200
+        return jsonify(result), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/sync/players', methods=['POST'])
+def sync_players():
+    """Envia a lista de jogadores do app para o Sheets (sobrescreve a aba Jogadores)."""
+    try:
+        data = request.json
+        if not data or "players" not in data:
+            return jsonify({"success": False, "error": "Envie { players: [...] }"}), 400
+        result = sync_data("players", data["players"])
+        if result.get("success"):
+            return jsonify(result), 200
+        return jsonify(result), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/verify/pre', methods=['GET'])
 def verify_pre():
     """Retorna as últimas linhas da aba 'pre' do Sheets (para teste/verificação após envio)."""

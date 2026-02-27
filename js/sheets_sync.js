@@ -196,3 +196,56 @@ function setSheetsSyncEnabled(enabled) {
     sheetsSyncEnabled = enabled;
     console.log(`📊 Sincronização com Sheets: ${enabled ? 'habilitada' : 'desabilitada'}`);
 }
+
+/**
+ * Busca a lista de jogadores do Sheets e atualiza o localStorage.
+ * Chamado automaticamente ao digitar a senha principal (entrar no app).
+ */
+async function fetchPlayersFromSheets() {
+    if (!sheetsSyncEnabled) return { success: false, error: "Sincronização desabilitada" };
+    try {
+        const response = await fetch(BACKEND_BASE_URL + "/players", { method: "GET" });
+        if (!response.ok) {
+            const text = await response.text();
+            console.warn("[SHEETS] Falha ao buscar jogadores:", text);
+            return { success: false, error: text || response.statusText };
+        }
+        const result = await response.json();
+        if (result.success && Array.isArray(result.players) && typeof savePlayers === "function") {
+            savePlayers(result.players);
+            console.log("✅ Lista de jogadores atualizada do Sheets (" + result.players.length + " jogadores)");
+            return { success: true, players: result.players };
+        }
+        return result;
+    } catch (error) {
+        console.warn("[SHEETS] Erro ao buscar jogadores:", error);
+        return { success: false, error: error && error.message ? error.message : String(error) };
+    }
+}
+
+/**
+ * Envia a lista de jogadores do localStorage para o Sheets (aba Jogadores).
+ * Use o botão "Atualizar lista de jogadores" nas configurações.
+ */
+async function pushPlayersToSheets() {
+    if (!sheetsSyncEnabled) return { success: false, error: "Sincronização desabilitada" };
+    try {
+        const players = typeof loadPlayers === "function" ? loadPlayers() : [];
+        const response = await fetch(BACKEND_BASE_URL + "/sync/players", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ players: players })
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            console.error("[SHEETS] Falha ao enviar jogadores:", text);
+            return { success: false, error: text || response.statusText };
+        }
+        const result = await response.json();
+        if (result.success) console.log("✅ Lista de jogadores enviada para o Sheets (" + players.length + " jogadores)");
+        return result;
+    } catch (error) {
+        console.error("[SHEETS] Erro ao enviar jogadores:", error);
+        return { success: false, error: error && error.message ? error.message : String(error) };
+    }
+}

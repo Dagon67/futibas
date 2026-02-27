@@ -45,7 +45,8 @@ const defaultQuestions = {
         {tipo:"checkbox",texto:"Pontos de dor articular",opcoes:["Sem dor","1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
     ],
     post: [
-        {tipo:"nota",texto:"Estado atual",opcoes:[],imagem:"pos/esforço.png",notaMax:10}
+        {tipo:"nota",texto:"Estado atual",opcoes:[],imagem:"pos/esforço.png",notaMax:10},
+        {tipo:"duracao",texto:"Quanto tempo de treino foi feito?",opcoes:[],imagem:null}
     ]
 };
 

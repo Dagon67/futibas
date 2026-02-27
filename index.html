@@ -583,6 +583,26 @@
         box-shadow:0 0 0 2px rgba(255,255,255,0.15);
         background:#000000;
     }
+    .duracao-input{
+        display:flex;
+        align-items:center;
+        gap:.75rem;
+        flex-wrap:wrap;
+    }
+    .duracao-select{
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(255,255,255,.2);
+        background:#1a1a1a;
+        color:var(--text-main);
+        padding:.6rem 1rem;
+        min-width:4rem;
+    }
+    .duracao-sep{
+        color:var(--text-dim);
+        font-weight:600;
+    }
     .submit-btn{
         width:100%;
         border:0;
@@ -1346,6 +1366,10 @@
         function unlockApp() {
             lockScreen.setAttribute('data-unlocked', 'true');
             appShell.style.display = 'flex';
+            // Puxar lista de jogadores do Sheets para manter todos os aparelhos com a mesma lista
+            if (typeof fetchPlayersFromSheets === 'function') {
+                fetchPlayersFromSheets().catch(function() {});
+            }
         }
 
         function lockApp() {

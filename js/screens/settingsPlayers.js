@@ -47,6 +47,13 @@ function renderSettingsPlayers(){
             </div>
 
             <div>
+                <div class="item-title" style="margin-bottom:.5rem;">Lista no Sheets</div>
+                <div class="item-sub" style="margin-bottom:.5rem;">Envie a lista atual (deste aparelho) para o Google Sheets para que outros aparelhos possam recebê-la ao entrar com a senha.</div>
+                <button type="button" class="small-solid-btn" id="btnUpdatePlayersSheets" onclick="updatePlayersListToSheets()">Atualizar lista de jogadores</button>
+                <div id="playersSyncFeedback" style="margin-top:.5rem;font-size:.875rem;display:none;"></div>
+            </div>
+
+            <div>
                 <div class="item-title" style="margin-bottom:.5rem;">Jogadores cadastrados</div>
                 ${players.length? listHTML : `<div class="item-sub">Nenhum jogador ainda.</div>`}
             </div>
@@ -206,4 +213,32 @@ function removePlayer(id){
     players = players.filter(p=>p.id!==id);
     savePlayers(players);
     renderSettings();
+}
+
+function updatePlayersListToSheets() {
+    var btn = document.getElementById("btnUpdatePlayersSheets");
+    var feedback = document.getElementById("playersSyncFeedback");
+    if (!btn || !feedback) return;
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+    feedback.style.display = "none";
+    var run = typeof pushPlayersToSheets === "function" ? pushPlayersToSheets() : Promise.resolve({ success: false, error: "Função não disponível" });
+    run.then(function (result) {
+        btn.disabled = false;
+        btn.textContent = "Atualizar lista de jogadores";
+        feedback.style.display = "block";
+        if (result.success) {
+            feedback.textContent = "Lista enviada para o Sheets. Outros aparelhos receberão ao entrar com a senha.";
+            feedback.style.color = "var(--accent)";
+        } else {
+            feedback.textContent = "Erro: " + (result.error || "Não foi possível enviar.");
+            feedback.style.color = "var(--text-dim)";
+        }
+    }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = "Atualizar lista de jogadores";
+        feedback.style.display = "block";
+        feedback.textContent = "Erro: " + (err && err.message ? err.message : "Falha ao enviar.");
+        feedback.style.color = "var(--text-dim)";
+    });
 }

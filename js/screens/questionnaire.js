@@ -60,6 +60,21 @@ function goQuestionnaire(){
             }else{
                 inputHTML = `<div class="item-sub">Nenhuma opção configurada</div>`;
             }
+        }else if(q.tipo === "duracao"){
+            const hours = Array.from({length: 5}, (_, i) => i);
+            const minutes = Array.from({length: 12}, (_, i) => i * 5);
+            inputHTML = `<div class="duracao-input" id="${qId}" data-question-idx="${idx}">
+                <select class="duracao-select duracao-h" id="${safeId}_h" onchange="captureDuracaoByIndex(${idx})" required aria-label="Horas">
+                    <option value="">h</option>
+                    ${hours.map(h=>`<option value="${h}">${h}</option>`).join("")}
+                </select>
+                <span class="duracao-sep">h</span>
+                <select class="duracao-select duracao-m" id="${safeId}_m" onchange="captureDuracaoByIndex(${idx})" required aria-label="Minutos">
+                    <option value="">min</option>
+                    ${minutes.map(m=>`<option value="${m}">${m}</option>`).join("")}
+                </select>
+                <span class="duracao-sep">min</span>
+            </div>`;
         }
         
         const imgSrc = q.imagem ? (q.imagem + "?v=" + (window.__IMAGE_VERSION != null ? window.__IMAGE_VERSION : Date.now())) : "";
@@ -143,6 +158,18 @@ function applyTempAnswersToDOM(){
         if (radios.length) {
             var radioVal = Array.isArray(val) ? (val[0] != null ? String(val[0]) : "") : String(val);
             radios.forEach(function(r){ r.checked = (r.value === radioVal); });
+            continue;
+        }
+        var duracaoWrap = item.querySelector(".duracao-input");
+        if (duracaoWrap) {
+            var str = Array.isArray(val) ? (val[0] != null ? String(val[0]) : "") : String(val);
+            var match = str.match(/^(\d+)h\s*(\d+)min$/);
+            if (match) {
+                var selH = duracaoWrap.querySelector(".duracao-h");
+                var selM = duracaoWrap.querySelector(".duracao-m");
+                if (selH) selH.value = match[1];
+                if (selM) selM.value = match[2];
+            }
         }
     }
 }
@@ -165,6 +192,22 @@ function captureAnswer(qText, val){
 function captureAnswerByIndex(idx, val){
     var qText = getQuestionTextByIndex(idx);
     if (qText) state.tempAnswers[qText] = val;
+}
+
+/** Lê os selects de duração (horas e minutos) do item da pergunta pelo índice e grava em state.tempAnswers no formato "Xh Ymin". */
+function captureDuracaoByIndex(idx){
+    var qText = getQuestionTextByIndex(idx);
+    if (!qText) return;
+    var item = document.querySelector(".q-item[data-question-index=\"" + idx + "\"]");
+    if (!item) return;
+    var selH = item.querySelector(".duracao-h");
+    var selM = item.querySelector(".duracao-m");
+    var h = selH && selH.value !== "" ? parseInt(selH.value, 10) : null;
+    var m = selM && selM.value !== "" ? parseInt(selM.value, 10) : null;
+    if (h != null && m != null) state.tempAnswers[qText] = h + "h " + m + "min";
+    else if (h != null) state.tempAnswers[qText] = h + "h 0min";
+    else if (m != null) state.tempAnswers[qText] = "0h " + m + "min";
+    else state.tempAnswers[qText] = "";
 }
 
 function selectRating(qText, value, containerId){
@@ -262,11 +305,23 @@ function collectAnswersFromDOM(){
                     val = sel ? (sel.textContent || "").trim() : "";
                 }
             } else {
-                var radio = item.querySelector('input[type="radio"]:checked');
-                if (radio) val = radio.value || "";
-                else {
-                    var checks = item.querySelectorAll('input[type="checkbox"]:checked');
-                    val = Array.prototype.slice.call(checks).map(function(c){ return c.value; });
+                var duracaoWrap = item.querySelector(".duracao-input");
+                if (duracaoWrap) {
+                    var selH = duracaoWrap.querySelector(".duracao-h");
+                    var selM = duracaoWrap.querySelector(".duracao-m");
+                    var h = selH && selH.value !== "" ? parseInt(selH.value, 10) : null;
+                    var m = selM && selM.value !== "" ? parseInt(selM.value, 10) : null;
+                    if (h != null && m != null) val = h + "h " + m + "min";
+                    else if (h != null) val = h + "h 0min";
+                    else if (m != null) val = "0h " + m + "min";
+                    else val = "";
+                } else {
+                    var radio = item.querySelector('input[type="radio"]:checked');
+                    if (radio) val = radio.value || "";
+                    else {
+                        var checks = item.querySelectorAll('input[type="checkbox"]:checked');
+                        val = Array.prototype.slice.call(checks).map(function(c){ return c.value; });
+                    }
                 }
             }
         }
