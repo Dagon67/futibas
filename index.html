@@ -188,26 +188,25 @@
         opacity:1;
     }
 
-    /* Logo SPARK na tela de bloqueio – bem visível */
-    #lock-screen .lock-spark-wrap{
-        position:absolute;
-        left:50%;
-        bottom:clamp(16px,4vh,32px);
-        transform:translateX(-50%);
-        z-index:1;
+    /* Logo SPARK na tela de bloqueio – abaixo da senha, dentro do container preto */
+    .lock-container .lock-spark-wrap{
+        margin-top:clamp(20px,4vh,32px);
+        width:100%;
+        display:flex;
+        justify-content:center;
         pointer-events:none;
     }
     #lock-screen .lock-spark-wrap .spark-brand{
-        position:relative;display:inline-grid;place-items:center;padding:16px 24px;border-radius:14px;isolation:isolate;
+        position:relative;display:inline-grid;place-items:center;padding:12px 20px;border-radius:12px;isolation:isolate;
         --o:rgba(255,140,40,.98);--gl:rgba(255,140,40,.26);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68);
     }
     #lock-screen .lock-spark-wrap .spark-brand::before{
-        content:"";position:absolute;inset:-8px;border-radius:18px;
-        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.15),transparent 70%);filter:blur(2px);opacity:.7;z-index:-1;pointer-events:none;
+        content:"";position:absolute;inset:-6px;border-radius:16px;
+        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.12),transparent 70%);filter:blur(2px);opacity:.6;z-index:-1;pointer-events:none;
     }
-    #lock-screen .lock-spark-wrap .logo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:4px}
-    #lock-screen .lock-spark-wrap .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:36px;letter-spacing:.1em;color:var(--tx);text-shadow:0 0 16px rgba(255,140,40,.25),0 2px 4px rgba(0,0,0,.2)}
-    #lock-screen .lock-spark-wrap .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:11px;letter-spacing:.28em;color:var(--mu);text-transform:uppercase}
+    #lock-screen .lock-spark-wrap .logo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px}
+    #lock-screen .lock-spark-wrap .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:clamp(26px,6vw,36px);letter-spacing:.1em;color:var(--tx);text-shadow:0 0 16px rgba(255,140,40,.25),0 2px 4px rgba(0,0,0,.2)}
+    #lock-screen .lock-spark-wrap .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:clamp(8px,2vw,11px);letter-spacing:.28em;color:var(--mu);text-transform:uppercase}
     #lock-screen .lock-spark-wrap .bolt{position:absolute;z-index:3;width:90px;height:48px;opacity:0;pointer-events:none;mix-blend-mode:screen;transform:translate(var(--x),var(--y)) rotate(var(--r));transform-origin:center}
     #lock-screen .lock-spark-wrap .bolt path{fill:none;stroke-linecap:round;stroke-linejoin:round}
     #lock-screen .lock-spark-wrap .bolt .g{stroke:var(--gl);stroke-width:10;filter:blur(1px);opacity:.9}
@@ -235,7 +234,39 @@
     }
 
     header.app-header{
-        display:none;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:12px var(--safe-pad);
+        background:var(--card-bg);
+        border-bottom:2px solid var(--card-stroke);
+        flex-wrap:wrap;
+        min-height:0;
+    }
+    header.app-header .brand-line{ font-size:0.75rem; color:var(--text-dim); }
+    header.app-header .brand-main{ font-size:1rem; font-weight:700; color:var(--text-main); }
+    header.app-header .brand-main .mode-label{ margin-left:0.35em; font-weight:600; color:var(--accent); }
+    .header-spark-wrap{
+        flex-shrink:0;
+        pointer-events:none;
+    }
+    .header-spark-wrap .spark-brand{
+        position:relative;display:inline-grid;place-items:center;padding:6px 12px;border-radius:10px;isolation:isolate;
+        --o:rgba(255,140,40,.98);--gl:rgba(255,140,40,.26);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68);
+    }
+    .header-spark-wrap .spark-brand::before{
+        content:"";position:absolute;inset:-4px;border-radius:12px;
+        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.08),transparent 70%);filter:blur(1px);opacity:.5;z-index:-1;
+    }
+    .header-spark-wrap .logo{display:flex;flex-direction:column;align-items:center;gap:0;}
+    .header-spark-wrap .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:18px;letter-spacing:.08em;color:var(--tx);text-shadow:0 0 8px rgba(255,140,40,.15);}
+    .header-spark-wrap .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:6px;letter-spacing:.2em;color:var(--mu);text-transform:uppercase;}
+    @media (max-width:480px){
+        header.app-header{ padding:10px var(--safe-pad); gap:8px; }
+        .header-spark-wrap .spark{ font-size:14px; }
+        .header-spark-wrap .tech{ font-size:5px; }
+        .header-spark-wrap .spark-brand{ padding:4px 8px; }
     }
 
     main#screen-area{
@@ -1412,13 +1443,13 @@
             <button id="lock-submit" class="lock-btn">Entrar</button>
             <div id="lock-error" class="lock-error-msg">Senha incorreta</div>
         </div>
-    </div>
-    <div class="lock-spark-wrap" aria-hidden="true">
-        <div class="spark-brand" id="sparkBrandLock" aria-label="SPARK Technologies">
-            <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
-            <svg class="bolt b1" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
-            <svg class="bolt b2" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
-            <svg class="bolt c1" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
+        <div class="lock-spark-wrap" aria-hidden="true">
+            <div class="spark-brand" id="sparkBrandLock" aria-label="SPARK Technologies">
+                <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
+                <svg class="bolt b1" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
+                <svg class="bolt b2" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
+                <svg class="bolt c1" viewBox="0 0 240 140" aria-hidden="true"><path class="g"/><path class="c"/></svg>
+            </div>
         </div>
     </div>
 </div>
@@ -1430,6 +1461,11 @@
             <div class="brand-main">
                 <span>Painel de Treino</span>
                 <span class="mode-label" id="headerModeLabel">Menu</span>
+            </div>
+        </div>
+        <div class="header-spark-wrap" aria-hidden="true">
+            <div class="spark-brand spark-brand--dark" aria-label="SPARK Technologies">
+                <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
             </div>
         </div>
     </header>
