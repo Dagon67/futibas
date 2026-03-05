@@ -404,7 +404,7 @@ function goAcompanhamentoIndividual() {
     });
 }
 
-/** TRIMP = tempo (min) × percepção de esforço (Estado atual). Semáforo: verde < média−1dp, amarelo na faixa, vermelho > média+1dp. */
+/** TRIMP (Foster sRPE) = duração (min) × RPE (0–10). Semáforo: verde < limite inf, amarelo entre limites, vermelho > limite sup. Limites = média ± 0,5 × dp. */
 function buildTrimpSemaforo(data) {
     var posH = (data.pos && data.pos.headers) ? data.pos.headers : [];
     var posRows = (data.pos && data.pos.rows) ? data.pos.rows : [];
@@ -434,8 +434,9 @@ function buildTrimpSemaforo(data) {
         std = Math.sqrt(variance) || 0;
     }
 
-    var low = mean - std;
-    var high = mean + std;
+    // Foster sRPE: limite inferior = média − (0,5 × dp), limite superior = média + (0,5 × dp)
+    var low = mean - 0.5 * std;
+    var high = mean + 0.5 * std;
     var list = [];
     Object.keys(byPlayer).forEach(function (pid) {
         var p = byPlayer[pid];
@@ -485,32 +486,34 @@ function goInformacaoTatica() {
             return;
         }
         var sem = buildTrimpSemaforo(res);
-        if (sub) sub.textContent = "TRIMP = tempo de treino (min) × percepção de esforço (Estado atual). Dados do pós-treino.";
+        if (sub) sub.textContent = "TRIMP (Foster sRPE) = duração (min) × RPE (0–10). Limites: média ± 0,5 × desvio padrão.";
 
         if (sem.list.length === 0) {
-            content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;\">Ainda não há dados de pós-treino com tempo e percepção de esforço para calcular o semáforo.</div>";
+            content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;\">Ainda não há dados de pós-treino com tempo e percepção de esforço (RPE 0–10) para calcular o TRIMP.</div>";
             return;
         }
 
         var legendHtml = "<div class=\"trimp-legend\">" +
-            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-green\"></span> Carga baixa (abaixo da média − 1 desvio)</span>" +
-            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-yellow\"></span> Na média</span>" +
-            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-red\"></span> Carga alta (acima da média + 1 desvio)</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-green\"></span> Verde: TRIMP &lt; limite inferior (baixa carga / mais descansado)</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-yellow\"></span> Amarelo: carga normal</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-red\"></span> Vermelho: TRIMP &gt; limite superior (carga alta / possível fadiga)</span>" +
             "</div>";
-        var kpiHtml = "<div class=\"kpi-grid\" style=\"margin-bottom:1rem;\">" +
+        var kpiHtml = "<div class=\"kpi-grid\" style=\"margin-bottom:1.5rem;\">" +
             "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.mean + "</div><div class=\"kpi-label\">TRIMP médio</div></div>" +
             "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.std + "</div><div class=\"kpi-label\">Desvio padrão</div></div>" +
-            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.low + " – " + sem.high + "</div><div class=\"kpi-label\">Faixa amarela</div></div>" +
+            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.low + "</div><div class=\"kpi-label\">Limite inferior</div></div>" +
+            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.high + "</div><div class=\"kpi-label\">Limite superior</div></div>" +
             "</div>";
-        var listHtml = "<div class=\"trimp-semaforo-list\">" + sem.list.map(function (item) {
-            var label = item.status === "green" ? "Carga baixa" : item.status === "red" ? "Carga alta" : "Na média";
-            return "<div class=\"trimp-semaforo-row trimp-status-" + item.status + "\">" +
-                "<span class=\"semaforo-dot semaforo-" + item.status + "\"></span>" +
-                "<span class=\"trimp-player-name\">" + (item.name || item.playerId) + "</span>" +
-                "<span class=\"trimp-value\">TRIMP " + item.avgTrimp + "</span>" +
-                "<span class=\"trimp-label\">" + label + "</span>" +
-                "</div>";
-        }).join("") + "</div>";
+        var listHtml = "<div class=\"trimp-table-wrap\"><table class=\"trimp-table\">" +
+            "<thead><tr><th>Atleta</th><th>TRIMP</th><th>Classificação</th></tr></thead>" +
+            "<tbody>" + sem.list.map(function (item) {
+                var label = item.status === "green" ? "Verde" : item.status === "red" ? "Vermelho" : "Amarelo";
+                return "<tr class=\"trimp-status-" + item.status + "\">" +
+                    "<td><span class=\"trimp-player-name\">" + (item.name || item.playerId) + "</span></td>" +
+                    "<td><span class=\"trimp-value\">" + item.avgTrimp + "</span></td>" +
+                    "<td><span class=\"semaforo-dot semaforo-" + item.status + "\"></span> " + label + "</td>" +
+                    "</tr>";
+            }).join("") + "</tbody></table></div>";
 
         content.innerHTML = legendHtml + kpiHtml + listHtml;
     });

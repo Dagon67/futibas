@@ -763,9 +763,15 @@
     .trimp-semaforo-row.trimp-status-green{ border-left-color:#22c55e; }
     .trimp-semaforo-row.trimp-status-yellow{ border-left-color:#eab308; }
     .trimp-semaforo-row.trimp-status-red{ border-left-color:#ef4444; }
-    .trimp-player-name{ font-weight:600; color:var(--text-main); flex:1; }
+    .trimp-player-name{ font-weight:600; color:var(--text-main); }
     .trimp-value{ font-weight:500; color:var(--accent); }
     .trimp-label{ font-size:0.9rem; color:var(--text-dim); }
+    .trimp-table-wrap{ overflow-x:auto; margin-top:1rem; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.12); }
+    .trimp-table{ width:100%; border-collapse:collapse; font-size:0.95rem; }
+    .trimp-table th{ text-align:left; padding:0.75rem 1rem; background:rgba(0,0,0,0.4); color:var(--text-dim); font-weight:600; border-bottom:2px solid rgba(254,236,2,0.3); }
+    .trimp-table td{ padding:0.75rem 1rem; border-bottom:1px solid rgba(255,255,255,0.08); color:var(--text-main); }
+    .trimp-table tbody tr:hover{ background:rgba(255,255,255,0.04); }
+    .trimp-table td .semaforo-dot{ display:inline-block; vertical-align:middle; margin-right:0.5rem; }
 
     /* CONFIGURAÇÕES */
     .settings-wrapper{
