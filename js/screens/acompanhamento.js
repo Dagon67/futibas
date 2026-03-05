@@ -29,6 +29,11 @@ function goAcompanhamento() {
                     <div>Individual</div>
                     <div class="sub">Evolução por jogador</div>
                 </button>
+                <button class="home-btn home-btn-secondary" onclick="goInformacaoTatica()" style="max-width:320px;">
+                    <i data-feather="activity"></i>
+                    <div>Informação Tática</div>
+                    <div class="sub">Semáforo TRIMP (carga pós-treino)</div>
+                </button>
             </div>
         </div>
     `);
@@ -396,6 +401,118 @@ function goAcompanhamentoIndividual() {
                 return "<button type=\"button\" class=\"acompanhamento-player-btn\" onclick=\"goAcompanhamentoPlayer('" + (p.id || "").replace(/'/g, "\\'") + "')\"><span class=\"player-name\">" + (p.name || p.id) + "</span><span class=\"player-stats\">" + preCount + " pré • " + posCount + " pós</span></button>";
             }).join("") +
             "</div>";
+    });
+}
+
+/** TRIMP = tempo (min) × percepção de esforço (Estado atual). Semáforo: verde < média−1dp, amarelo na faixa, vermelho > média+1dp. */
+function buildTrimpSemaforo(data) {
+    var posH = (data.pos && data.pos.headers) ? data.pos.headers : [];
+    var posRows = (data.pos && data.pos.rows) ? data.pos.rows : [];
+    var agg = buildAggregates(data);
+    var byPlayer = agg.byPlayer;
+
+    var allTrimps = [];
+    var trimpByPlayer = {};
+
+    posRows.forEach(function (row) {
+        var r = parsePosRow(posH, row);
+        var tempo = r.answers.tempoMin != null ? r.answers.tempoMin : null;
+        var estado = r.answers.estado != null ? r.answers.estado : null;
+        if (tempo != null && estado != null && tempo >= 0 && estado >= 0) {
+            var trimp = Math.round(tempo * estado);
+            allTrimps.push(trimp);
+            var pid = r.playerId;
+            if (!trimpByPlayer[pid]) trimpByPlayer[pid] = [];
+            trimpByPlayer[pid].push(trimp);
+        }
+    });
+
+    var mean = 0, std = 0;
+    if (allTrimps.length > 0) {
+        mean = allTrimps.reduce(function (a, b) { return a + b; }, 0) / allTrimps.length;
+        var variance = allTrimps.reduce(function (sum, x) { return sum + (x - mean) * (x - mean); }, 0) / allTrimps.length;
+        std = Math.sqrt(variance) || 0;
+    }
+
+    var low = mean - std;
+    var high = mean + std;
+    var list = [];
+    Object.keys(byPlayer).forEach(function (pid) {
+        var p = byPlayer[pid];
+        var arr = trimpByPlayer[pid];
+        if (!arr || arr.length === 0) return;
+        var avgTrimp = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+        var status = "yellow";
+        if (std > 0) {
+            if (avgTrimp < low) status = "green";
+            else if (avgTrimp > high) status = "red";
+        }
+        list.push({
+            playerId: pid,
+            name: p.name || pid,
+            avgTrimp: Math.round(avgTrimp * 10) / 10,
+            count: arr.length,
+            status: status
+        });
+    });
+    list.sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+    return { list: list, mean: Math.round(mean * 10) / 10, std: Math.round(std * 10) / 10, low: Math.round(low * 10) / 10, high: Math.round(high * 10) / 10, totalResponses: allTrimps.length };
+}
+
+function goInformacaoTatica() {
+    state.currentScreen = "informacaoTatica";
+    setHeaderModeLabel("Informação Tática");
+    renderScreen(`
+        <div class="settings-wrapper">
+            <div class="back-row">
+                <button class="back-btn" onclick="goAcompanhamento()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
+                <div>
+                    <div class="screen-title">Informação Tática</div>
+                    <div class="screen-sub">Carregando...</div>
+                </div>
+            </div>
+            <div id="informacao-tatica-content" class="acompanhamento-scroll"></div>
+        </div>
+    `);
+    feather.replace();
+
+    fetchAnalyticsData().then(function (res) {
+        var content = document.getElementById("informacao-tatica-content");
+        var sub = document.querySelector(".screen-sub");
+        if (!res.success || !content) {
+            if (content) content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;\">Erro: " + (res.error || "desconhecido") + "</div>";
+            if (sub) sub.textContent = "";
+            return;
+        }
+        var sem = buildTrimpSemaforo(res);
+        if (sub) sub.textContent = "TRIMP = tempo de treino (min) × percepção de esforço (Estado atual). Dados do pós-treino.";
+
+        if (sem.list.length === 0) {
+            content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;\">Ainda não há dados de pós-treino com tempo e percepção de esforço para calcular o semáforo.</div>";
+            return;
+        }
+
+        var legendHtml = "<div class=\"trimp-legend\">" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-green\"></span> Carga baixa (abaixo da média − 1 desvio)</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-yellow\"></span> Na média</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-red\"></span> Carga alta (acima da média + 1 desvio)</span>" +
+            "</div>";
+        var kpiHtml = "<div class=\"kpi-grid\" style=\"margin-bottom:1rem;\">" +
+            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.mean + "</div><div class=\"kpi-label\">TRIMP médio</div></div>" +
+            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.std + "</div><div class=\"kpi-label\">Desvio padrão</div></div>" +
+            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.low + " – " + sem.high + "</div><div class=\"kpi-label\">Faixa amarela</div></div>" +
+            "</div>";
+        var listHtml = "<div class=\"trimp-semaforo-list\">" + sem.list.map(function (item) {
+            var label = item.status === "green" ? "Carga baixa" : item.status === "red" ? "Carga alta" : "Na média";
+            return "<div class=\"trimp-semaforo-row trimp-status-" + item.status + "\">" +
+                "<span class=\"semaforo-dot semaforo-" + item.status + "\"></span>" +
+                "<span class=\"trimp-player-name\">" + (item.name || item.playerId) + "</span>" +
+                "<span class=\"trimp-value\">TRIMP " + item.avgTrimp + "</span>" +
+                "<span class=\"trimp-label\">" + label + "</span>" +
+                "</div>";
+        }).join("") + "</div>";
+
+        content.innerHTML = legendHtml + kpiHtml + listHtml;
     });
 }
 
