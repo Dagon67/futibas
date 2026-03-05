@@ -411,6 +411,40 @@ class SheetsSync:
             print(f"⚠️ get_pre_last_rows: {e}")
             return []
 
+    def get_analytics_data(self) -> Dict[str, Any]:
+        """Lê abas pre, pos e Jogadores para o dashboard de acompanhamento. Retorna dados estruturados para gráficos."""
+        try:
+            players = self.get_players()
+            pre_headers = []
+            pre_rows = []
+            pos_headers = []
+            pos_rows = []
+            try:
+                ws_pre = self.spreadsheet.worksheet("pre")
+                all_pre = ws_pre.get_all_values()
+                if all_pre:
+                    pre_headers = all_pre[0]
+                    pre_rows = all_pre[1:] if len(all_pre) > 1 else []
+            except Exception:
+                pass
+            try:
+                ws_pos = self.spreadsheet.worksheet("pos")
+                all_pos = ws_pos.get_all_values()
+                if all_pos:
+                    pos_headers = all_pos[0]
+                    pos_rows = all_pos[1:] if len(all_pos) > 1 else []
+            except Exception:
+                pass
+            return {
+                "success": True,
+                "players": players,
+                "pre": {"headers": pre_headers, "rows": pre_rows},
+                "pos": {"headers": pos_headers, "rows": pos_rows},
+            }
+        except Exception as e:
+            print(f"⚠️ get_analytics_data: {e}")
+            raise
+
 
 def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
     """
@@ -499,6 +533,8 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
         if data_type == "get_players":
             players = sync.get_players()
             return {"success": True, "players": players}
+        if data_type == "get_analytics":
+            return sync.get_analytics_data()
         if data_type == "verify_pre":
             n = int(data) if data is not None else 5
             rows = sync.get_pre_last_rows(n)

@@ -30,6 +30,10 @@ function goHome(){
                     <i data-feather="users"></i>
                     <div>Jogadores</div>
                 </button>
+                <button class="home-btn home-btn-secondary" onclick="goAcompanhamento()">
+                    <i data-feather="bar-chart-2"></i>
+                    <div>Acompanhamento</div>
+                </button>
                 <button class="home-btn home-btn-secondary" type="button">
                     <i data-feather="settings"></i>
                     <div>Configurações</div>

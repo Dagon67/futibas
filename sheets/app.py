@@ -260,6 +260,18 @@ def sync_players():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/analytics', methods=['GET'])
+def get_analytics():
+    """Retorna dados das abas pre, pos e Jogadores para o dashboard de acompanhamento."""
+    try:
+        result = sync_data("get_analytics", None)
+        if result.get("success"):
+            return jsonify(result), 200
+        return jsonify(result), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/verify/pre', methods=['GET'])
 def verify_pre():
     """Retorna as últimas linhas da aba 'pre' do Sheets (para teste/verificação após envio)."""
