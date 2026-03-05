@@ -4,6 +4,19 @@
 
 window.__IMAGE_VERSION = Date.now();
 
+// Saída de emergência: ?clearCampin=1 limpa jogo travado e mostra o menu
+(function () {
+    try {
+        if (typeof window !== "undefined" && window.location && (window.location.search.indexOf("clearCampin=1") !== -1 || window.location.search.indexOf("clearCampin=1&") !== -1)) {
+            localStorage.removeItem("tutem_campin_game_in_progress");
+            localStorage.removeItem("tutem_campin_saved_state");
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState({}, "", window.location.pathname || "index.html");
+            }
+        }
+    } catch (e) {}
+})();
+
 // Se há jogo em andamento no campin, ir direto para o controle de jogo
 var redirectToCampinIfGameInProgress = (function () {
     try {

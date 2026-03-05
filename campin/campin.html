@@ -763,6 +763,10 @@
 
 <body>
   <div class="app">
+    <!-- Saída de emergência: sempre visível para sair do jogo e voltar ao menu -->
+    <div style="padding:8px 14px;display:flex;justify-content:flex-end;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(255,255,255,.1);">
+      <a id="linkSairParaMenu" href="../index.html" onclick="try{localStorage.removeItem('tutem_campin_game_in_progress');localStorage.removeItem('tutem_campin_saved_state');}catch(e){}" style="font-size:13px;color:rgba(255,255,255,.85);text-decoration:none;">Sair para o menu</a>
+    </div>
     <!-- Primeira dobra: botões + quadra + reservas (100vh, sem rolagem) -->
     <div class="firstFold">
       <div class="mainActions">
