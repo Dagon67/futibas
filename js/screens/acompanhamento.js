@@ -469,6 +469,97 @@ function goInformacaoTatica() {
                 <button class="back-btn" onclick="goAcompanhamento()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
                 <div>
                     <div class="screen-title">Informação Tática</div>
+                    <div class="screen-sub">TRIMP ou Prontidão</div>
+                </div>
+            </div>
+            <div class="acompanhamento-options" style="padding:1rem 0;">
+                <button class="home-btn home-btn-primary" onclick="goTrimpMenu()" style="max-width:320px;">
+                    <i data-feather="activity"></i>
+                    <div>TRIMP</div>
+                    <div class="sub">Geral ou últimos 3 treinos</div>
+                </button>
+                <button class="home-btn home-btn-secondary" onclick="goProntidao()" style="max-width:320px;">
+                    <i data-feather="zap"></i>
+                    <div>Prontidão</div>
+                    <div class="sub">Sono, fadiga, dor e TRIMP</div>
+                </button>
+            </div>
+        </div>
+    `);
+    feather.replace();
+}
+
+function goTrimpMenu() {
+    state.currentScreen = "trimpMenu";
+    setHeaderModeLabel("TRIMP");
+    renderScreen(`
+        <div class="settings-wrapper">
+            <div class="back-row">
+                <button class="back-btn" onclick="goInformacaoTatica()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
+                <div>
+                    <div class="screen-title">TRIMP</div>
+                    <div class="screen-sub">Foster sRPE = duração (min) × RPE (0–10)</div>
+                </div>
+            </div>
+            <div class="acompanhamento-options" style="padding:1rem 0;">
+                <button class="home-btn home-btn-primary" onclick="goTrimpGeral()" style="max-width:320px;">
+                    <i data-feather="bar-chart-2"></i>
+                    <div>TRIMP Geral</div>
+                    <div class="sub">Média de todos os treinos</div>
+                </button>
+                <button class="home-btn home-btn-secondary" onclick="goTrimpRecente()" style="max-width:320px;">
+                    <i data-feather="clock"></i>
+                    <div>TRIMP Recente</div>
+                    <div class="sub">Média dos últimos 3 treinos</div>
+                </button>
+            </div>
+        </div>
+    `);
+    feather.replace();
+}
+
+function renderTrimpScreen(sem, subtitle, emptyMsg, contentId) {
+    var content = document.getElementById(contentId);
+    var sub = document.querySelector(".screen-sub");
+    if (!content) return;
+    if (sub) sub.textContent = subtitle;
+    if (!sem || sem.list.length === 0) {
+        content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;\">" + (emptyMsg || "Sem dados para exibir.") + "</div>";
+        return;
+    }
+    var legendHtml = "<div class=\"trimp-legend\">" +
+        "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-green\"></span> Verde: &lt; limite inferior (baixa carga)</span>" +
+        "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-yellow\"></span> Amarelo: carga normal</span>" +
+        "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-red\"></span> Vermelho: &gt; limite superior (carga alta)</span>" +
+        "</div>";
+    var kpiHtml = "<div class=\"kpi-grid\" style=\"margin-bottom:1.5rem;\">" +
+        "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.mean + "</div><div class=\"kpi-label\">TRIMP médio</div></div>" +
+        "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.std + "</div><div class=\"kpi-label\">Desvio padrão</div></div>" +
+        "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.low + "</div><div class=\"kpi-label\">Limite inferior</div></div>" +
+        "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.high + "</div><div class=\"kpi-label\">Limite superior</div></div>" +
+        "</div>";
+    var listHtml = "<div class=\"trimp-table-wrap\"><table class=\"trimp-table\">" +
+        "<thead><tr><th>Atleta</th><th>TRIMP</th><th>Classificação</th></tr></thead>" +
+        "<tbody>" + sem.list.map(function (item) {
+            var label = item.status === "green" ? "Verde" : item.status === "red" ? "Vermelho" : "Amarelo";
+            return "<tr class=\"trimp-status-" + item.status + "\">" +
+                "<td><span class=\"trimp-player-name\">" + (item.name || item.playerId) + "</span></td>" +
+                "<td><span class=\"trimp-value\">" + item.avgTrimp + "</span></td>" +
+                "<td><span class=\"semaforo-dot semaforo-" + item.status + "\"></span> " + label + "</td>" +
+                "</tr>";
+        }).join("") + "</tbody></table></div>";
+    content.innerHTML = legendHtml + kpiHtml + listHtml;
+}
+
+function goTrimpGeral() {
+    state.currentScreen = "trimpGeral";
+    setHeaderModeLabel("TRIMP Geral");
+    renderScreen(`
+        <div class="settings-wrapper">
+            <div class="back-row">
+                <button class="back-btn" onclick="goTrimpMenu()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
+                <div>
+                    <div class="screen-title">TRIMP Geral</div>
                     <div class="screen-sub">Carregando...</div>
                 </div>
             </div>
@@ -476,7 +567,212 @@ function goInformacaoTatica() {
         </div>
     `);
     feather.replace();
+    fetchAnalyticsData().then(function (res) {
+        if (!res.success) {
+            var c = document.getElementById("informacao-tatica-content");
+            if (c) c.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;\">Erro: " + (res.error || "desconhecido") + "</div>";
+            return;
+        }
+        var sem = buildTrimpSemaforo(res);
+        renderTrimpScreen(sem, "Média de todos os treinos. Limites: média ± 0,5 × dp.", "Ainda não há dados de pós-treino com tempo e RPE para calcular o TRIMP.", "informacao-tatica-content");
+    });
+}
 
+/** Ordena por data (string DD/MM/YYYY ou YYYY-MM-DD); se falhar, mantém ordem. Retorna cópia ordenada (mais recente por último). */
+function sortRowsByDate(rows, getDate) {
+    function parseDate(d) {
+        if (!d) return 0;
+        var s = String(d).trim();
+        var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) return new Date(parseInt(m[3],10), parseInt(m[2],10)-1, parseInt(m[1],10)).getTime();
+        m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (m) return new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10)).getTime();
+        return 0;
+    }
+    var copy = rows.slice();
+    copy.sort(function (a, b) { return parseDate(getDate(a)) - parseDate(getDate(b)); });
+    return copy;
+}
+
+/** TRIMP Recente: média dos últimos 3 treinos por atleta. Mesmo semáforo (média ± 0,5×dp). */
+function buildTrimpRecenteSemaforo(data) {
+    var posH = (data.pos && data.pos.headers) ? data.pos.headers : [];
+    var posRows = (data.pos && data.pos.rows) ? data.pos.rows : [];
+    var agg = buildAggregates(data);
+    var byPlayer = agg.byPlayer;
+
+    var posByPlayer = {};
+    posRows.forEach(function (row) {
+        var r = parsePosRow(posH, row);
+        var tempo = r.answers.tempoMin != null ? r.answers.tempoMin : null;
+        var estado = r.answers.estado != null ? r.answers.estado : null;
+        if (tempo != null && estado != null && tempo >= 0 && estado >= 0) {
+            var pid = r.playerId;
+            if (!posByPlayer[pid]) posByPlayer[pid] = [];
+            posByPlayer[pid].push({ date: r.date, trimp: tempo * estado });
+        }
+    });
+
+    var list = [];
+    Object.keys(byPlayer).forEach(function (pid) {
+        var p = byPlayer[pid];
+        var arr = posByPlayer[pid];
+        if (!arr || arr.length === 0) return;
+        var sorted = sortRowsByDate(arr, function (x) { return x.date; });
+        var last3 = sorted.slice(-3);
+        var avgTrimp = last3.reduce(function (a, b) { return a + b.trimp; }, 0) / last3.length;
+        list.push({ playerId: pid, name: p.name || pid, avgTrimp: Math.round(avgTrimp * 10) / 10, count: last3.length });
+    });
+    if (list.length === 0) return { list: [], mean: 0, std: 0, low: 0, high: 0 };
+
+    var avgTrimpList = list.map(function (x) { return x.avgTrimp; });
+    var mean = avgTrimpList.reduce(function (a, b) { return a + b; }, 0) / avgTrimpList.length;
+    var variance = avgTrimpList.reduce(function (sum, x) { return sum + (x - mean) * (x - mean); }, 0) / avgTrimpList.length;
+    var std = Math.sqrt(variance) || 0;
+    var low = mean - 0.5 * std;
+    var high = mean + 0.5 * std;
+
+    list.forEach(function (item) {
+        item.status = std > 0 ? (item.avgTrimp < low ? "green" : item.avgTrimp > high ? "red" : "yellow") : "yellow";
+    });
+    list.sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+    return { list: list, mean: Math.round(mean * 10) / 10, std: Math.round(std * 10) / 10, low: Math.round(low * 10) / 10, high: Math.round(high * 10) / 10 };
+}
+
+function goTrimpRecente() {
+    state.currentScreen = "trimpRecente";
+    setHeaderModeLabel("TRIMP Recente");
+    renderScreen(`
+        <div class="settings-wrapper">
+            <div class="back-row">
+                <button class="back-btn" onclick="goTrimpMenu()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
+                <div>
+                    <div class="screen-title">TRIMP Recente</div>
+                    <div class="screen-sub">Carregando...</div>
+                </div>
+            </div>
+            <div id="informacao-tatica-content" class="acompanhamento-scroll"></div>
+        </div>
+    `);
+    feather.replace();
+    fetchAnalyticsData().then(function (res) {
+        if (!res.success) {
+            var c = document.getElementById("informacao-tatica-content");
+            if (c) c.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;\">Erro: " + (res.error || "desconhecido") + "</div>";
+            return;
+        }
+        var sem = buildTrimpRecenteSemaforo(res);
+        renderTrimpScreen(sem, "Média dos últimos 3 treinos. Limites: média ± 0,5 × dp.", "Sem dados dos últimos 3 treinos com tempo e RPE.", "informacao-tatica-content");
+    });
+}
+
+/** Prontidão = (sono×0,2) + (fadiga×0,3) + (dor×0,2) + (TRIMP_norm×0,3). Sono, fadiga, dor = último pré; TRIMP = média últimos 3. TRIMP_norm = TRIMP normalizado 0–10. */
+function buildProntidaoSemaforo(data) {
+    var preH = (data.pre && data.pre.headers) ? data.pre.headers : [];
+    var preRows = (data.pre && data.pre.rows) ? data.pre.rows : [];
+    var posH = (data.pos && data.pos.headers) ? data.pos.headers : [];
+    var posRows = (data.pos && data.pos.rows) ? data.pos.rows : [];
+    var agg = buildAggregates(data);
+    var byPlayer = agg.byPlayer;
+
+    var preByPlayer = {};
+    preRows.forEach(function (row) {
+        var r = parsePreRow(preH, row);
+        var pid = r.playerId;
+        if (!preByPlayer[pid]) preByPlayer[pid] = [];
+        preByPlayer[pid].push(r);
+    });
+    var posByPlayer = {};
+    posRows.forEach(function (row) {
+        var r = parsePosRow(posH, row);
+        var tempo = r.answers.tempoMin != null ? r.answers.tempoMin : null;
+        var estado = r.answers.estado != null ? r.answers.estado : null;
+        if (tempo != null && estado != null) {
+            var pid = r.playerId;
+            if (!posByPlayer[pid]) posByPlayer[pid] = [];
+            posByPlayer[pid].push({ date: r.date, trimp: tempo * estado });
+        }
+    });
+
+    var trimpRecentes = [];
+    var list = [];
+    Object.keys(byPlayer).forEach(function (pid) {
+        var p = byPlayer[pid];
+        var lastPre = null;
+        var preArr = preByPlayer[pid];
+        if (preArr && preArr.length > 0) {
+            var sortedPre = sortRowsByDate(preArr, function (x) { return x.date; });
+            lastPre = sortedPre[sortedPre.length - 1];
+        }
+        var sono = lastPre && lastPre.answers.sono != null ? lastPre.answers.sono : null;
+        var fadiga = lastPre && lastPre.answers.fadiga != null ? lastPre.answers.fadiga : null;
+        var dor = lastPre && lastPre.answers.dor != null ? lastPre.answers.dor : null;
+        var posArr = posByPlayer[pid];
+        var trimpMed = null;
+        if (posArr && posArr.length > 0) {
+            var sortedPos = sortRowsByDate(posArr, function (x) { return x.date; });
+            var last3 = sortedPos.slice(-3);
+            trimpMed = last3.reduce(function (a, b) { return a + b.trimp; }, 0) / last3.length;
+            trimpRecentes.push(trimpMed);
+        }
+        if (sono == null && fadiga == null && dor == null && trimpMed == null) return;
+        list.push({
+            playerId: pid,
+            name: p.name || pid,
+            sono: sono,
+            fadiga: fadiga,
+            dor: dor,
+            trimpMed: trimpMed
+        });
+    });
+
+    var validTrimp = trimpRecentes.filter(function (x) { return x != null; });
+    var minT = validTrimp.length ? Math.min.apply(null, validTrimp) : 0;
+    var maxT = validTrimp.length ? Math.max.apply(null, validTrimp) : 100;
+    var rangeT = maxT - minT || 1;
+    list.forEach(function (item) {
+        var trimpNorm = item.trimpMed != null && validTrimp.length ? 10 * (item.trimpMed - minT) / rangeT : 5;
+        var s = (item.sono != null ? item.sono : 0) * 0.2;
+        var f = (item.fadiga != null ? item.fadiga : 0) * 0.3;
+        var d = (item.dor != null ? item.dor : 0) * 0.2;
+        var t = trimpNorm * 0.3;
+        item.prontidao = Math.round((s + f + d + t) * 100) / 100;
+    });
+    var valores = list.map(function (x) { return x.prontidao; });
+    var mean = valores.reduce(function (a, b) { return a + b; }, 0) / valores.length;
+    var variance = valores.reduce(function (sum, x) { return sum + (x - mean) * (x - mean); }, 0) / valores.length;
+    var std = Math.sqrt(variance) || 0;
+    var low = mean - 0.5 * std;
+    var high = mean + 0.5 * std;
+    list.forEach(function (item) {
+        item.status = std > 0 ? (item.prontidao < low ? "green" : item.prontidao > high ? "red" : "yellow") : "yellow";
+    });
+    list.sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+    return {
+        list: list,
+        mean: Math.round(mean * 100) / 100,
+        std: Math.round(std * 100) / 100,
+        low: Math.round(low * 100) / 100,
+        high: Math.round(high * 100) / 100
+    };
+}
+
+function goProntidao() {
+    state.currentScreen = "prontidao";
+    setHeaderModeLabel("Prontidão");
+    renderScreen(`
+        <div class="settings-wrapper">
+            <div class="back-row">
+                <button class="back-btn" onclick="goInformacaoTatica()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
+                <div>
+                    <div class="screen-title">Prontidão</div>
+                    <div class="screen-sub">Carregando...</div>
+                </div>
+            </div>
+            <div id="informacao-tatica-content" class="acompanhamento-scroll"></div>
+        </div>
+    `);
+    feather.replace();
     fetchAnalyticsData().then(function (res) {
         var content = document.getElementById("informacao-tatica-content");
         var sub = document.querySelector(".screen-sub");
@@ -485,36 +781,33 @@ function goInformacaoTatica() {
             if (sub) sub.textContent = "";
             return;
         }
-        var sem = buildTrimpSemaforo(res);
-        if (sub) sub.textContent = "TRIMP (Foster sRPE) = duração (min) × RPE (0–10). Limites: média ± 0,5 × desvio padrão.";
-
-        if (sem.list.length === 0) {
-            content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;\">Ainda não há dados de pós-treino com tempo e percepção de esforço (RPE 0–10) para calcular o TRIMP.</div>";
+        var sem = buildProntidaoSemaforo(res);
+        if (sub) sub.textContent = "Prontidão = (sono×0,2)+(fadiga×0,3)+(dor×0,2)+(TRIMP_norm×0,3). Último pré + média últimos 3 TRIMPs. Limites: média ± 0,5×dp.";
+        if (!sem || sem.list.length === 0) {
+            content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;\">Sem dados suficientes (pré: sono/fadiga/dor; pós: tempo e RPE para TRIMP).</div>";
             return;
         }
-
         var legendHtml = "<div class=\"trimp-legend\">" +
-            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-green\"></span> Verde: TRIMP &lt; limite inferior (baixa carga / mais descansado)</span>" +
-            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-yellow\"></span> Amarelo: carga normal</span>" +
-            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-red\"></span> Vermelho: TRIMP &gt; limite superior (carga alta / possível fadiga)</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-green\"></span> Verde: &lt; limite inferior</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-yellow\"></span> Amarelo: normal</span>" +
+            "<span class=\"trimp-legend-item\"><span class=\"semaforo-dot semaforo-red\"></span> Vermelho: &gt; limite superior</span>" +
             "</div>";
         var kpiHtml = "<div class=\"kpi-grid\" style=\"margin-bottom:1.5rem;\">" +
-            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.mean + "</div><div class=\"kpi-label\">TRIMP médio</div></div>" +
+            "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.mean + "</div><div class=\"kpi-label\">Prontidão média</div></div>" +
             "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.std + "</div><div class=\"kpi-label\">Desvio padrão</div></div>" +
             "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.low + "</div><div class=\"kpi-label\">Limite inferior</div></div>" +
             "<div class=\"kpi-card\"><div class=\"kpi-value\">" + sem.high + "</div><div class=\"kpi-label\">Limite superior</div></div>" +
             "</div>";
         var listHtml = "<div class=\"trimp-table-wrap\"><table class=\"trimp-table\">" +
-            "<thead><tr><th>Atleta</th><th>TRIMP</th><th>Classificação</th></tr></thead>" +
+            "<thead><tr><th>Atleta</th><th>Prontidão</th><th>Classificação</th></tr></thead>" +
             "<tbody>" + sem.list.map(function (item) {
                 var label = item.status === "green" ? "Verde" : item.status === "red" ? "Vermelho" : "Amarelo";
                 return "<tr class=\"trimp-status-" + item.status + "\">" +
                     "<td><span class=\"trimp-player-name\">" + (item.name || item.playerId) + "</span></td>" +
-                    "<td><span class=\"trimp-value\">" + item.avgTrimp + "</span></td>" +
+                    "<td><span class=\"trimp-value\">" + item.prontidao + "</span></td>" +
                     "<td><span class=\"semaforo-dot semaforo-" + item.status + "\"></span> " + label + "</td>" +
                     "</tr>";
             }).join("") + "</tbody></table></div>";
-
         content.innerHTML = legendHtml + kpiHtml + listHtml;
     });
 }
