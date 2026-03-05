@@ -188,28 +188,27 @@
         opacity:1;
     }
 
-    /* Logo SPARK na tela de bloqueio (pequeno, canto, sem rolagem) */
+    /* Logo SPARK na tela de bloqueio – bem visível */
     #lock-screen .lock-spark-wrap{
         position:absolute;
-        right:clamp(10px,2vw,20px);
-        bottom:clamp(10px,2vh,20px);
-        transform:scale(0.48);
-        transform-origin:bottom right;
+        left:50%;
+        bottom:clamp(16px,4vh,32px);
+        transform:translateX(-50%);
         z-index:1;
         pointer-events:none;
     }
     #lock-screen .lock-spark-wrap .spark-brand{
-        position:relative;display:inline-grid;place-items:center;padding:10px 14px;border-radius:10px;isolation:isolate;
+        position:relative;display:inline-grid;place-items:center;padding:16px 24px;border-radius:14px;isolation:isolate;
         --o:rgba(255,140,40,.98);--gl:rgba(255,140,40,.26);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68);
     }
     #lock-screen .lock-spark-wrap .spark-brand::before{
-        content:"";position:absolute;inset:-6px;border-radius:14px;
-        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.1),transparent 70%);filter:blur(2px);opacity:.5;z-index:-1;pointer-events:none;
+        content:"";position:absolute;inset:-8px;border-radius:18px;
+        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.15),transparent 70%);filter:blur(2px);opacity:.7;z-index:-1;pointer-events:none;
     }
-    #lock-screen .lock-spark-wrap .logo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px}
-    #lock-screen .lock-spark-wrap .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:22px;letter-spacing:.06em;color:var(--tx);text-shadow:0 0 10px rgba(255,140,40,.12)}
-    #lock-screen .lock-spark-wrap .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:7px;letter-spacing:.22em;color:var(--mu);text-transform:uppercase}
-    #lock-screen .lock-spark-wrap .bolt{position:absolute;z-index:3;width:70px;height:36px;opacity:0;pointer-events:none;mix-blend-mode:screen;transform:translate(var(--x),var(--y)) rotate(var(--r));transform-origin:center}
+    #lock-screen .lock-spark-wrap .logo{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:4px}
+    #lock-screen .lock-spark-wrap .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:36px;letter-spacing:.1em;color:var(--tx);text-shadow:0 0 16px rgba(255,140,40,.25),0 2px 4px rgba(0,0,0,.2)}
+    #lock-screen .lock-spark-wrap .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:11px;letter-spacing:.28em;color:var(--mu);text-transform:uppercase}
+    #lock-screen .lock-spark-wrap .bolt{position:absolute;z-index:3;width:90px;height:48px;opacity:0;pointer-events:none;mix-blend-mode:screen;transform:translate(var(--x),var(--y)) rotate(var(--r));transform-origin:center}
     #lock-screen .lock-spark-wrap .bolt path{fill:none;stroke-linecap:round;stroke-linejoin:round}
     #lock-screen .lock-spark-wrap .bolt .g{stroke:var(--gl);stroke-width:10;filter:blur(1px);opacity:.9}
     #lock-screen .lock-spark-wrap .bolt .c{stroke:var(--o);stroke-width:2.5;filter:drop-shadow(0 0 4px rgba(255,140,40,.3))}
@@ -219,9 +218,9 @@
     @keyframes lockBoltDr{0%{stroke-dashoffset:var(--l)}100%{stroke-dashoffset:0}}
     @keyframes lockBoltFo{0%{opacity:1}100%{opacity:0}}
     @keyframes lockBoltFl{0%{opacity:.95}100%{opacity:.1}}
-    #lock-screen .lock-spark-wrap .b1{--x:-75px;--y:-12px;--r:-15deg}
-    #lock-screen .lock-spark-wrap .b2{--x:82px;--y:-10px;--r:15deg}
-    #lock-screen .lock-spark-wrap .c1{--x:0;--y:0;--r:8deg;width:100px;height:48px}
+    #lock-screen .lock-spark-wrap .b1{--x:-95px;--y:-14px;--r:-15deg}
+    #lock-screen .lock-spark-wrap .b2{--x:102px;--y:-12px;--r:15deg}
+    #lock-screen .lock-spark-wrap .c1{--x:0;--y:0;--r:8deg;width:120px;height:58px}
     @media (prefers-reduced-motion:reduce){#lock-screen .lock-spark-wrap .bolt{display:none}}
 
     /* ---------- LAYOUT GERAL ---------- */
