@@ -12,16 +12,15 @@ function goHome(){
     setHeaderModeLabel("Início");
 
     renderScreen(`
-        <div class="home-with-spark">
-            <div class="home-spark-corner" aria-hidden="true">
-                <div class="spark-brand spark-brand--dark" aria-label="SPARK Technologies">
-                    <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
-                </div>
-            </div>
-            <div class="center-flex-col">
+        <div class="center-flex-col">
             <div class="datetime-display">
                 <div class="date" id="currentDate"></div>
                 <div class="time" id="currentTime"></div>
+            </div>
+            <div class="home-spark-below-time" aria-hidden="true">
+                <div class="spark-brand spark-brand--dark" aria-label="SPARK Technologies">
+                    <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
+                </div>
             </div>
             <div class="home-buttons">
                 <button class="home-btn home-btn-primary" onclick="iniciarNovoTreinoComSenha()">
@@ -52,7 +51,6 @@ function goHome(){
                     <input type="password" id="settingsPasswordInput" placeholder="Senha para acessar" class="settings-password-input" style="max-width:180px;padding:0.4rem 0.6rem;border-radius:var(--radius-md);border:2px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.3);color:var(--text-main);font-size:0.9rem;" />
                     <button type="button" class="small-solid-btn" onclick="openSettingsWithPassword()" style="padding:0.35rem 0.75rem;font-size:0.85rem;">Acessar configurações</button>
                 </div>
-            </div>
             </div>
         </div>
     `);
