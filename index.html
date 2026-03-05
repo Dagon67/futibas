@@ -95,27 +95,27 @@
         flex-direction:column;
         align-items:center;
         justify-content:center;
-        gap:var(--touch-gap);
+        gap:0.65rem;
         text-align:center;
     }
     .lock-logo{
         width:clamp(80px,20vw,120px);
         height:auto;
         object-fit:contain;
-        margin-bottom:0.5rem;
+        margin-bottom:0.25rem;
         filter:drop-shadow(0 4px 12px rgba(0,0,0,.4));
     }
     .lock-title{
         font-size:var(--touch-font-xl);
         font-weight:700;
         color:var(--text-main);
-        margin-bottom:0.5rem;
+        margin-bottom:0.25rem;
     }
     .lock-subtitle{
         font-size:var(--touch-font-md);
         font-weight:400;
         color:var(--text-dim);
-        margin-bottom:1rem;
+        margin-bottom:0.5rem;
     }
     .lock-input-wrapper{
         width:100%;
@@ -190,7 +190,7 @@
 
     /* Logo SPARK na tela de bloqueio – abaixo da senha, dentro do container preto */
     .lock-container .lock-spark-wrap{
-        margin-top:clamp(20px,4vh,32px);
+        margin-top:clamp(14px,2.5vh,22px);
         width:100%;
         display:flex;
         justify-content:center;
@@ -247,26 +247,8 @@
     header.app-header .brand-line{ font-size:0.75rem; color:var(--text-dim); }
     header.app-header .brand-main{ font-size:1rem; font-weight:700; color:var(--text-main); }
     header.app-header .brand-main .mode-label{ margin-left:0.35em; font-weight:600; color:var(--accent); }
-    .header-spark-wrap{
-        flex-shrink:0;
-        pointer-events:none;
-    }
-    .header-spark-wrap .spark-brand{
-        position:relative;display:inline-grid;place-items:center;padding:6px 12px;border-radius:10px;isolation:isolate;
-        --o:rgba(255,140,40,.98);--gl:rgba(255,140,40,.26);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68);
-    }
-    .header-spark-wrap .spark-brand::before{
-        content:"";position:absolute;inset:-4px;border-radius:12px;
-        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.08),transparent 70%);filter:blur(1px);opacity:.5;z-index:-1;
-    }
-    .header-spark-wrap .logo{display:flex;flex-direction:column;align-items:center;gap:0;}
-    .header-spark-wrap .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:18px;letter-spacing:.08em;color:var(--tx);text-shadow:0 0 8px rgba(255,140,40,.15);}
-    .header-spark-wrap .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:6px;letter-spacing:.2em;color:var(--mu);text-transform:uppercase;}
     @media (max-width:480px){
         header.app-header{ padding:10px var(--safe-pad); gap:8px; }
-        .header-spark-wrap .spark{ font-size:14px; }
-        .header-spark-wrap .tech{ font-size:5px; }
-        .header-spark-wrap .spark-brand{ padding:4px 8px; }
     }
 
     main#screen-area{
@@ -291,6 +273,7 @@
     /* ---------- COMPONENTES ---------- */
 
     .glass-card{
+        position:relative;
         background:var(--card-bg);
         border-radius:var(--radius-xl);
         border:2px solid var(--card-stroke);
@@ -300,6 +283,30 @@
         height:100%;
         display:flex;
         flex-direction:column;
+    }
+    .home-with-spark{ position:relative; width:100%; height:100%; display:flex; flex-direction:column; }
+    .glass-card .home-spark-corner{
+        position:absolute;
+        top:clamp(8px,1.5vw,14px);
+        right:clamp(8px,1.5vw,14px);
+        z-index:1;
+        pointer-events:none;
+    }
+    .glass-card .home-spark-corner .spark-brand{
+        position:relative;display:inline-grid;place-items:center;padding:5px 10px;border-radius:8px;isolation:isolate;
+        --o:rgba(255,140,40,.98);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68);
+    }
+    .glass-card .home-spark-corner .spark-brand::before{
+        content:"";position:absolute;inset:-4px;border-radius:10px;
+        background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.08),transparent 70%);filter:blur(1px);opacity:.5;z-index:-1;
+    }
+    .glass-card .home-spark-corner .logo{display:flex;flex-direction:column;align-items:center;gap:0;}
+    .glass-card .home-spark-corner .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:16px;letter-spacing:.07em;color:var(--tx);text-shadow:0 0 6px rgba(255,140,40,.12);}
+    .glass-card .home-spark-corner .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:5px;letter-spacing:.18em;color:var(--mu);text-transform:uppercase;}
+    @media (max-width:480px){
+        .glass-card .home-spark-corner .spark{ font-size:13px; }
+        .glass-card .home-spark-corner .tech{ font-size:4px; }
+        .glass-card .home-spark-corner .spark-brand{ padding:4px 8px; }
     }
 
     .center-flex-col{
@@ -1461,11 +1468,6 @@
             <div class="brand-main">
                 <span>Painel de Treino</span>
                 <span class="mode-label" id="headerModeLabel">Menu</span>
-            </div>
-        </div>
-        <div class="header-spark-wrap" aria-hidden="true">
-            <div class="spark-brand spark-brand--dark" aria-label="SPARK Technologies">
-                <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
             </div>
         </div>
     </header>
