@@ -58,14 +58,16 @@
       padding-right: 14px;
     }
 
-    /* ===== Encerrar (esquerda) | Iniciar jogo (direita) ===== */
+    /* ===== Encerrar | Voltar ao menu (centro, ao encerrar) | Iniciar/Pausar ===== */
     .mainActions{
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
       gap: 16px;
-      flex-wrap: wrap;
       padding: 10px 0 6px;
+    }
+    .mainActions .btnMainCenter{
+      justify-self: center;
     }
     .mainActions .btnMain{
       min-height: 56px;
@@ -758,6 +760,10 @@
           <span class="ico" aria-hidden="true">⏹️</span>
           Encerrar
         </button>
+        <button id="btnBackToMenu" class="btnPrimary btnMain btnMainCenter" style="display:none;" title="Voltar ao menu principal">
+          <span class="ico" aria-hidden="true">🏠</span>
+          Voltar ao menu
+        </button>
         <button id="btnStartPause" class="btnPrimary btnMain" disabled>
           <span class="ico" aria-hidden="true">▶️</span>
           <span id="btnStartPauseText">Iniciar jogo</span>
@@ -892,7 +898,7 @@
         </div>
         <div class="hint">
           <button id="btnNewGame">
-            <span class="ico" aria-hidden="true">🔄</span> Novo jogo
+            <span class="ico" aria-hidden="true">🏠</span> Retornar ao menu
           </button>
         </div>
       </div>
@@ -1037,6 +1043,7 @@
       // match timing
       started: false,
       running: false,
+      matchEnded: false,
       elapsedMs: 0,      // 0..totalLenMs
       lastTick: 0,
 
@@ -1123,6 +1130,7 @@
     const btnStartPause = document.getElementById("btnStartPause");
     const btnStartPauseText = document.getElementById("btnStartPauseText");
     const btnEnd = document.getElementById("btnEnd");
+    const btnBackToMenu = document.getElementById("btnBackToMenu");
 
     const setupOverlay = document.getElementById("setupOverlay");
     const dtGameEl = document.getElementById("dtGame");
@@ -1420,6 +1428,15 @@
       const filled = Object.values(state.posToPlayer).filter(Boolean).length;
       filledCountTagEl.textContent = `${filled}/5 no campo`;
 
+      if (state.matchEnded) {
+        btnEnd.disabled = true;
+        btnStartPause.disabled = true;
+        if (btnBackToMenu) btnBackToMenu.style.display = "";
+        return;
+      }
+
+      if (btnBackToMenu) btnBackToMenu.style.display = "none";
+
       const onePerPosition = state.positions.every(pos => !!state.posToPlayer[pos.id]);
       const canStart = onePerPosition && state.configured && !isMatchFinished();
       btnStartPause.disabled = !canStart && !state.started;
@@ -1603,6 +1620,7 @@
         }
       }
 
+      state.matchEnded = true;
       updateTimersUI();
       renderLog();
       showReport();
@@ -1788,9 +1806,14 @@
       updateFilledUI();
     });
 
+    function goToMenu(){
+      window.location.href = "../index.html";
+    }
+
+    if (btnBackToMenu) btnBackToMenu.addEventListener("click", goToMenu);
+
     btnNewGame.addEventListener("click", ()=>{
-      // Reset everything
-      location.reload();
+      goToMenu();
     });
 
     // Drop area: arrastar jogador da quadra para as reservas (remover da posição)
