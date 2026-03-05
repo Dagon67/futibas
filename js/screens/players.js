@@ -2,6 +2,16 @@
    🖥️ TELA: GERENCIAMENTO DE JOGADORES
    =========================== */
 
+function sairJogadoresComSenha() {
+    if (typeof window.showLockScreen === 'function') {
+        window.showLockScreen(function() {
+            if (typeof goHome === 'function') goHome();
+        });
+    } else if (typeof goHome === 'function') {
+        goHome();
+    }
+}
+
 function goPlayers(){
     // parar atualização do relógio quando sair do home
     if(window.dateTimeInterval) clearInterval(window.dateTimeInterval);
@@ -39,7 +49,7 @@ function goPlayers(){
     renderScreen(`
         <div class="settings-wrapper">
             <div class="back-row">
-                <button class="back-btn" onclick="goHome()">
+                <button class="back-btn" onclick="sairJogadoresComSenha()">
                     <i data-feather="home"></i>
                     <span>Início</span>
                 </button>

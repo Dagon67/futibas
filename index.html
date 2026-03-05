@@ -1339,9 +1339,14 @@
 <script src="js/screens/settingsData.js"></script>
 <script src="js/app.js"></script>
 <script>
-    // Função global para o botão Jogadores (garante que goPlayers seja chamada ao clicar)
+    // Função global para o botão Jogadores: pede senha, depois abre Jogadores e puxa lista do Sheets
     window.abrirJogadores = function() {
-        if (typeof goPlayers === 'function') {
+        if (typeof window.showLockScreen === 'function') {
+            window.showLockScreen(function() {
+                if (typeof goPlayers === 'function') goPlayers();
+                if (typeof fetchPlayersFromSheets === 'function') fetchPlayersFromSheets().catch(function() {});
+            });
+        } else if (typeof goPlayers === 'function') {
             goPlayers();
         }
     };
@@ -1366,13 +1371,10 @@
         function unlockApp() {
             lockScreen.setAttribute('data-unlocked', 'true');
             appShell.style.display = 'flex';
-            // Puxar lista de jogadores do Sheets para manter todos os aparelhos com a mesma lista
-            if (typeof fetchPlayersFromSheets === 'function') {
-                fetchPlayersFromSheets().catch(function() {});
-            }
         }
 
-        function lockApp() {
+        function lockApp(callback) {
+            window.pendingActionAfterUnlock = callback || null;
             lockScreen.setAttribute('data-unlocked', 'false');
             appShell.style.display = 'none';
             passwordInput.value = '';
@@ -1394,8 +1396,15 @@
             var input = (passwordInput.value || '').trim();
             if (!input) { showError(); return; }
             sha256Hex(input).then(function(hash) {
-                if (hash === LOCK_PASSWORD_HASH) unlockApp();
-                else showError();
+                if (hash === LOCK_PASSWORD_HASH) {
+                    unlockApp();
+                    if (window.pendingActionAfterUnlock) {
+                        window.pendingActionAfterUnlock();
+                        window.pendingActionAfterUnlock = null;
+                    }
+                } else {
+                    showError();
+                }
             });
         }
 
@@ -1407,13 +1416,10 @@
             }
         });
 
-        // Não focar no carregamento: evita "Autofocus processing was blocked" (usuário pode clicar no campo)
-        // O foco só é aplicado ao bloquear de novo (lockApp), após a tela estar visível.
+        // Inicializa desbloqueado (senha só ao entrar/sair Jogadores ou Iniciar Novo Treino)
+        unlockApp();
 
-        // Inicializa bloqueado
-        appShell.style.display = 'none';
-
-        // Torna a função lockApp disponível globalmente
+        // Torna a função disponível globalmente: showLockScreen(callback) para pedir senha antes de uma ação
         window.showLockScreen = lockApp;
 
         // Animação dos raios do logo SPARK na tela de bloqueio

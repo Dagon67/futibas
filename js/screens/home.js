@@ -4,9 +4,6 @@
 
 function goHome(){
     if (typeof clearResumeState === "function") clearResumeState();
-    if (typeof window.showLockScreen === 'function') {
-        window.showLockScreen();
-    }
     state.currentScreen = "home";
     state.currentMode = null;
     state.currentTrainingId = null;
@@ -21,7 +18,7 @@ function goHome(){
                 <div class="time" id="currentTime"></div>
             </div>
             <div class="home-buttons">
-                <button class="home-btn home-btn-primary" onclick="goTrainingSetup()">
+                <button class="home-btn home-btn-primary" onclick="iniciarNovoTreinoComSenha()">
                     <i data-feather="play-circle"></i>
                     <div>Iniciar Novo Treino</div>
                 </button>
@@ -74,6 +71,16 @@ function sha256Hex(str) {
             return Array.from(new Uint8Array(buf)).map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
         });
 }
+function iniciarNovoTreinoComSenha() {
+    if (typeof window.showLockScreen === 'function') {
+        window.showLockScreen(function() {
+            if (typeof goTrainingSetup === 'function') goTrainingSetup();
+        });
+    } else if (typeof goTrainingSetup === 'function') {
+        goTrainingSetup();
+    }
+}
+
 function openSettingsWithPassword() {
     var input = document.getElementById("settingsPasswordInput");
     var value = input ? (input.value || "").trim() : "";
