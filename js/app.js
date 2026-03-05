@@ -4,6 +4,17 @@
 
 window.__IMAGE_VERSION = Date.now();
 
+// Se há jogo em andamento no campin, ir direto para o controle de jogo
+var redirectToCampinIfGameInProgress = (function () {
+    try {
+        if (localStorage.getItem("tutem_campin_game_in_progress") === "1") {
+            window.location.replace("campin/campin.html");
+            return true;
+        }
+    } catch (e) {}
+    return false;
+})();
+
 function tryRestoreResumeState() {
     var saved = typeof loadResumeState === "function" ? loadResumeState() : null;
     if (!saved || !saved.currentScreen) return false;
@@ -67,8 +78,8 @@ function initDefaultPlayersThenHome() {
 }
 // Em produção, acordar o backend (Render) em background para reduzir 502 no primeiro sync
 if (typeof wakeBackendIfNeeded === "function") wakeBackendIfNeeded();
-// Inicializar (carrega jogadores do servidor se vazio, depois mostra home)
-initDefaultPlayersThenHome();
+// Inicializar (carrega jogadores do servidor se vazio, depois mostra home) — não rodar se redirecionando para campin
+if (!redirectToCampinIfGameInProgress) initDefaultPlayersThenHome();
 
 window.addEventListener('beforeunload', function(){
     if (window.dateTimeInterval) clearInterval(window.dateTimeInterval);

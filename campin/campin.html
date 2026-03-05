@@ -1565,10 +1565,62 @@
       renderAll();
     }
 
+    var CAMPIN_GAME_KEY = "tutem_campin_game_in_progress";
+    var CAMPIN_STATE_KEY = "tutem_campin_saved_state";
+    function setGameInProgress(flag){
+      try { localStorage.setItem(CAMPIN_GAME_KEY, flag ? "1" : "0"); } catch(e) {}
+    }
+    function saveCampinState(){
+      if (!state.started || state.matchEnded) return;
+      try {
+        var payload = {
+          players: state.players.map(function(p){ return { id: p.id, totalMs: p.totalMs, onField: p.onField, stints: p.stints || [], events: p.events || [] }; }),
+          posToPlayer: state.posToPlayer,
+          elapsedMs: state.elapsedMs,
+          started: state.started,
+          running: state.running,
+          matchEnded: state.matchEnded,
+          gameDatetimeISO: state.gameDatetimeISO,
+          teamName: state.teamName,
+          note: state.note
+        };
+        localStorage.setItem(CAMPIN_STATE_KEY, JSON.stringify(payload));
+      } catch(e) {}
+    }
+    function restoreCampinState(){
+      try {
+        var raw = localStorage.getItem(CAMPIN_STATE_KEY);
+        if (!raw) return false;
+        var payload = JSON.parse(raw);
+        if (!payload || !payload.players) return false;
+        payload.players.forEach(function(s){
+          var p = state.players.find(function(x){ return x.id === s.id; });
+          if (p) { p.totalMs = s.totalMs || 0; p.onField = !!s.onField; p.stints = s.stints || []; p.events = s.events || []; }
+        });
+        state.posToPlayer = payload.posToPlayer || { gk: null, fix: null, alaL: null, alaR: null, pivo: null };
+        state.elapsedMs = payload.elapsedMs || 0;
+        state.started = !!payload.started;
+        state.running = !!payload.running;
+        state.matchEnded = !!payload.matchEnded;
+        state.gameDatetimeISO = payload.gameDatetimeISO || "";
+        state.teamName = payload.teamName || "";
+        state.note = payload.note || "";
+        state.configured = true;
+        if (setupOverlay) setupOverlay.style.display = "none";
+        var dt = new Date(state.gameDatetimeISO);
+        if (gameDatetimeSmallEl) gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
+        renderAll();
+        updateFilledUI();
+        if (state.running) { state.lastTick = performance.now(); tick(); }
+        return true;
+      } catch(e) { return false; }
+    }
+
     function startOrToggle(){
       if(!state.started){
         // start match
         state.started = true;
+        setGameInProgress(true);
         state.running = true;
         state.elapsedMs = 0;
         state.lastTick = performance.now();
@@ -1637,6 +1689,8 @@
       }
 
       state.matchEnded = true;
+      setGameInProgress(false);
+      try { localStorage.removeItem(CAMPIN_STATE_KEY); } catch(e) {}
       updateTimersUI();
       renderLog();
       showReport();
@@ -1823,6 +1877,10 @@
     });
 
     function goToMenu(){
+      if (state.started && !state.matchEnded) {
+        if (typeof alert === "function") alert("Encerre o jogo antes de sair. Use o botão \"Encerrar\" e confirme.");
+        return;
+      }
       window.location.href = "../index.html";
     }
 
@@ -1916,9 +1974,18 @@
       if (!state.gameDatetimeISO) gameDatetimeSmallEl.textContent = "—";
 
       loadPlayersFromSheets(function(){
+        var hadGame = false;
+        try { hadGame = localStorage.getItem(CAMPIN_GAME_KEY) === "1"; } catch(e) {}
+        if (hadGame && restoreCampinState()) {
+          return;
+        }
         renderAll();
       });
     }
+
+    window.addEventListener("beforeunload", function(){
+      if (state.started && !state.matchEnded) saveCampinState();
+    });
 
     function saveGameToSheets(){
       const base = getBackendUrl();
