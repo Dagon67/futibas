@@ -1574,7 +1574,7 @@
       if (!state.started || state.matchEnded) return;
       try {
         var payload = {
-          players: state.players.map(function(p){ return { id: p.id, totalMs: p.totalMs, onField: p.onField, stints: p.stints || [], events: p.events || [] }; }),
+          players: state.players.map(function(p){ return { id: p.id, name: p.name, numero: p.numero, totalMs: p.totalMs, onField: p.onField, stints: p.stints || [], events: p.events || [] }; }),
           posToPlayer: state.posToPlayer,
           elapsedMs: state.elapsedMs,
           started: state.started,
@@ -1592,10 +1592,19 @@
         var raw = localStorage.getItem(CAMPIN_STATE_KEY);
         if (!raw) return false;
         var payload = JSON.parse(raw);
-        if (!payload || !payload.players) return false;
-        payload.players.forEach(function(s){
-          var p = state.players.find(function(x){ return x.id === s.id; });
-          if (p) { p.totalMs = s.totalMs || 0; p.onField = !!s.onField; p.stints = s.stints || []; p.events = s.events || []; }
+        if (!payload || !payload.players || !payload.players.length) return false;
+        state.players = payload.players.map(function(s){
+          var num = s.numero != null ? (typeof s.numero === "number" ? s.numero : parseInt(s.numero, 10)) : 0;
+          return {
+            id: s.id,
+            name: s.name || "",
+            numero: isNaN(num) ? 0 : num,
+            photo: svgAvatarDataUriNumber(num || 1),
+            totalMs: s.totalMs || 0,
+            onField: !!s.onField,
+            stints: s.stints || [],
+            events: s.events || []
+          };
         });
         state.posToPlayer = payload.posToPlayer || { gk: null, fix: null, alaL: null, alaR: null, pivo: null };
         state.elapsedMs = payload.elapsedMs || 0;
