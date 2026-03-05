@@ -1,0 +1,1942 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Futsal – Controle de Jogo (Drag & Substituições)</title>
+  <style>
+    :root{
+      --bg1:#070A12;
+      --bg2:#0B1224;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.09);
+      --stroke: rgba(255,255,255,.14);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --good: #34d399;
+      --warn: #fbbf24;
+      --bad:  #fb7185;
+      --accent:#60a5fa;
+      --accent2:#a78bfa;
+      --shadow: 0 18px 50px rgba(0,0,0,.45);
+      --radius: 18px;
+      --ring: 0 0 0 2px rgba(96,165,250,.25), 0 0 0 10px rgba(96,165,250,.07);
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 15% 15%, rgba(96,165,250,.18), transparent 60%),
+        radial-gradient(900px 650px at 85% 20%, rgba(167,139,250,.14), transparent 55%),
+        radial-gradient(900px 700px at 40% 95%, rgba(52,211,153,.10), transparent 55%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      overflow-x:hidden;
+    }
+
+    .app{
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .firstFold{
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .firstFold .mainActions{
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    /* ===== Encerrar (esquerda) | Iniciar jogo (direita) ===== */
+    .mainActions{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      padding: 10px 0 6px;
+    }
+    .mainActions .btnMain{
+      min-height: 56px;
+      padding: 14px 28px;
+      font-size: 17px;
+      border-radius: 18px;
+      border-width: 2px;
+    }
+    .mainActions .btnMain .ico{ width: 24px; height: 24px; }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding: 10px 12px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+    .logo{
+      width:40px;height:40px;border-radius:14px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(96,165,250,.9), transparent 55%),
+        radial-gradient(circle at 70% 70%, rgba(167,139,250,.9), transparent 55%),
+        linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+      border:1px solid rgba(255,255,255,.16);
+    }
+    .brand h1{
+      font-size: 14px;
+      margin:0;
+      letter-spacing:.2px;
+      line-height:1.2;
+    }
+    .brand p{ margin:0; font-size:12px; color: var(--muted); }
+
+    .topActions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      min-height: 44px;
+    }
+
+    .matchClock{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 150px;
+    }
+    .matchClock .big{
+      font-variant-numeric: tabular-nums;
+      font-size: 18px;
+      letter-spacing:.4px;
+    }
+    .matchClock .small{
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .dot{
+      width:8px;height:8px;border-radius:999px;
+      background: rgba(255,255,255,.25);
+    }
+    .dot.running{ background: var(--good); box-shadow: 0 0 0 6px rgba(52,211,153,.12); }
+    .dot.paused{ background: var(--warn); box-shadow: 0 0 0 6px rgba(251,191,36,.12); }
+    .dot.stopped{ background: rgba(255,255,255,.20); }
+
+    button{
+      appearance:none;
+      border:none;
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor:pointer;
+      font-weight: 650;
+      letter-spacing:.2px;
+      color: var(--text);
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.16);
+      transition: transform .06s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      min-height: 44px;
+      user-select:none;
+    }
+    button:hover{ background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.22); }
+    button:active{ transform: translateY(1px) scale(.99); }
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+
+    .btnPrimary{
+      background: linear-gradient(135deg, rgba(96,165,250,.25), rgba(167,139,250,.25));
+      border-color: rgba(96,165,250,.30);
+    }
+    .btnPrimary:hover{ border-color: rgba(96,165,250,.45); }
+    .btnDanger{
+      background: linear-gradient(135deg, rgba(251,113,133,.22), rgba(251,191,36,.16));
+      border-color: rgba(251,113,133,.28);
+    }
+
+    /* Layout: quadra à esquerda (sem margem) | direita: reservas + cronômetro */
+    .grid{
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 0;
+      flex: 1;
+      min-height: 0;
+    }
+    @media (max-width: 900px){
+      .grid{ grid-template-columns: 1fr 240px; }
+    }
+
+    .grid > .panel:first-child{
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border-radius: 0;
+      border-left: none;
+      border-top: none;
+    }
+
+    /* Coluna direita: reservas e cronômetro */
+    .rightColumn{
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px 14px 12px 12px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-top: none;
+      border-right: none;
+      border-radius: 0 0 var(--radius) 0;
+      min-height: 0;
+      overflow: auto;
+    }
+    .rightColumn .matchClock{
+      min-width: 0;
+    }
+    .rightColumn .matchClock .big{ font-size: 22px; }
+
+    /* Segunda dobra: logs e informações (rolagem da página para ver) */
+    .secondary{
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 20px 0 24px;
+      border-top: 1px solid rgba(255,255,255,.1);
+    }
+
+    @media (max-width: 980px){
+      .matchClock{ min-width: unset; }
+    }
+
+    .panel{
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .firstFold .panel{
+      overflow: hidden;
+    }
+
+    .panelHeader{
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .panelHeader .title{
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .panelHeader h2{ margin:0; font-size: 13px; letter-spacing:.2px; }
+    .panelHeader p{ margin:0; font-size:12px; color: var(--muted); }
+
+    /* Court – começa à esquerda sem margem */
+    .courtWrap{
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      padding: 12px 10px 12px 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .court{
+      position: relative;
+      min-height: 520px;
+      border-radius: 0 22px 22px 0;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
+      background: linear-gradient(180deg, #1e5631 0%, #2d7a3e 50%, #1e5631 100%);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .court svg{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      opacity:.95;
+    }
+
+    /* On-court side (left half) – evita seleção de texto e rolagem ao arrastar */
+    .positions{
+      position:absolute;
+      inset: 0;
+      pointer-events:none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .posSlot{
+      pointer-events:auto;
+      user-select: none;
+      -webkit-user-select: none;
+      position:absolute;
+      width: 120px;
+      max-width: 28vw;
+      transform: translate(-50%, -50%);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+    }
+
+    .slotRing{
+      position: relative;
+      user-select: none;
+      -webkit-user-select: none;
+      width: 100px; height: 100px;
+      border-radius: 999px;
+      border: 2px solid rgba(255,255,255,.4);
+      /* Preenchimento sólido para discernir bem o círculo e o jogador */
+      background: rgba(0,0,0,.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
+      overflow: hidden;
+    }
+    .slotRing.activeDrop{
+      box-shadow: var(--ring);
+      border-color: rgba(96,165,250,.7);
+      background: rgba(96,165,250,.25);
+    }
+
+    /* Placeholder "Arrastar aqui" preenche todo o círculo */
+    .slotRing .slotPlaceholder{
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.5);
+      color: rgba(255,255,255,.85);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .2px;
+      line-height: 1.2;
+      text-align: center;
+      padding: 8px;
+    }
+
+    /* Chip do jogador na quadra preenche 100% do círculo de demarcação */
+    .slotRing .playerChip.fieldChip{
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      border-radius: 999px;
+      padding: 6px 8px;
+      background: rgba(0,0,0,.55);
+      border: 2px solid rgba(255,255,255,.35);
+      box-shadow: 0 4px 16px rgba(0,0,0,.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      cursor: grab;
+      user-select: none;
+    }
+    .slotRing .playerChip.fieldChip .avatar{
+      width: 28px; height: 28px;
+      flex-shrink: 0;
+    }
+    .slotRing .playerChip.fieldChip .pname{
+      font-size: 10px;
+      max-width: none;
+      text-align: center;
+    }
+    .slotRing .playerChip.fieldChip .ptime,
+    .slotRing .playerChip.fieldChip .smallTimer{
+      font-size: 10px;
+    }
+    .slotRing .playerChip.fieldChip .smallTimer{
+      margin-top: 0;
+      padding: 2px 6px;
+    }
+
+    .posLabel{
+      font-size: 10px;
+      color: rgba(255,255,255,.8);
+      letter-spacing:.2px;
+    }
+
+    /* Player chip (banco / genérico) – evita seleção ao arrastar */
+    .playerChip{
+      width: 108px;
+      border-radius: 999px;
+      padding: 8px 10px;
+      background: rgba(0,0,0,.5);
+      border: 1px solid rgba(255,255,255,.25);
+      box-shadow: 0 10px 22px rgba(0,0,0,.26);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .playerChip:active{ cursor:grabbing; }
+
+    .avatar{
+      width: 36px; height: 36px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.3);
+      background: linear-gradient(135deg, rgba(96,165,250,.5), rgba(167,139,250,.5));
+      overflow:hidden;
+      flex: 0 0 auto;
+    }
+    .avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+    .pinfo{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .pname{
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+    }
+    .ptime{
+      font-variant-numeric: tabular-nums;
+      font-size: 11px;
+      color: rgba(255,255,255,.85);
+    }
+    .smallTimer{
+      margin-top: 2px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,.3);
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: rgba(255,255,255,.9);
+    }
+
+    /* Reservas abaixo do campo – bolinhas sempre visíveis, sem seleção de texto */
+    .reservasStrip{
+      min-height: 56px;
+      padding: 8px 0 6px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      overflow: visible;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .reservasStrip .bolinha{
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px 6px 6px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.5);
+      border: 2px solid rgba(255,255,255,.3);
+      cursor: grab;
+      user-select: none;
+      min-height: 44px;
+      transition: box-shadow .15s ease, border-color .15s ease, transform .06s ease;
+    }
+    .reservasStrip .bolinha:hover{
+      background: rgba(0,0,0,.6);
+      border-color: rgba(255,255,255,.4);
+    }
+    .reservasStrip .bolinha:active{ cursor: grabbing; }
+    .reservasStrip .bolinha.selectMode{
+      border-color: rgba(96,165,250,.55);
+      box-shadow: var(--ring);
+    }
+    .reservasStrip .bolinha .bolinhaAvatar{
+      width: 32px; height: 32px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: linear-gradient(135deg, rgba(96,165,250,.35), rgba(167,139,250,.35));
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+    .reservasStrip .bolinha .bolinhaAvatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .reservasStrip .bolinha .bolinhaInfo{
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-width: 0;
+    }
+    .reservasStrip .bolinha .bolinhaName{
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 72px;
+      line-height: 1.15;
+    }
+    .reservasStrip .bolinha .bolinhaTime{
+      font-variant-numeric: tabular-nums;
+      font-size: 10px;
+      color: rgba(255,255,255,.7);
+      line-height: 1.2;
+    }
+
+    .hintBar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .hint{
+      color: var(--muted);
+      font-size: 12px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .kbd{
+      font-size: 11px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.86);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Bench */
+    .bench{
+      padding: 14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      height: 100%;
+      min-height: 420px;
+    }
+    .benchRow{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+    }
+    .reservasStrip .benchRow{
+      overflow: visible;
+      width: 100%;
+    }
+    .bench .playerChip{
+      width: 200px;
+      min-width: 200px;
+      justify-content:flex-start;
+      background: rgba(255,255,255,.08);
+    }
+
+    .selectMode{
+      border-color: rgba(96,165,250,.55)!important;
+      box-shadow: var(--ring);
+    }
+
+    .events{
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 200px;
+      overflow: auto;
+    }
+    .events h3{
+      margin:0 0 8px 0;
+      font-size: 12px;
+      color: rgba(255,255,255,.82);
+      letter-spacing:.2px;
+    }
+    .logItem{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .logItem:last-child{ border-bottom:none; }
+    .tag{
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.82);
+      font-variant-numeric: tabular-nums;
+      flex: 0 0 auto;
+    }
+
+    /* Modal overlay */
+    .overlay{
+      position: fixed;
+      inset:0;
+      background: rgba(0,0,0,.62);
+      backdrop-filter: blur(6px);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      z-index: 50;
+    }
+    .modal{
+      width: min(720px, 100%);
+      border-radius: 22px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.16);
+      box-shadow: 0 30px 90px rgba(0,0,0,.55);
+      overflow:hidden;
+    }
+    .modalHeader{
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .modalHeader h2{ margin:0; font-size: 14px; letter-spacing:.2px; }
+    .modalHeader p{ margin:0; font-size: 12px; color: var(--muted); }
+
+    .modalBody{
+      padding: 16px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 720px){
+      .modalBody{ grid-template-columns: 1fr; }
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    label{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    input, select{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.20);
+      border: 1px solid rgba(255,255,255,.14);
+      color: rgba(255,255,255,.9);
+      outline:none;
+      font-family: var(--font);
+    }
+    input:focus, select:focus{
+      border-color: rgba(96,165,250,.55);
+      box-shadow: var(--ring);
+    }
+    .modalFooter{
+      padding: 14px 16px;
+      border-top: 1px solid rgba(255,255,255,.12);
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+
+    /* Report */
+    .report{
+      padding: 14px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .reportMeta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .reportMeta .left{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .reportMeta h3{ margin:0; font-size: 13px; }
+    .reportMeta p{ margin:0; font-size: 12px; color: var(--muted); }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    th, td{
+      text-align:left;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      vertical-align: top;
+      font-size: 12px;
+    }
+    th{
+      font-size: 11px;
+      letter-spacing:.25px;
+      color: rgba(255,255,255,.72);
+      background: rgba(255,255,255,.06);
+    }
+    tr:last-child td{ border-bottom:none; }
+    .eventsCell{
+      color: rgba(255,255,255,.74);
+      line-height: 1.35;
+    }
+
+    /* Tiny icon */
+    .ico{
+      width: 18px; height: 18px; display:inline-block;
+    }
+    .sr{ position:absolute; left:-9999px; }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <!-- Primeira dobra: botões + quadra + reservas (100vh, sem rolagem) -->
+    <div class="firstFold">
+      <div class="mainActions">
+        <button id="btnEnd" class="btnDanger btnMain" disabled>
+          <span class="ico" aria-hidden="true">⏹️</span>
+          Encerrar
+        </button>
+        <button id="btnStartPause" class="btnPrimary btnMain" disabled>
+          <span class="ico" aria-hidden="true">▶️</span>
+          <span id="btnStartPauseText">Iniciar jogo</span>
+        </button>
+      </div>
+
+      <div class="grid">
+        <section class="panel">
+        <div class="panelHeader">
+          <div class="title">
+            <h2>Quadra</h2>
+            <p>5 jogadores do <b>mesmo lado</b> • substitua soltando por cima da posição</p>
+          </div>
+          <div class="hint">
+            <span class="kbd">Desktop e mobile: arraste os jogadores</span>
+          </div>
+        </div>
+
+        <div class="courtWrap">
+          <div class="hintBar">
+            <div class="hint">
+              <span class="tag" id="filledCountTag">0/5 no campo</span>
+              <span>Preencha as 5 posições para liberar o “Iniciar jogo”.</span>
+            </div>
+            <div class="hint">
+              <span class="tag">1º tempo: 20:00</span>
+              <span class="tag">2º tempo: 20:00</span>
+            </div>
+          </div>
+
+          <div class="court" id="court">
+            <!-- SVG COURT LINES -->
+            <svg viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="lineGlow" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="rgba(255,255,255,.7)"/>
+                  <stop offset="1" stop-color="rgba(255,255,255,.4)"/>
+                </linearGradient>
+              </defs>
+
+              <!-- Outer -->
+              <rect x="45" y="45" width="910" height="510" rx="30" fill="none" stroke="url(#lineGlow)" stroke-width="4"/>
+              <!-- Mid line -->
+              <line x1="500" y1="45" x2="500" y2="555" stroke="rgba(255,255,255,.5)" stroke-width="3"/>
+              <!-- Center circle -->
+              <circle cx="500" cy="300" r="80" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3"/>
+              <circle cx="500" cy="300" r="4.5" fill="rgba(255,255,255,.55)"/>
+
+              <!-- Left penalty area -->
+              <path d="M 45 170 Q 170 170 190 300 Q 170 430 45 430" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="3"/>
+              <circle cx="150" cy="300" r="3.8" fill="rgba(255,255,255,.55)"/>
+              <!-- Right penalty area -->
+              <path d="M 955 170 Q 830 170 810 300 Q 830 430 955 430" fill="none" stroke="rgba(255,255,255,.26)" stroke-width="3"/>
+              <circle cx="850" cy="300" r="3.8" fill="rgba(255,255,255,.45)"/>
+
+              <!-- Left goal box -->
+              <rect x="45" y="245" width="40" height="110" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="3"/>
+              <!-- Right goal box -->
+              <rect x="915" y="245" width="40" height="110" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3"/>
+
+              <!-- Corners -->
+              <path d="M 45 95 A 50 50 0 0 1 95 45" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3"/>
+              <path d="M 905 45 A 50 50 0 0 1 955 95" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="3"/>
+              <path d="M 45 505 A 50 50 0 0 0 95 555" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3"/>
+              <path d="M 905 555 A 50 50 0 0 0 955 505" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="3"/>
+            </svg>
+
+            <!-- POSITIONS (left half) -->
+            <div class="positions" id="positions">
+              <!-- slots injected by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Coluna direita: reservas para substituição + cronômetro do jogo -->
+      <aside class="rightColumn">
+        <div class="hint" style="justify-content:flex-start;">
+          <span class="tag" id="selectedTag" style="display:none;">Selecionado: —</span>
+        </div>
+        <div class="reservasStrip" id="reservasStrip" aria-label="Reservas para substituição. Arraste para uma posição na quadra.">
+          <div class="benchRow" id="benchRow"></div>
+        </div>
+        <div class="pill" style="flex-shrink:0;">
+          <div class="matchClock">
+            <div class="big" id="matchClock">—</div>
+            <div class="small">
+              <span class="dot stopped" id="statusDot"></span>
+              <span id="halfLabel">Aguardando</span>
+              <span class="dot" style="opacity:.35"></span>
+              <span id="gameDatetimeSmall">—</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+      </div>
+    </div>
+
+    <!-- Segunda dobra: logs (rolar a página para ver, aproveita o espaço) -->
+    <div class="secondary">
+        <header>
+          <div class="brand">
+            <div class="logo" aria-hidden="true"></div>
+            <div>
+              <h1>Futsal – Controle de Jogo</h1>
+              <p>Arraste os jogadores (desktop e mobile) • Cronômetro ao lado da quadra</p>
+            </div>
+          </div>
+        </header>
+
+        <section class="panel">
+          <div class="panelHeader">
+            <div class="title">
+              <h2>Log do jogo</h2>
+              <p>Entradas e saídas por minuto do jogo</p>
+            </div>
+          </div>
+          <div class="bench" id="benchPanel" style="min-height: auto;">
+            <div class="events" id="eventsPanel">
+              <div id="logList"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    <!-- REPORT PANEL (hidden until end) -->
+    <section class="panel" id="reportPanel" style="display:none;">
+      <div class="panelHeader">
+        <div class="title">
+          <h2>Relatório final</h2>
+          <p>Tempo em quadra + entradas/saídas (por minuto do jogo)</p>
+        </div>
+        <div class="hint">
+          <button id="btnNewGame">
+            <span class="ico" aria-hidden="true">🔄</span> Novo jogo
+          </button>
+        </div>
+      </div>
+      <div class="report" id="reportBody"></div>
+    </section>
+  </div>
+
+  <!-- SETUP OVERLAY -->
+  <div class="overlay" id="setupOverlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+      <div class="modalHeader">
+        <div>
+          <h2 id="setupTitle">Configurar partida</h2>
+          <p>Defina data/horário (padrão = do sistema). Depois você monta o quinteto inicial.</p>
+        </div>
+      </div>
+
+      <div class="modalBody">
+        <div class="field">
+          <label for="dtGame">Data e horário do jogo</label>
+          <input type="datetime-local" id="dtGame" />
+        </div>
+
+        <div class="field">
+          <label for="halfRule">Regra de tempos</label>
+          <select id="halfRule">
+            <option value="20">2 tempos de 20 minutos (padrão)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="teamName">Nome do time (opcional)</label>
+          <input type="text" id="teamName" placeholder="Ex.: Jaraguá Futsal" />
+        </div>
+
+        <div class="field">
+          <label for="note">Observação (opcional)</label>
+          <input type="text" id="note" placeholder="Ex.: amistoso / treino / campeonato" />
+        </div>
+      </div>
+
+      <div class="modalFooter">
+        <button id="btnSetupContinue" class="btnPrimary">
+          <span class="ico" aria-hidden="true">✅</span>
+          Continuar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmação ao encerrar jogo -->
+  <div class="overlay" id="confirmEndOverlay" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmEndTitle" style="width: min(400px, 100%);">
+      <div class="modalHeader">
+        <h2 id="confirmEndTitle">Encerrar jogo?</h2>
+      </div>
+      <div class="modalBody" style="padding: 20px 16px;">
+        <p style="margin:0; color: var(--muted); font-size: 14px;">Tem certeza que deseja encerrar o jogo?</p>
+      </div>
+      <div class="modalFooter">
+        <button id="btnConfirmEndCancel">Cancelar</button>
+        <button id="btnConfirmEndOk" class="btnDanger">
+          <span class="ico" aria-hidden="true">⏹️</span>
+          Sim, encerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================
+       Helpers
+    ========================== */
+    const MS = 1000;
+    const MIN = 60 * MS;
+
+    function pad2(n){ return String(n).padStart(2,'0'); }
+
+    function msToClock(ms){
+      ms = Math.max(0, ms|0);
+      const totalSec = Math.floor(ms/1000);
+      const m = Math.floor(totalSec/60);
+      const s = totalSec % 60;
+      return `${pad2(m)}:${pad2(s)}`;
+    }
+
+    function matchMsToLabel(ms){
+      // ms is elapsed since match start (0..40min)
+      const halfLen = state.halfLenMs;
+      const half = (ms < halfLen) ? 1 : 2;
+      const within = (half === 1) ? ms : (ms - halfLen);
+      return `T${half} ${msToClock(within)}`;
+    }
+
+    function svgAvatarDataUriNumber(numero){
+      const num = String(numero);
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
+          <defs>
+            <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0" stop-color="rgba(96,165,250,0.9)"/>
+              <stop offset="1" stop-color="rgba(167,139,250,0.9)"/>
+            </linearGradient>
+          </defs>
+          <rect width="120" height="120" rx="60" fill="url(#g)"/>
+          <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
+                font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial"
+                font-size="48" font-weight="800" fill="rgba(255,255,255,0.92)">${num}</text>
+        </svg>`;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    }
+
+    /* =========================
+       Backend e URL
+    ========================== */
+    function getBackendUrl(){
+      const params = new URLSearchParams(window.location.search);
+      const b = params.get("backend");
+      if (b) return b.replace(/\/$/, "");
+      if (window.location.origin && window.location.origin !== "null") return window.location.origin;
+      return "";
+    }
+    function parseUrlParams(){
+      const params = new URLSearchParams(window.location.search);
+      const datetime = params.get("datetime");
+      const team = params.get("team");
+      if (datetime) state.gameDatetimeISO = datetime;
+      if (team != null) state.teamName = team;
+    }
+
+    /* =========================
+       State
+    ========================== */
+    const state = {
+      configured: false,
+      teamName: "",
+      note: "",
+      gameDatetimeISO: "",
+      halfLenMs: 20 * MIN,
+      totalLenMs: 40 * MIN,
+
+      // match timing
+      started: false,
+      running: false,
+      elapsedMs: 0,      // 0..totalLenMs
+      lastTick: 0,
+
+      selectedBenchPlayerId: null,
+      draggingPlayerId: null,
+      dragFromPosId: null,
+
+      // positions: Goleiro na área; Fixo central; Alas perto da linha do meio; Pivô espelhado do Fixo (outro lado)
+      positions: [
+        { id:"gk",  label:"GOLEIRO", x: 11, y: 50 },   // 1 – na área
+        { id:"fix", label:"FIXO",    x: 28, y: 50 },   // 2 – central (nossa metade)
+        { id:"alaL",label:"ALA (E)", x: 46, y: 22 },   // 4 – ala esquerda, perto da linha do meio
+        { id:"alaR",label:"ALA (D)", x: 46, y: 78 },   // 3 – ala direita, perto da linha do meio
+        { id:"pivo",label:"PIVÔ",    x: 72, y: 50 },   // 5 – espelhado do Fixo (outro lado do campo)
+      ],
+      posToPlayer: { gk:null, fix:null, alaL:null, alaR:null, pivo:null },
+
+      // players
+      players: []
+    };
+
+    function createPlayers(){
+      const names = [
+        "Bruno Silva", "Rafael Costa", "Lucas Santos", "Felipe Oliveira", "Pedro Henrique",
+        "Gabriel Lima", "Matheus Souza", "Leonardo Alves", "Gustavo Pereira", "Daniel Martins",
+      ];
+      state.players = names.map((name, idx) => {
+        const id = "p" + (idx+1);
+        const numero = idx + 1;
+        return {
+          id, name, numero,
+          photo: svgAvatarDataUriNumber(numero),
+          totalMs: 0, onField: false, stints: [], events: []
+        };
+      });
+    }
+
+    function loadPlayersFromSheets(cb){
+      const base = getBackendUrl();
+      if (!base) {
+        createPlayers();
+        if (cb) cb();
+        return;
+      }
+      const url = base + "/players";
+      fetch(url).then(r => r.json()).then(data => {
+        if (data && data.players && data.players.length > 0) {
+          state.players = data.players.map((pl, idx) => {
+            const id = (pl.id || ("p" + (idx + 1))).toString();
+            const numero = pl.number != null ? (typeof pl.number === "number" ? pl.number : parseInt(pl.number, 10) || idx + 1) : idx + 1;
+            return {
+              id,
+              name: pl.name || "",
+              numero: isNaN(numero) ? idx + 1 : numero,
+              photo: svgAvatarDataUriNumber(numero),
+              totalMs: 0,
+              onField: false,
+              stints: [],
+              events: []
+            };
+          });
+        } else {
+          createPlayers();
+        }
+        if (cb) cb();
+      }).catch(() => {
+        createPlayers();
+        if (cb) cb();
+      });
+    }
+
+    /* =========================
+       DOM refs
+    ========================== */
+    const positionsEl = document.getElementById("positions");
+    const benchRowEl  = document.getElementById("benchRow");
+    const logListEl   = document.getElementById("logList");
+
+    const matchClockEl = document.getElementById("matchClock");
+    const halfLabelEl  = document.getElementById("halfLabel");
+    const statusDotEl  = document.getElementById("statusDot");
+    const filledCountTagEl = document.getElementById("filledCountTag");
+
+    const btnStartPause = document.getElementById("btnStartPause");
+    const btnStartPauseText = document.getElementById("btnStartPauseText");
+    const btnEnd = document.getElementById("btnEnd");
+
+    const setupOverlay = document.getElementById("setupOverlay");
+    const dtGameEl = document.getElementById("dtGame");
+    const teamNameEl = document.getElementById("teamName");
+    const noteEl = document.getElementById("note");
+    const btnSetupContinue = document.getElementById("btnSetupContinue");
+    const gameDatetimeSmallEl = document.getElementById("gameDatetimeSmall");
+
+    const selectedTagEl = document.getElementById("selectedTag");
+
+    const reportPanel = document.getElementById("reportPanel");
+    const reportBody  = document.getElementById("reportBody");
+    const btnNewGame  = document.getElementById("btnNewGame");
+
+    /* =========================
+       Rendering
+    ========================== */
+    function renderPositions(){
+      positionsEl.innerHTML = "";
+      for(const pos of state.positions){
+        const slot = document.createElement("div");
+        slot.className = "posSlot";
+        slot.style.left = pos.x + "%";
+        slot.style.top  = pos.y + "%";
+        slot.dataset.posId = pos.id;
+
+        // ring (drop target)
+        const ring = document.createElement("div");
+        ring.className = "slotRing";
+        ring.dataset.posId = pos.id;
+
+        // label
+        const label = document.createElement("div");
+        label.className = "posLabel";
+        label.textContent = pos.label;
+
+        // content: jogador preenche todo o círculo ou placeholder "Arrastar aqui"
+        const playerId = state.posToPlayer[pos.id];
+        if(playerId){
+          const p = getPlayer(playerId);
+          ring.appendChild(renderPlayerChip(p, { context:"field", posId: pos.id }));
+        }else{
+          const placeholder = document.createElement("div");
+          placeholder.className = "slotPlaceholder";
+          placeholder.innerHTML = "+<br/><span style='margin-top:4px;'>Arrastar aqui</span>";
+          ring.appendChild(placeholder);
+        }
+
+        // drag/drop handlers (desktop e toque)
+        ring.addEventListener("dragover", (e)=> {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          ring.classList.add("activeDrop");
+        });
+        ring.addEventListener("dragleave", ()=> ring.classList.remove("activeDrop"));
+        ring.addEventListener("drop", (e)=> {
+          e.preventDefault();
+          ring.classList.remove("activeDrop");
+          const playerId = e.dataTransfer.getData("text/playerId");
+          if(!playerId) return;
+          placePlayerIntoPosition(playerId, pos.id);
+        });
+
+        // touch/click mode: tap bench player then tap slot
+        ring.addEventListener("click", ()=>{
+          if(!state.selectedBenchPlayerId) return;
+          placePlayerIntoPosition(state.selectedBenchPlayerId, pos.id);
+          setSelectedBench(null);
+        });
+
+        slot.appendChild(ring);
+        // per-position small label timer (optional; here we keep inside chip)
+        slot.appendChild(label);
+
+        positionsEl.appendChild(slot);
+      }
+
+      updateFilledUI();
+    }
+
+    function renderBench(){
+      benchRowEl.innerHTML = "";
+      const benchPlayers = state.players.filter(p => !p.onField);
+
+      for(const p of benchPlayers){
+        const chip = renderBolinha(p);
+        chip.style.cursor = "grab";
+
+        chip.setAttribute("draggable", "true");
+        chip.style.touchAction = "none";
+        chip.addEventListener("dragstart", (e)=>{
+          e.dataTransfer.setData("text/playerId", p.id);
+          e.dataTransfer.effectAllowed = "move";
+          setSelectedBench(p.id);
+        });
+        chip.addEventListener("pointerdown", (e)=>{
+          if(e.pointerType === "touch" || e.pointerType === "pen"){
+            state.draggingPlayerId = p.id;
+            state.dragFromPosId = null;
+          }
+        });
+
+        chip.addEventListener("click", ()=>{
+          if(state.selectedBenchPlayerId === p.id){
+            setSelectedBench(null);
+          }else{
+            setSelectedBench(p.id);
+          }
+        });
+        chip.addEventListener("keydown", (e)=>{
+          if(e.key === "Enter" || e.key === " "){
+            e.preventDefault();
+            if(state.selectedBenchPlayerId === p.id) setSelectedBench(null);
+            else setSelectedBench(p.id);
+          }
+        });
+
+        benchRowEl.appendChild(chip);
+      }
+    }
+
+    function renderBolinha(player){
+      const chip = document.createElement("div");
+      chip.className = "bolinha playerChip";
+      chip.dataset.playerId = player.id;
+      chip.setAttribute("role", "button");
+      chip.setAttribute("tabindex", "0");
+      chip.setAttribute("aria-label", `${player.name}, tempo em quadra: ${msToClock(player.totalMs)}. Arraste para a posição desejada ou toque e depois toque na posição.`);
+
+      const av = document.createElement("div");
+      av.className = "bolinhaAvatar";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.src = player.photo;
+      av.appendChild(img);
+
+      const info = document.createElement("div");
+      info.className = "bolinhaInfo";
+      const name = document.createElement("div");
+      name.className = "bolinhaName";
+      name.textContent = player.name;
+      const time = document.createElement("div");
+      time.className = "bolinhaTime";
+      time.textContent = msToClock(player.totalMs);
+      time.dataset.timerFor = player.id;
+      info.appendChild(name);
+      info.appendChild(time);
+
+      chip.appendChild(av);
+      chip.appendChild(info);
+      return chip;
+    }
+
+    function renderPlayerChip(player, { context, posId } = {}){
+      const chip = document.createElement("div");
+      chip.className = "playerChip" + (context === "field" ? " fieldChip" : "");
+      chip.dataset.playerId = player.id;
+
+      const av = document.createElement("div");
+      av.className = "avatar";
+      const img = document.createElement("img");
+      img.alt = player.name;
+      img.src = player.photo;
+      av.appendChild(img);
+
+      const info = document.createElement("div");
+      info.className = "pinfo";
+
+      const name = document.createElement("div");
+      name.className = "pname";
+      name.textContent = player.name;
+
+      info.appendChild(name);
+
+      if(context !== "field"){
+        const time = document.createElement("div");
+        time.className = "ptime";
+        time.textContent = "Total: " + msToClock(player.totalMs);
+        info.appendChild(time);
+      }
+
+      chip.appendChild(av);
+      chip.appendChild(info);
+
+      if(context === "field"){
+        // Abaixo do nome: apenas o tempo total em campo (atualizado em tempo real)
+        const badge = document.createElement("div");
+        badge.className = "smallTimer";
+        badge.textContent = msToClock(player.totalMs);
+        badge.dataset.timerFor = player.id;
+        chip.appendChild(badge);
+
+        chip.setAttribute("draggable", "true");
+        chip.style.touchAction = "none";
+        chip.addEventListener("dragstart", (e)=>{
+          e.dataTransfer.setData("text/playerId", player.id);
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/fromPosId", posId || "");
+        });
+        chip.addEventListener("pointerdown", (e)=>{
+          if(e.pointerType === "touch" || e.pointerType === "pen"){
+            state.draggingPlayerId = player.id;
+            state.dragFromPosId = posId || null;
+          }
+        });
+      }
+
+      return chip;
+    }
+
+    function renderLog(){
+      logListEl.innerHTML = "";
+      // show last 18 events
+      const events = collectEvents().slice(-18).reverse();
+      if(events.length === 0){
+        const empty = document.createElement("div");
+        empty.style.padding = "10px 0";
+        empty.style.color = "rgba(255,255,255,.55)";
+        empty.textContent = "Sem eventos ainda. Faça uma substituição para registrar entradas/saídas.";
+        logListEl.appendChild(empty);
+        return;
+      }
+
+      for(const ev of events){
+        const row = document.createElement("div");
+        row.className = "logItem";
+
+        const horario = matchMsToLabel(ev.atMs);
+        const tag = document.createElement("div");
+        tag.className = "tag";
+        tag.textContent = ev.type === "IN" ? "Entrada " + horario : "Saída " + horario;
+
+        const txt = document.createElement("div");
+        txt.style.minWidth = "0";
+
+        const who = getPlayer(ev.playerId)?.name ?? "Jogador";
+        const pos = state.positions.find(p=>p.id===ev.posId)?.label ?? ev.posId;
+
+        const line1 = document.createElement("div");
+        line1.style.color = "rgba(255,255,255,.82)";
+        line1.style.fontWeight = "750";
+        line1.textContent = `${who} — ${ev.type === "IN" ? "ENTROU" : "SAIU"} (${pos})`;
+
+        const line2 = document.createElement("div");
+        line2.style.marginTop = "2px";
+        line2.style.color = "rgba(255,255,255,.7)";
+        line2.textContent = ev.type === "IN"
+          ? `Horário de entrada: ${horario}`
+          : `Horário de saída: ${horario}`;
+
+        txt.appendChild(line1);
+        txt.appendChild(line2);
+
+        row.appendChild(tag);
+        row.appendChild(txt);
+        logListEl.appendChild(row);
+      }
+    }
+
+    function updateTimersUI(){
+      // match clock
+      const remaining = Math.max(0, state.totalLenMs - state.elapsedMs);
+      matchClockEl.textContent = msToClock(remaining);
+
+      // half label
+      const half = state.elapsedMs < state.halfLenMs ? 1 : 2;
+      const within = half === 1 ? state.elapsedMs : (state.elapsedMs - state.halfLenMs);
+      const halfRemaining = Math.max(0, state.halfLenMs - within);
+      halfLabelEl.textContent = state.started
+        ? `T${half} • faltam ${msToClock(halfRemaining)}`
+        : "Aguardando";
+
+      // dot status
+      statusDotEl.classList.remove("running","paused","stopped");
+      if(!state.started) statusDotEl.classList.add("stopped");
+      else if(state.running) statusDotEl.classList.add("running");
+      else statusDotEl.classList.add("paused");
+
+      // update small badges on field
+      document.querySelectorAll("[data-timer-for]").forEach(el=>{
+        const pid = el.dataset.timerFor;
+        const p = getPlayer(pid);
+        if(p) el.textContent = msToClock(p.totalMs);
+      });
+
+      // update bolinha times in reservas strip
+      document.querySelectorAll(".bolinhaTime[data-timer-for]").forEach(el=>{
+        const pid = el.dataset.timerFor;
+        const p = getPlayer(pid);
+        if(p) el.textContent = msToClock(p.totalMs);
+      });
+    }
+
+    function updateFilledUI(){
+      const filled = Object.values(state.posToPlayer).filter(Boolean).length;
+      filledCountTagEl.textContent = `${filled}/5 no campo`;
+
+      const onePerPosition = state.positions.every(pos => !!state.posToPlayer[pos.id]);
+      const canStart = onePerPosition && state.configured && !isMatchFinished();
+      btnStartPause.disabled = !canStart && !state.started;
+      if(state.started) btnStartPause.disabled = false;
+
+      btnEnd.disabled = !state.started;
+
+      if(!state.started){
+        btnStartPauseText.textContent = "Iniciar jogo";
+      }else{
+        btnStartPauseText.textContent = state.running ? "Pausar" : "Retomar";
+      }
+    }
+
+    function setSelectedBench(playerId){
+      state.selectedBenchPlayerId = playerId;
+
+      // update bench selection visuals (bolinhas)
+      document.querySelectorAll("#benchRow .bolinha").forEach(ch=>{
+        ch.classList.remove("selectMode");
+      });
+      if(playerId){
+        const chip = document.querySelector(`#benchRow .bolinha[data-player-id="${playerId}"]`);
+        if(chip) chip.classList.add("selectMode");
+        selectedTagEl.style.display = "inline-flex";
+        selectedTagEl.textContent = "Selecionado: " + (getPlayer(playerId)?.name ?? "—");
+      }else{
+        selectedTagEl.style.display = "none";
+      }
+    }
+
+    function isMatchFinished(){
+      return state.started && state.elapsedMs >= state.totalLenMs;
+    }
+
+    /* =========================
+       Game logic
+    ========================== */
+    function getPlayer(id){ return state.players.find(p=>p.id===id); }
+
+    function collectEvents(){
+      const all = [];
+      for(const p of state.players){
+        for(const e of p.events){
+          all.push({ ...e, playerId: p.id });
+        }
+      }
+      all.sort((a,b)=>a.atMs-b.atMs);
+      return all;
+    }
+
+    function logEvent(type, playerId, posId){
+      const p = getPlayer(playerId);
+      if(!p) return;
+      const atMs = state.elapsedMs;
+      p.events.push({ type, atMs, posId });
+      renderLog();
+    }
+
+    function playerOut(playerId, posId){
+      const p = getPlayer(playerId);
+      if(!p || !p.onField) return;
+
+      // close current stint
+      const last = p.stints[p.stints.length - 1];
+      if(last && last.outMs == null){
+        last.outMs = state.elapsedMs;
+      }
+      p.onField = false;
+      logEvent("OUT", playerId, posId);
+    }
+
+    function playerIn(playerId, posId){
+      const p = getPlayer(playerId);
+      if(!p) return;
+
+      // open new stint
+      p.stints.push({ inMs: state.elapsedMs, outMs: null, posId });
+      p.onField = true;
+      logEvent("IN", playerId, posId);
+    }
+
+    function placePlayerIntoPosition(playerId, posId){
+      // If player is already on field somewhere, ignore to avoid duplicates
+      const alreadyPos = Object.entries(state.posToPlayer).find(([k,v])=>v===playerId);
+      if(alreadyPos && alreadyPos[0] === posId) return;
+      if(alreadyPos && alreadyPos[0] !== posId){
+        // move between positions (treat as OUT+IN at same ms)
+        const fromPos = alreadyPos[0];
+        state.posToPlayer[fromPos] = null;
+        // close stint and reopen (keeps accounting cleaner)
+        playerOut(playerId, fromPos);
+        state.posToPlayer[posId] = playerId;
+        playerIn(playerId, posId);
+        renderAll();
+        return;
+      }
+
+      const outgoing = state.posToPlayer[posId];
+      if(outgoing){
+        state.posToPlayer[posId] = null;
+        // outgoing goes to bench (timer pauses)
+        playerOut(outgoing, posId);
+      }
+
+      // incoming
+      state.posToPlayer[posId] = playerId;
+      playerIn(playerId, posId);
+
+      renderAll();
+    }
+
+    function startOrToggle(){
+      if(!state.started){
+        // start match
+        state.started = true;
+        state.running = true;
+        state.elapsedMs = 0;
+        state.lastTick = performance.now();
+
+        // register initial IN events (already handled if you placed players)
+        // But we only want events from substitutions after start?
+        // You requested log of leaving/returning; we'll keep all IN/OUT, including pre-start placements:
+        // To keep it sane: we will CLEAR events/stints and re-open stints at kickoff for current on-field.
+        resetStintsAtKickoff();
+
+        btnStartPauseText.textContent = "Pausar";
+        updateFilledUI();
+        tick();
+      }else{
+        // toggle pause
+        state.running = !state.running;
+        if(state.running){
+          state.lastTick = performance.now();
+        }
+        btnStartPauseText.textContent = state.running ? "Pausar" : "Retomar";
+        updateFilledUI();
+        updateTimersUI();
+      }
+    }
+
+    function resetStintsAtKickoff(){
+      // wipe existing stints/events and start fresh at 0 with whoever is on the field
+      for(const p of state.players){
+        p.stints = [];
+        p.events = [];
+        p.totalMs = 0;
+        p.onField = false;
+      }
+      // mark current on-field as IN at 0
+      for(const [posId, pid] of Object.entries(state.posToPlayer)){
+        if(pid){
+          const p = getPlayer(pid);
+          if(!p) continue;
+          p.onField = true;
+          p.stints.push({ inMs: 0, outMs: null, posId });
+          p.events.push({ type:"IN", atMs: 0, posId });
+        }
+      }
+      renderLog();
+      renderBench();
+      renderPositions();
+    }
+
+    function endMatch(){
+      if(!state.started) return;
+
+      // ensure paused and close open stints at final time
+      state.running = false;
+      state.elapsedMs = Math.min(state.elapsedMs, state.totalLenMs);
+
+      for(const [posId, pid] of Object.entries(state.posToPlayer)){
+        if(pid){
+          const p = getPlayer(pid);
+          const last = p?.stints?.[p.stints.length-1];
+          if(last && last.outMs == null){
+            last.outMs = state.elapsedMs;
+            p.onField = false;
+            p.events.push({ type:"OUT", atMs: state.elapsedMs, posId });
+          }
+        }
+      }
+
+      updateTimersUI();
+      renderLog();
+      showReport();
+      saveGameToSheets();
+      updateFilledUI();
+    }
+
+    function showReport(){
+      reportPanel.style.display = "block";
+
+      const dt = new Date(state.gameDatetimeISO);
+      const dtText = isFinite(dt.getTime())
+        ? dt.toLocaleString("pt-BR")
+        : (state.gameDatetimeISO || "—");
+
+      const meta = document.createElement("div");
+      meta.className = "reportMeta";
+      meta.innerHTML = `
+        <div class="left">
+          <h3>${state.teamName ? escapeHtml(state.teamName) : "Partida"}</h3>
+          <p><b>Data/hora:</b> ${escapeHtml(dtText)}${state.note ? " • <b>Obs.:</b> " + escapeHtml(state.note) : ""}</p>
+        </div>
+        <div class="hint">
+          <span class="tag">Duração: 2×20:00</span>
+          <span class="tag">Fim em: ${matchMsToLabel(state.elapsedMs)}</span>
+        </div>
+      `;
+
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th style="width:220px;">Jogador</th>
+            <th style="width:140px;">Tempo em quadra</th>
+            <th>Entradas / Saídas</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+
+      const tbody = table.querySelector("tbody");
+
+      const playersSorted = [...state.players].sort((a,b)=>b.totalMs - a.totalMs);
+      for(const p of playersSorted){
+        const tr = document.createElement("tr");
+
+        const tdName = document.createElement("td");
+        tdName.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="avatar" style="width:32px;height:32px;"><img src="${p.photo}" alt="${escapeHtml(p.name)}"/></div>
+            <div style="min-width:0;">
+              <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
+              <div style="color:rgba(255,255,255,.6);font-size:11px;">${p.stints.length} stint(s)</div>
+            </div>
+          </div>
+        `;
+
+        const tdTime = document.createElement("td");
+        tdTime.style.fontVariantNumeric = "tabular-nums";
+        tdTime.style.fontWeight = "800";
+        tdTime.textContent = msToClock(p.totalMs);
+
+        const tdEv = document.createElement("td");
+        tdEv.className = "eventsCell";
+        tdEv.innerHTML = formatPlayerEvents(p);
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdTime);
+        tr.appendChild(tdEv);
+        tbody.appendChild(tr);
+      }
+
+      reportBody.innerHTML = "";
+      reportBody.appendChild(meta);
+      reportBody.appendChild(table);
+
+      // scroll to report
+      reportPanel.scrollIntoView({ behavior:"smooth", block:"start" });
+    }
+
+    function formatPlayerEvents(p){
+      if(!p.events || p.events.length === 0) return `<span style="color:rgba(255,255,255,.55)">—</span>`;
+
+      const chunks = [];
+      // Group by stints (IN then OUT)
+      for(const stint of p.stints){
+        const inLbl = matchMsToLabel(stint.inMs);
+        const outLbl = (stint.outMs == null) ? "—" : matchMsToLabel(stint.outMs);
+        const posLbl = state.positions.find(x=>x.id===stint.posId)?.label ?? stint.posId;
+        chunks.push(`<div>• <b>Entrou</b> ${escapeHtml(inLbl)} (<span style="color:rgba(255,255,255,.68)">${escapeHtml(posLbl)}</span>) → <b>Saiu</b> ${escapeHtml(outLbl)}</div>`);
+      }
+      return chunks.join("");
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    /* =========================
+       Timer loop
+    ========================== */
+    function tick(){
+      if(!state.started) return;
+
+      if(state.running){
+        const now = performance.now();
+        const dt = now - state.lastTick;
+        state.lastTick = now;
+
+        const prevElapsed = state.elapsedMs;
+        state.elapsedMs = Math.min(state.totalLenMs, state.elapsedMs + dt);
+
+        // add dt to every on-field player totalMs
+        for(const pid of Object.values(state.posToPlayer)){
+          if(pid){
+            const p = getPlayer(pid);
+            if(p) p.totalMs += dt;
+          }
+        }
+
+        // halftime auto-pause exactly at 20:00 elapsed
+        if(prevElapsed < state.halfLenMs && state.elapsedMs >= state.halfLenMs){
+          state.running = false;
+          btnStartPauseText.textContent = "Iniciar 2º tempo";
+        }
+
+        // end auto
+        if(state.elapsedMs >= state.totalLenMs){
+          endMatch();
+          return;
+        }
+      }
+
+      updateTimersUI();
+      requestAnimationFrame(tick);
+    }
+
+    /* =========================
+       Events: Setup + Buttons
+    ========================== */
+    btnStartPause.addEventListener("click", ()=>{
+      // If match started and currently paused at halftime, pressing should resume 2nd half
+      if(state.started && !state.running && state.elapsedMs >= state.halfLenMs && state.elapsedMs < state.totalLenMs){
+        state.running = true;
+        state.lastTick = performance.now();
+        btnStartPauseText.textContent = "Pausar";
+        updateFilledUI();
+        return;
+      }
+      startOrToggle();
+    });
+
+    const confirmEndOverlay = document.getElementById("confirmEndOverlay");
+    const btnConfirmEndCancel = document.getElementById("btnConfirmEndCancel");
+    const btnConfirmEndOk = document.getElementById("btnConfirmEndOk");
+
+    btnEnd.addEventListener("click", ()=>{
+      if(!state.started) return;
+      confirmEndOverlay.style.display = "flex";
+    });
+
+    btnConfirmEndCancel.addEventListener("click", ()=>{
+      confirmEndOverlay.style.display = "none";
+    });
+
+    btnConfirmEndOk.addEventListener("click", ()=>{
+      confirmEndOverlay.style.display = "none";
+      endMatch();
+    });
+
+    btnSetupContinue.addEventListener("click", ()=>{
+      const iso = dtGameEl.value ? new Date(dtGameEl.value).toISOString() : new Date().toISOString();
+      state.gameDatetimeISO = iso;
+      state.teamName = teamNameEl.value.trim();
+      state.note = noteEl.value.trim();
+      state.configured = true;
+
+      setupOverlay.style.display = "none";
+
+      const dt = new Date(state.gameDatetimeISO);
+      gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
+
+      updateFilledUI();
+    });
+
+    btnNewGame.addEventListener("click", ()=>{
+      // Reset everything
+      location.reload();
+    });
+
+    // Drop area: arrastar jogador da quadra para as reservas (remover da posição)
+    const reservasStrip = document.getElementById("reservasStrip");
+    reservasStrip.addEventListener("dragover", (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
+    reservasStrip.addEventListener("drop", (e)=>{
+      e.preventDefault();
+      const playerId = e.dataTransfer.getData("text/playerId");
+      const fromPosId = e.dataTransfer.getData("text/fromPosId");
+      if(!playerId) return;
+
+      const currentPos = Object.entries(state.posToPlayer).find(([k,v])=>v===playerId)?.[0];
+      const posId = currentPos || fromPosId;
+      if(posId && state.posToPlayer[posId] === playerId){
+        state.posToPlayer[posId] = null;
+        if(state.started){
+          playerOut(playerId, posId);
+        }else{
+          const p = getPlayer(playerId);
+          if(p) p.onField = false;
+        }
+        renderAll();
+      }
+    });
+
+    /* Arraste por toque (mobile): ao soltar, verifica onde caiu e coloca/remove jogador */
+    document.addEventListener("pointermove", (e)=>{
+      if(state.draggingPlayerId) e.preventDefault();
+    }, { passive: false });
+
+    function handlePointerUp(e){
+      if(!state.draggingPlayerId) return;
+      const x = e.clientX;
+      const y = e.clientY;
+      const target = document.elementFromPoint(x, y);
+      const slotRing = target && target.closest && target.closest(".slotRing");
+      const reservas = target && target.closest && target.closest("#reservasStrip");
+      const playerId = state.draggingPlayerId;
+      const fromPosId = state.dragFromPosId;
+      state.draggingPlayerId = null;
+      state.dragFromPosId = null;
+
+      if(slotRing && slotRing.dataset.posId){
+        placePlayerIntoPosition(playerId, slotRing.dataset.posId);
+      }else if(reservas && fromPosId && state.posToPlayer[fromPosId] === playerId){
+        state.posToPlayer[fromPosId] = null;
+        if(state.started) playerOut(playerId, fromPosId);
+        else { const p = getPlayer(playerId); if(p) p.onField = false; }
+        renderAll();
+      }
+    }
+    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointercancel", handlePointerUp);
+
+    /* =========================
+       Init
+    ========================== */
+    function renderAll(){
+      renderPositions();
+      renderBench();
+      renderLog();
+      updateTimersUI();
+      updateFilledUI();
+    }
+
+    function init(){
+      parseUrlParams();
+
+      if (state.gameDatetimeISO) {
+        state.configured = true;
+        setupOverlay.style.display = "none";
+        const dt = new Date(state.gameDatetimeISO);
+        gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
+        const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        dtGameEl.value = local;
+        if (teamNameEl) teamNameEl.value = state.teamName || "";
+      } else {
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        dtGameEl.value = new Date(now - tzOffset).toISOString().slice(0, 16);
+      }
+
+      matchClockEl.textContent = msToClock(state.totalLenMs);
+      if (!state.gameDatetimeISO) gameDatetimeSmallEl.textContent = "—";
+
+      loadPlayersFromSheets(function(){
+        renderAll();
+      });
+    }
+
+    function saveGameToSheets(){
+      const base = getBackendUrl();
+      if (!base) return;
+
+      const gameId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now());
+      const logs = [];
+      for (const p of state.players) {
+        if (!p.events || !p.events.length) continue;
+        const gameStart = state.gameDatetimeISO ? new Date(state.gameDatetimeISO).getTime() : Date.now();
+        for (const ev of p.events) {
+          const atMs = ev.atMs || 0;
+          const eventTime = new Date(gameStart + atMs).toISOString();
+          const pos = state.positions.find(x => x.id === ev.posId);
+          const posLabel = pos ? pos.label : (ev.posId || "");
+          logs.push({
+            type: ev.type,
+            atMs,
+            minuteLabel: matchMsToLabel(atMs),
+            timestamp: eventTime,
+            playerId: p.id,
+            playerName: p.name,
+            number: p.numero,
+            posId: ev.posId,
+            posLabel
+          });
+        }
+      }
+      logs.sort((a, b) => a.atMs - b.atMs);
+
+      const minutesPerPlayer = state.players.map(p => ({
+        playerId: p.id,
+        name: p.name,
+        number: p.numero,
+        minutes: Math.round(p.totalMs / 60000 * 10) / 10
+      }));
+
+      const payload = {
+        gameId,
+        datetime: state.gameDatetimeISO || new Date().toISOString(),
+        teamName: state.teamName || "",
+        note: state.note || "",
+        logs,
+        minutesPerPlayer
+      };
+
+      fetch(base + "/games", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).then(r => r.json()).then(data => {
+        if (data && data.success) console.log("Jogo salvo no Sheets:", gameId);
+        else console.warn("Resposta ao salvar jogo:", data);
+      }).catch(err => console.warn("Erro ao salvar jogo no Sheets:", err));
+    }
+
+    init();
+  </script>
+</body>
+</html>

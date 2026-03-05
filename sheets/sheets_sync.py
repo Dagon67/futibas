@@ -411,6 +411,86 @@ class SheetsSync:
             print(f"⚠️ get_pre_last_rows: {e}")
             return []
 
+    def _get_or_create_worksheet_append(self, name: str, header: List[Any]) -> Any:
+        """Obtém ou cria uma aba (no final da planilha) e garante que a primeira linha seja o header."""
+        try:
+            worksheet = self.spreadsheet.worksheet(name)
+        except Exception:
+            worksheet = self.spreadsheet.add_worksheet(title=name, rows=1000, cols=26)
+        all_rows = worksheet.get_all_values()
+        if not all_rows:
+            worksheet.update('A1', [header], value_input_option='USER_ENTERED')
+        return worksheet
+
+    def append_game(self, payload: Dict[str, Any]) -> None:
+        """
+        Acrescenta um jogo nas abas 'Jogos' e 'Jogos_Logs' (cria as abas no final se não existirem).
+        payload: gameId, datetime, date, time, teamName, note, logs[], minutesPerPlayer[]
+        """
+        game_id = self._str(payload.get("gameId", ""))
+        dt_raw = self._str(payload.get("datetime", ""))
+        team = self._str(payload.get("teamName", ""))
+        note = self._str(payload.get("note", ""))
+        # date e time para exibição (opcional)
+        date_display = self._str(payload.get("date", ""))
+        time_display = self._str(payload.get("time", ""))
+        if not date_display and dt_raw:
+            try:
+                from datetime import datetime as dt_parse
+                d = dt_parse.fromisoformat(dt_raw.replace("Z", "+00:00"))
+                date_display = d.strftime("%d/%m/%Y")
+                time_display = d.strftime("%H:%M")
+            except Exception:
+                date_display = dt_raw
+                time_display = ""
+
+        # Aba Jogos: ID Jogo, Data, Horário, Time, ID Jogador, Nome, Número, Minutos
+        header_jogos = ["ID Jogo", "Data", "Horário", "Time", "ID Jogador", "Nome", "Número", "Minutos"]
+        ws_jogos = self._get_or_create_worksheet_append("Jogos", header_jogos)
+        minutes_list = payload.get("minutesPerPlayer") or []
+        rows_jogos = []
+        for m in minutes_list:
+            rows_jogos.append([
+                game_id,
+                date_display,
+                time_display,
+                team,
+                self._str(m.get("playerId")),
+                self._str(m.get("name")),
+                self._str(m.get("number")),
+                self._str(m.get("minutes")),
+            ])
+        if rows_jogos:
+            ws_jogos.append_rows(rows_jogos, value_input_option='USER_ENTERED')
+
+        # Aba Jogos_Logs: ID Jogo, Data/Hora do log, Minuto do jogo, ID Jogador, Nome, Número, Evento, Posição
+        header_logs = ["ID Jogo", "Data/Hora", "Minuto do jogo", "ID Jogador", "Nome", "Número", "Evento", "Posição"]
+        ws_logs = self._get_or_create_worksheet_append("Jogos_Logs", header_logs)
+        logs_list = payload.get("logs") or []
+        rows_logs = []
+        for ev in logs_list:
+            at_ms = ev.get("atMs", 0)
+            min_label = self._str(ev.get("minuteLabel", ""))
+            if not min_label and isinstance(at_ms, (int, float)):
+                total_m = at_ms / 60000
+                m = int(total_m)
+                s = int((total_m - m) * 60)
+                min_label = f"{m}:{s:02d}"
+            rows_logs.append([
+                game_id,
+                self._str(ev.get("timestamp", dt_raw)),
+                min_label,
+                self._str(ev.get("playerId")),
+                self._str(ev.get("playerName")),
+                self._str(ev.get("number")),
+                "Entrada" if ev.get("type") == "IN" else "Saída",
+                self._str(ev.get("posLabel", ev.get("posId", ""))),
+            ])
+        if rows_logs:
+            ws_logs.append_rows(rows_logs, value_input_option='USER_ENTERED')
+
+        print(f"✅ Jogo {game_id} registrado: {len(rows_jogos)} linhas em Jogos, {len(rows_logs)} linhas em Jogos_Logs")
+
     def get_analytics_data(self) -> Dict[str, Any]:
         """Lê abas pre, pos e Jogadores para o dashboard de acompanhamento. Retorna dados estruturados para gráficos."""
         try:
@@ -533,6 +613,11 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
         if data_type == "get_players":
             players = sync.get_players()
             return {"success": True, "players": players}
+        if data_type == "append_game":
+            if not isinstance(data, dict):
+                raise ValueError("append_game requer payload como dict com gameId, datetime, logs, minutesPerPlayer")
+            sync.append_game(data)
+            return {"success": True, "message": "Jogo registrado nas abas Jogos e Jogos_Logs"}
         if data_type == "get_analytics":
             return sync.get_analytics_data()
         if data_type == "verify_pre":

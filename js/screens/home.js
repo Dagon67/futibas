@@ -22,6 +22,10 @@ function goHome(){
                     <i data-feather="play-circle"></i>
                     <div>Iniciar Novo Treino</div>
                 </button>
+                <button class="home-btn home-btn-secondary" onclick="iniciarNovoJogoComSenha()">
+                    <i data-feather="target"></i>
+                    <div>Novo Jogo</div>
+                </button>
                 <button class="home-btn home-btn-secondary" onclick="goTrainingsList()">
                     <i data-feather="list"></i>
                     <div>Lista de Treinos</div>
@@ -82,6 +86,16 @@ function iniciarNovoTreinoComSenha() {
         });
     } else if (typeof goTrainingSetup === 'function') {
         goTrainingSetup();
+    }
+}
+
+function iniciarNovoJogoComSenha() {
+    if (typeof window.showLockScreen === 'function') {
+        window.showLockScreen(function() {
+            if (typeof goGameSetup === 'function') goGameSetup();
+        });
+    } else if (typeof goGameSetup === 'function') {
+        goGameSetup();
     }
 }
 

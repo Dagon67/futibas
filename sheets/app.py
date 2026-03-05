@@ -272,6 +272,21 @@ def get_analytics():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/games', methods=['POST'])
+def post_game():
+    """Registra um jogo nas abas Jogos e Jogos_Logs do Sheets (append)."""
+    try:
+        data = request.json
+        if not data or not isinstance(data, dict):
+            return jsonify({"success": False, "error": "Envie um objeto com gameId, datetime, logs, minutesPerPlayer"}), 400
+        result = sync_data("append_game", data)
+        if result.get("success"):
+            return jsonify(result), 200
+        return jsonify(result), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/verify/pre', methods=['GET'])
 def verify_pre():
     """Retorna as últimas linhas da aba 'pre' do Sheets (para teste/verificação após envio)."""
