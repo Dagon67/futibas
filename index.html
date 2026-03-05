@@ -269,26 +269,21 @@
     .home-spark-below-time{
         display:flex;
         justify-content:center;
-        margin-top:0.25rem;
-        margin-bottom:0.5rem;
+        margin-top:0.35rem;
+        margin-bottom:0.75rem;
         pointer-events:none;
     }
     .glass-card .home-spark-below-time .spark-brand{
-        position:relative;display:inline-grid;place-items:center;padding:6px 12px;border-radius:8px;isolation:isolate;
+        position:relative;display:inline-grid;place-items:center;padding:clamp(8px,1.5vw,14px) clamp(14px,3vw,24px);border-radius:clamp(8px,1.2vw,12px);isolation:isolate;
         --o:rgba(255,140,40,.98);--tx:rgba(255,255,255,.98);--mu:rgba(255,210,170,.68);
     }
     .glass-card .home-spark-below-time .spark-brand::before{
-        content:"";position:absolute;inset:-4px;border-radius:10px;
+        content:"";position:absolute;inset:clamp(-4px,-0.8vw,-6px);border-radius:clamp(10px,1.5vw,14px);
         background:radial-gradient(55% 70% at 50% 45%,rgba(255,170,70,.08),transparent 70%);filter:blur(1px);opacity:.5;z-index:-1;
     }
-    .glass-card .home-spark-below-time .logo{display:flex;flex-direction:column;align-items:center;gap:0;}
-    .glass-card .home-spark-below-time .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:18px;letter-spacing:.07em;color:var(--tx);text-shadow:0 0 6px rgba(255,140,40,.12);}
-    .glass-card .home-spark-below-time .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:6px;letter-spacing:.18em;color:var(--mu);text-transform:uppercase;}
-    @media (max-width:480px){
-        .glass-card .home-spark-below-time .spark{ font-size:15px; }
-        .glass-card .home-spark-below-time .tech{ font-size:5px; }
-        .glass-card .home-spark-below-time .spark-brand{ padding:4px 10px; }
-    }
+    .glass-card .home-spark-below-time .logo{display:flex;flex-direction:column;align-items:center;gap:clamp(0px,0.3vw,4px);}
+    .glass-card .home-spark-below-time .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:clamp(22px,5vw,36px);letter-spacing:.08em;color:var(--tx);text-shadow:0 0 8px rgba(255,140,40,.15),0 2px 4px rgba(0,0,0,.15);}
+    .glass-card .home-spark-below-time .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:clamp(7px,1.5vw,11px);letter-spacing:.22em;color:var(--mu);text-transform:uppercase;}
 
     .center-flex-col{
         display:flex;
