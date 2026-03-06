@@ -737,6 +737,11 @@ function buildProntidaoSemaforo(data) {
         var d = (item.dor != null ? item.dor : 0) * 0.2;
         var t = trimpNorm * 0.3;
         item.prontidao = Math.round((s + f + d + t) * 100) / 100;
+        var total = s + f + d + t || 1;
+        item.pctSono = total ? Math.round((s / total) * 100) : 0;
+        item.pctFadiga = total ? Math.round((f / total) * 100) : 0;
+        item.pctDor = total ? Math.round((d / total) * 100) : 0;
+        item.pctTrimp = total ? Math.round((t / total) * 100) : 0;
     });
     var valores = list.map(function (x) { return x.prontidao; });
     var mean = valores.reduce(function (a, b) { return a + b; }, 0) / valores.length;
@@ -802,8 +807,9 @@ function goProntidao() {
             "<thead><tr><th>Atleta</th><th>Prontidão</th><th>Classificação</th></tr></thead>" +
             "<tbody>" + sem.list.map(function (item) {
                 var label = item.status === "green" ? "Verde" : item.status === "red" ? "Vermelho" : "Amarelo";
+                var contrib = "<div class=\"prontidao-contrib\">sono " + (item.pctSono || 0) + "% · fadiga " + (item.pctFadiga || 0) + "% · dor " + (item.pctDor || 0) + "% · TRIMP " + (item.pctTrimp || 0) + "%</div>";
                 return "<tr class=\"trimp-status-" + item.status + "\">" +
-                    "<td><span class=\"trimp-player-name\">" + (item.name || item.playerId) + "</span></td>" +
+                    "<td><span class=\"trimp-player-name\">" + (item.name || item.playerId) + "</span>" + contrib + "</td>" +
                     "<td><span class=\"trimp-value\">" + item.prontidao + "</span></td>" +
                     "<td><span class=\"semaforo-dot semaforo-" + item.status + "\"></span> " + label + "</td>" +
                     "</tr>";
