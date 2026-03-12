@@ -1490,7 +1490,6 @@
         if (typeof window.showLockScreen === 'function') {
             window.showLockScreen(function() {
                 if (typeof goPlayers === 'function') goPlayers();
-                if (typeof fetchPlayersFromSheets === 'function') fetchPlayersFromSheets().catch(function() {});
             });
         } else if (typeof goPlayers === 'function') {
             goPlayers();
@@ -1544,9 +1543,14 @@
             sha256Hex(input).then(function(hash) {
                 if (hash === LOCK_PASSWORD_HASH) {
                     unlockApp();
-                    if (window.pendingActionAfterUnlock) {
-                        window.pendingActionAfterUnlock();
-                        window.pendingActionAfterUnlock = null;
+                    var callback = window.pendingActionAfterUnlock;
+                    window.pendingActionAfterUnlock = null;
+                    if (typeof fetchPlayersFromSheets === 'function') {
+                        fetchPlayersFromSheets().catch(function() {}).finally(function() {
+                            if (callback) callback();
+                        });
+                    } else {
+                        if (callback) callback();
                     }
                 } else {
                     showError();
