@@ -732,6 +732,41 @@
         color:var(--text-dim);
     }
 
+    /* Bem-Estar Pré: tabela semáforo e pontos de dor */
+    .table-wrap{ overflow-x:auto; margin-top:0.5rem; }
+    .bem-estar-table{
+        width:100%;
+        border-collapse:collapse;
+        font-size:0.9rem;
+        color:var(--text-main);
+    }
+    .bem-estar-table th,.bem-estar-table td{
+        padding:0.5rem 0.6rem;
+        border:1px solid rgba(255,255,255,0.12);
+        text-align:center;
+    }
+    .bem-estar-table th{ background:rgba(0,0,0,0.3); font-weight:600; }
+    .bem-estar-table td:first-child{ text-align:left; }
+    .semaforo-verde{ background:rgba(0,180,80,0.35); color:#7fff9e; }
+    .semaforo-amarelo{ background:rgba(220,180,0,0.35); color:#ffec70; }
+    .semaforo-vermelho{ background:rgba(200,50,50,0.4); color:#ff9090; }
+    .pain-badge{
+        display:inline-block;
+        margin:0.25rem 0.5rem 0.25rem 0;
+        padding:0.25rem 0.5rem;
+        background:rgba(255,120,80,0.2);
+        border-radius:var(--radius-sm);
+        font-size:0.8rem;
+    }
+    #bem-estar-pre-date{
+        padding:0.4rem 0.75rem;
+        background:rgba(0,0,0,0.35);
+        border:1px solid rgba(255,255,255,0.2);
+        border-radius:var(--radius-sm);
+        color:var(--text-main);
+        font-size:0.95rem;
+    }
+
     /* Informação Tática - Semáforo TRIMP */
     .trimp-legend{
         display:flex;

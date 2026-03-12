@@ -29,6 +29,11 @@ function goAcompanhamento() {
                     <div>Individual</div>
                     <div class="sub">Evolução por jogador</div>
                 </button>
+                <button class="home-btn home-btn-secondary" onclick="goBemEstarPre()" style="max-width:320px;">
+                    <i data-feather="heart"></i>
+                    <div>Bem-Estar Pré</div>
+                    <div class="sub">Semáforo, evolução e pontos de dor</div>
+                </button>
                 <button class="home-btn home-btn-secondary" onclick="goInformacaoTatica()" style="max-width:320px;">
                     <i data-feather="activity"></i>
                     <div>Informação Tática</div>
@@ -204,6 +209,69 @@ function buildAggregates(data) {
         totalPos: posRows.length,
         numPlayers: Object.keys(byPlayer).length
     };
+}
+
+// Rótulos anatômicos (Bem-Estar Pré) — articular 1–9, muscular A–Z
+var LABEL_ARTICULAR = { "1": "Ombro", "2": "Cotovelo", "3": "Punho", "4": "Quadril", "5": "Joelho", "6": "Tornozelo", "7": "Coluna cervical", "8": "Coluna torácica", "9": "Coluna lombar" };
+var LABEL_MUSCULAR = { "A": "Pescoço", "B": "Trapézio", "C": "Ombro", "D": "Peitoral", "E": "Coxa ant./med.", "F": "Panturrilha", "G": "Abdômen", "H": "Costas", "I": "Deltoide/Ombro", "J": "Bíceps", "K": "Tríceps", "L": "Antebraço", "M": "Lombar", "N": "Glúteo", "O": "Adutor", "P": "Quadríceps", "Q": "Posterior coxa", "R": "Posterior coxa", "S": "Glúteo", "T": "Panturrilha", "U": "Tornozelo", "V": "Outro", "W": "Outro", "X": "Outro", "Y": "Outro", "Z": "Outro" };
+
+function buildBemEstarPreData(data) {
+    var preH = (data.pre && data.pre.headers) ? data.pre.headers : [];
+    var preRows = (data.pre && data.pre.rows) ? data.pre.rows : [];
+    var byDate = {};
+    preRows.forEach(function (row) {
+        var r = parsePreRow(preH, row);
+        var d = (r.date || "").trim();
+        if (!d) return;
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(r);
+    });
+    var dates = Object.keys(byDate).sort();
+    var last15Dates = dates.slice(-15);
+    var teamAveragesByDate = last15Dates.map(function (d) {
+        var rows = byDate[d] || [];
+        var sum = { recuperacao: 0, fadiga: 0, sono: 0, dor: 0, estresse: 0, humor: 0 };
+        var count = { recuperacao: 0, fadiga: 0, sono: 0, dor: 0, estresse: 0, humor: 0 };
+        rows.forEach(function (r) {
+            var a = r.answers;
+            if (a.recuperacao != null) { sum.recuperacao += a.recuperacao; count.recuperacao++; }
+            if (a.fadiga != null) { sum.fadiga += a.fadiga; count.fadiga++; }
+            if (a.sono != null) { sum.sono += a.sono; count.sono++; }
+            if (a.dor != null) { sum.dor += a.dor; count.dor++; }
+            if (a.estresse != null) { sum.estresse += a.estresse; count.estresse++; }
+            if (a.humor != null) { sum.humor += a.humor; count.humor++; }
+        });
+        return {
+            date: d,
+            recuperacao: count.recuperacao ? Math.round((sum.recuperacao / count.recuperacao) * 10) / 10 : null,
+            fadiga: count.fadiga ? Math.round((sum.fadiga / count.fadiga) * 10) / 10 : null,
+            sono: count.sono ? Math.round((sum.sono / count.sono) * 10) / 10 : null,
+            dor: count.dor ? Math.round((sum.dor / count.dor) * 10) / 10 : null,
+            estresse: count.estresse ? Math.round((sum.estresse / count.estresse) * 10) / 10 : null,
+            humor: count.humor ? Math.round((sum.humor / count.humor) * 10) / 10 : null
+        };
+    });
+    return { byDate: byDate, dates: dates, last15Dates: last15Dates, teamAveragesByDate: teamAveragesByDate };
+}
+
+function semaforoClass(metric, value) {
+    if (value == null || value === "") return "";
+    if (metric === "recuperacao") {
+        if (value >= 15) return "semaforo-verde";
+        if (value >= 10) return "semaforo-amarelo";
+        return "semaforo-vermelho";
+    }
+    if (metric === "humor") {
+        if (value >= 4) return "semaforo-verde";
+        if (value >= 3) return "semaforo-amarelo";
+        return "semaforo-vermelho";
+    }
+    if (metric === "fadiga" || metric === "sono" || metric === "dor" || metric === "estresse") {
+        if (value <= 2) return "semaforo-verde";
+        if (value <= 3) return "semaforo-amarelo";
+        return "semaforo-vermelho";
+    }
+    return "";
 }
 
 function destroyAcompanhamentoCharts() {
@@ -401,6 +469,150 @@ function goAcompanhamentoIndividual() {
                 return "<button type=\"button\" class=\"acompanhamento-player-btn\" onclick=\"goAcompanhamentoPlayer('" + (p.id || "").replace(/'/g, "\\'") + "')\"><span class=\"player-name\">" + (p.name || p.id) + "</span><span class=\"player-stats\">" + preCount + " pré • " + posCount + " pós</span></button>";
             }).join("") +
             "</div>";
+    });
+}
+
+function goBemEstarPre() {
+    state.currentScreen = "bemEstarPre";
+    setHeaderModeLabel("Bem-Estar Pré");
+    renderScreen(`
+        <div class="settings-wrapper">
+            <div class="back-row">
+                <button class="back-btn" onclick="goAcompanhamento()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
+                <div>
+                    <div class="screen-title">Bem-Estar Pré-Treino</div>
+                    <div class="screen-sub">Carregando...</div>
+                </div>
+            </div>
+            <div id="bem-estar-pre-content" class="acompanhamento-scroll"></div>
+        </div>
+    `);
+    feather.replace();
+
+    fetchAnalyticsData().then(function (res) {
+        var content = document.getElementById("bem-estar-pre-content");
+        if (!res.success || !content) {
+            if (content) content.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;\">Erro: " + (res.error || "desconhecido") + "</div>";
+            return;
+        }
+        var be = buildBemEstarPreData(res);
+        var dates = be.dates;
+        var last15 = be.last15Dates;
+        var selectedDate = last15.length ? last15[last15.length - 1] : (dates.length ? dates[dates.length - 1] : "");
+        var sub = document.querySelector(".screen-sub");
+        if (sub) sub.textContent = "Semáforo do dia, evolução e pontos de dor";
+
+        function parsePainCodes(str) {
+            if (!str || (str || "").trim() === "Sem dor") return [];
+            return (str || "").split(/[;,]/).map(function (s) { return s.trim(); }).filter(Boolean);
+        }
+
+        function renderBemEstarPre() {
+            var rows = (be.byDate[selectedDate] || []).slice();
+            rows.sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+
+            var articularCount = {}, muscularCount = {};
+            rows.forEach(function (r) {
+                parsePainCodes(r.answers.pontosArticular).forEach(function (c) {
+                    articularCount[c] = (articularCount[c] || 0) + 1;
+                });
+                parsePainCodes(r.answers.pontosDor).forEach(function (c) {
+                    muscularCount[c] = (muscularCount[c] || 0) + 1;
+                });
+            });
+
+            var dateOptions = dates.length ? dates.slice(-20).reverse().map(function (d) {
+                return "<option value=\"" + d + "\"" + (d === selectedDate ? " selected" : "") + ">" + d + "</option>";
+            }).join("") : "<option value=\"\">Nenhuma data</option>";
+
+            var tableRows = rows.map(function (r) {
+                var a = r.answers;
+                var qtr = a.recuperacao != null ? a.recuperacao : "—";
+                var qtrClass = a.recuperacao != null ? semaforoClass("recuperacao", a.recuperacao) : "";
+                var fad = a.fadiga != null ? a.fadiga : "—";
+                var fadClass = a.fadiga != null ? semaforoClass("fadiga", a.fadiga) : "";
+                var son = a.sono != null ? a.sono : "—";
+                var sonClass = a.sono != null ? semaforoClass("sono", a.sono) : "";
+                var dr = a.dor != null ? a.dor : "—";
+                var drClass = a.dor != null ? semaforoClass("dor", a.dor) : "";
+                var est = a.estresse != null ? a.estresse : "—";
+                var estClass = a.estresse != null ? semaforoClass("estresse", a.estresse) : "";
+                var hum = a.humor != null ? a.humor : "—";
+                var humClass = a.humor != null ? semaforoClass("humor", a.humor) : "";
+                return "<tr><td>" + (r.name || r.playerId) + "</td><td class=\"" + qtrClass + "\">" + qtr + "</td><td class=\"" + fadClass + "\">" + fad + "</td><td class=\"" + sonClass + "\">" + son + "</td><td class=\"" + drClass + "\">" + dr + "</td><td class=\"" + estClass + "\">" + est + "</td><td class=\"" + humClass + "\">" + hum + "</td></tr>";
+            }).join("");
+
+            var articularList = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (n) {
+                var key = String(n);
+                var count = articularCount[key] || 0;
+                var label = (LABEL_ARTICULAR[key] || key);
+                return count ? "<span class=\"pain-badge\">" + key + " " + label + ": " + count + "</span>" : "";
+            }).filter(Boolean).join(" ");
+            var muscularList = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(function (c) {
+                var count = muscularCount[c] || 0;
+                var label = (LABEL_MUSCULAR[c] || c);
+                return count ? "<span class=\"pain-badge\">" + c + " " + label + ": " + count + "</span>" : "";
+            }).filter(Boolean).join(" ");
+
+            var atletasComDor = rows.filter(function (r) {
+                var art = parsePainCodes(r.answers.pontosArticular);
+                var mus = parsePainCodes(r.answers.pontosDor);
+                return art.length > 0 || mus.length > 0;
+            });
+            var atletasDorRows = atletasComDor.length ? atletasComDor.map(function (r) {
+                var art = parsePainCodes(r.answers.pontosArticular).map(function (c) { return (LABEL_ARTICULAR[c] || c) + " (" + c + ")"; }).join(", ");
+                var mus = parsePainCodes(r.answers.pontosDor).map(function (c) { return (LABEL_MUSCULAR[c] || c) + " (" + c + ")"; }).join(", ");
+                return "<tr><td>" + (r.name || r.playerId) + "</td><td>" + (art || "—") + "</td><td>" + (mus || "—") + "</td></tr>";
+            }).join("") : "<tr><td colspan=\"3\">Nenhum atleta com pontos de dor nesta data.</td></tr>";
+
+            content.innerHTML =
+                "<div class=\"chart-section\"><label>Data do treino: </label><select id=\"bem-estar-pre-date\" onchange=\"window._bemEstarPreSetDate(this.value);\">" + dateOptions + "</select></div>" +
+                "<div class=\"chart-section\"><h3 class=\"chart-title\">Semáforo (pré-treino — " + selectedDate + ")</h3><div class=\"table-wrap\"><table class=\"bem-estar-table\"><thead><tr><th>Atleta</th><th>QTR</th><th>Fad</th><th>Sono</th><th>Dor</th><th>Est</th><th>Hum</th></tr></thead><tbody>" + tableRows + "</tbody></table></div></div>" +
+                "<div class=\"chart-section\"><h3 class=\"chart-title\">Últimos 15 treinos (média do time)</h3><div class=\"chart-wrap\"><canvas id=\"chartBemEstarLinhas\"></canvas></div></div>" +
+                "<div class=\"chart-section\"><h3 class=\"chart-title\">Pontos de dor (do dia)</h3><p><strong>Articular:</strong> " + (articularList || "Nenhum") + "</p><p><strong>Muscular:</strong> " + (muscularList || "Nenhum") + "</p></div>" +
+                "<div class=\"chart-section\"><h3 class=\"chart-title\">Atletas com pontos de dor (" + selectedDate + ")</h3><div class=\"table-wrap\"><table class=\"bem-estar-table\"><thead><tr><th>Atleta</th><th>Articular</th><th>Muscular</th></tr></thead><tbody>" + atletasDorRows + "</tbody></table></div></div>";
+
+            window._bemEstarPreSetDate = function (d) {
+                selectedDate = d;
+                renderBemEstarPre();
+            };
+
+            destroyAcompanhamentoCharts();
+            if (last15.length && window.Chart) {
+                var ctx = document.getElementById("chartBemEstarLinhas");
+                if (ctx) {
+                    var avg = be.teamAveragesByDate;
+                    var labels = avg.map(function (x) { return x.date; });
+                    ACOMPANHAMENTO_CHARTS.push(new Chart(ctx.getContext("2d"), {
+                        type: "line",
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: "Recup.", yAxisID: "y", data: avg.map(function (x) { return x.recuperacao; }), borderColor: "#feec02", backgroundColor: "rgba(254,236,2,0.1)", fill: true, tension: 0.3 },
+                                { label: "Fadiga", yAxisID: "y1", data: avg.map(function (x) { return x.fadiga; }), borderColor: "#ff7850", tension: 0.3 },
+                                { label: "Sono", yAxisID: "y1", data: avg.map(function (x) { return x.sono; }), borderColor: "#6eb5ff", tension: 0.3 },
+                                { label: "Dor", yAxisID: "y1", data: avg.map(function (x) { return x.dor; }), borderColor: "#e05050", tension: 0.3 },
+                                { label: "Estresse", yAxisID: "y1", data: avg.map(function (x) { return x.estresse; }), borderColor: "#c080ff", tension: 0.3 },
+                                { label: "Humor", yAxisID: "y1", data: avg.map(function (x) { return x.humor; }), borderColor: "#50c050", tension: 0.3 }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: "index", intersect: false },
+                            plugins: { legend: { labels: { color: "#e0e0e0" } } },
+                            scales: {
+                                x: { ticks: { color: "#e0e0e0", maxRotation: 45 } },
+                                y: { type: "linear", display: true, position: "left", min: 0, max: 20, title: { display: true, text: "QTR (1-20)", color: "#feec02" }, ticks: { color: "#e0e0e0" } },
+                                y1: { type: "linear", display: true, position: "right", min: 0, max: 5, title: { display: true, text: "1-5", color: "#aaa" }, ticks: { color: "#e0e0e0" }, grid: { drawOnChartArea: false } }
+                            }
+                        }
+                    }));
+                }
+            }
+        }
+
+        renderBemEstarPre();
     });
 }
 
