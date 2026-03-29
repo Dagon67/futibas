@@ -162,14 +162,10 @@ function buildAggregates(data) {
             if (r.answers.fadiga != null) { somaFadiga += r.answers.fadiga; countFadiga++; }
             if (r.answers.sono != null) { somaSono += r.answers.sono; countSono++; }
             if (r.answers.humor != null) { somaHumor += r.answers.humor; countHumor++; }
-            var pd = (r.answers.pontosDor || "").trim();
             var pa = (r.answers.pontosArticular || "").trim();
-            if (pd && pd !== "Sem dor") {
-                pd.split(/[;,]/).forEach(function (z) {
-                    z = z.trim();
-                    if (z) { injuryByZone[z] = (injuryByZone[z] || 0) + 1; injuryByPlayer[pid]++; }
-                });
-            }
+            parseMuscularDorForCharts(r.answers.pontosDor).forEach(function (z) {
+                if (z) { injuryByZone[z] = (injuryByZone[z] || 0) + 1; injuryByPlayer[pid]++; }
+            });
             if (pa && pa !== "Sem dor") {
                 pa.split(/[;,]/).forEach(function (z) {
                     z = z.trim();
@@ -214,6 +210,12 @@ function buildAggregates(data) {
 // Rótulos anatômicos (Bem-Estar Pré) — articular 1–9, muscular A–Z
 var LABEL_ARTICULAR = { "1": "Ombro", "2": "Cotovelo", "3": "Punho", "4": "Quadril", "5": "Joelho", "6": "Tornozelo", "7": "Coluna cervical", "8": "Coluna torácica", "9": "Coluna lombar" };
 var LABEL_MUSCULAR = { "A": "Pescoço", "B": "Trapézio", "C": "Ombro", "D": "Peitoral", "E": "Coxa ant./med.", "F": "Panturrilha", "G": "Abdômen", "H": "Costas", "I": "Deltoide/Ombro", "J": "Bíceps", "K": "Tríceps", "L": "Antebraço", "M": "Lombar", "N": "Glúteo", "O": "Adutor", "P": "Quadríceps", "Q": "Posterior coxa", "R": "Posterior coxa", "S": "Glúteo", "T": "Panturrilha", "U": "Tornozelo", "V": "Outro", "W": "Outro", "X": "Outro", "Y": "Outro", "Z": "Outro" };
+
+function parseMuscularDorForCharts(str) {
+    if (typeof parsePontosDorMuscularValue === "function") return parsePontosDorMuscularValue(str);
+    if (!str || (str || "").trim() === "Sem dor") return [];
+    return (str || "").split(/[;,]/).map(function (s) { return s.trim(); }).filter(Boolean);
+}
 
 function buildBemEstarPreData(data) {
     var preH = (data.pre && data.pre.headers) ? data.pre.headers : [];
@@ -516,7 +518,7 @@ function goBemEstarPre() {
                 parsePainCodes(r.answers.pontosArticular).forEach(function (c) {
                     articularCount[c] = (articularCount[c] || 0) + 1;
                 });
-                parsePainCodes(r.answers.pontosDor).forEach(function (c) {
+                parseMuscularDorForCharts(r.answers.pontosDor).forEach(function (c) {
                     muscularCount[c] = (muscularCount[c] || 0) + 1;
                 });
             });
@@ -548,20 +550,24 @@ function goBemEstarPre() {
                 var label = (LABEL_ARTICULAR[key] || key);
                 return count ? "<span class=\"pain-badge\">" + key + " " + label + ": " + count + "</span>" : "";
             }).filter(Boolean).join(" ");
-            var muscularList = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(function (c) {
-                var count = muscularCount[c] || 0;
-                var label = (LABEL_MUSCULAR[c] || c);
-                return count ? "<span class=\"pain-badge\">" + c + " " + label + ": " + count + "</span>" : "";
+            var muscularList = Object.keys(muscularCount).sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).map(function (key) {
+                var count = muscularCount[key] || 0;
+                if (!count) return "";
+                var label = key.length === 1 ? (LABEL_MUSCULAR[key] || key) : key;
+                var prefix = key.length === 1 ? key + " " : "";
+                return "<span class=\"pain-badge\">" + prefix + label + ": " + count + "</span>";
             }).filter(Boolean).join(" ");
 
             var atletasComDor = rows.filter(function (r) {
                 var art = parsePainCodes(r.answers.pontosArticular);
-                var mus = parsePainCodes(r.answers.pontosDor);
+                var mus = parseMuscularDorForCharts(r.answers.pontosDor);
                 return art.length > 0 || mus.length > 0;
             });
             var atletasDorRows = atletasComDor.length ? atletasComDor.map(function (r) {
                 var art = parsePainCodes(r.answers.pontosArticular).map(function (c) { return (LABEL_ARTICULAR[c] || c) + " (" + c + ")"; }).join(", ");
-                var mus = parsePainCodes(r.answers.pontosDor).map(function (c) { return (LABEL_MUSCULAR[c] || c) + " (" + c + ")"; }).join(", ");
+                var mus = parseMuscularDorForCharts(r.answers.pontosDor).map(function (c) {
+                    return c.length === 1 ? ((LABEL_MUSCULAR[c] || c) + " (" + c + ")") : c;
+                }).join(", ");
                 return "<tr><td>" + (r.name || r.playerId) + "</td><td>" + (art || "—") + "</td><td>" + (mus || "—") + "</td></tr>";
             }).join("") : "<tr><td colspan=\"3\">Nenhum atleta com pontos de dor nesta data.</td></tr>";
 

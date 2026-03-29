@@ -32,7 +32,7 @@ const defaultPlayers = [
     { id: "default_91", number: 91, name: "Menegazzo", position: "Goleiro", lateralidade: null }
 ];
 
-// Perguntas padrão: Qualidade 1–20; fadiga/sono/dor/estresse/humor 1–5; Pontos de dor A–Z; Pontos articular 1–9
+// Perguntas padrão: Qualidade 1–20; fadiga/sono/dor/estresse/humor 1–5; Pontos de dor (mapa corporal); Pontos articular 1–9
 const defaultQuestions = {
     pre: [
         {tipo:"nota",texto:"Qualidade Total de Recuperação",opcoes:[],imagem:"pre/recupera.png",notaMin:1,notaMax:20},
@@ -41,7 +41,7 @@ const defaultQuestions = {
         {tipo:"nota",texto:"Nível de dor",opcoes:[],imagem:"pre/dor.jpg",notaMin:1,notaMax:5},
         {tipo:"nota",texto:"Nível de estresse",opcoes:[],imagem:"pre/estresse.jpg",notaMin:1,notaMax:5},
         {tipo:"nota",texto:"Nível de humor",opcoes:[],imagem:"pre/humor.jpg",notaMin:1,notaMax:5},
-        {tipo:"checkbox",texto:"Pontos de dor",opcoes:["Sem dor","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],imagem:"pre/musculo.png"},
+        {tipo:"corpo",texto:"Pontos de dor",opcoes:[],imagem:null},
         {tipo:"checkbox",texto:"Pontos de dor articular",opcoes:["Sem dor","1","2","3","4","5","6","7","8","9"],imagem:"pre/articula.png"}
     ],
     post: [

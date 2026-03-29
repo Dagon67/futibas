@@ -70,6 +70,15 @@ function goQuestionnaire(){
                 </select>
                 <span class="duracao-sep">min</span>
             </div>`;
+        }else if(q.tipo === "corpo"){
+            inputHTML = `<div class="body-map-question" id="${qId}_wrap" data-question-idx="${idx}">
+                <p class="body-map-hint">Toque nas regiões com dor. Toque de novo para desmarcar.</p>
+                <div class="body-map-actions">
+                    <button type="button" class="body-map-none-btn" id="${qId}_none">Nenhuma dor nestas regiões</button>
+                </div>
+                <div class="body-map-selected" id="${qId}_list" aria-live="polite">Nenhuma região selecionada</div>
+                <div class="body-map-svg-host body-map-svg-host--loading" id="${qId}_svg"></div>
+            </div>`;
         }
         
         const imgSrc = q.imagem ? (q.imagem + "?v=" + (window.__IMAGE_VERSION != null ? window.__IMAGE_VERSION : Date.now())) : "";
@@ -115,6 +124,12 @@ function goQuestionnaire(){
     if (qList) qList.scrollTop = 0;
 
     applyTempAnswersToDOM();
+    qsList.forEach(function (qObj, idx) {
+        var q = typeof qObj === "string" ? {} : qObj;
+        if (q.tipo === "corpo" && typeof initBodyMapQuestion === "function") {
+            initBodyMapQuestion(idx, "qid_" + idx);
+        }
+    });
     if (typeof saveResumeState === "function") saveResumeState();
     updateSettingsButtonVisibility();
 }
@@ -167,7 +182,9 @@ function applyTempAnswersToDOM(){
                     if (matchH) selM.value = matchH[2];
                 }
             }
+            continue;
         }
+        if (item.querySelector(".body-map-svg-host")) continue;
     }
 }
 
@@ -286,6 +303,12 @@ function collectAnswersFromDOM(){
         }
         if (!qText) continue;
         var val = "";
+        if (item.querySelector(".body-map-svg-host")) {
+            var ta = state.tempAnswers[qText];
+            val = ta != null && ta !== undefined ? String(ta) : "";
+            state.tempAnswers[qText] = val;
+            continue;
+        }
         var textarea = item.querySelector("textarea.q-input");
         if (textarea) {
             val = (textarea.value || "").trim();
@@ -333,7 +356,12 @@ function submitAnswers(){
         var q = typeof qObj === "string" ? { tipo: "texto", texto: qObj, opcoes: [], imagem: null } : qObj;
         var qText = q.texto || qObj;
         var answer = state.tempAnswers[qText];
-        var isEmpty = !answer || (Array.isArray(answer) ? answer.length === 0 : answer.toString().trim() === "");
+        var isEmpty;
+        if (q.tipo === "corpo") {
+            isEmpty = answer == null || String(answer).trim() === "";
+        } else {
+            isEmpty = !answer || (Array.isArray(answer) ? answer.length === 0 : answer.toString().trim() === "");
+        }
         if (isEmpty) missing.push(qText);
     }
     if (missing.length > 0) {

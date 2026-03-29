@@ -648,6 +648,88 @@
         cursor:not-allowed;
     }
 
+    .body-map-hint{
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:var(--text-dim);
+        line-height:1.35;
+        margin:0;
+    }
+    .body-map-actions{
+        display:flex;
+        flex-wrap:wrap;
+        gap:.5rem;
+    }
+    .body-map-none-btn{
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        padding:.65rem 1rem;
+        border-radius:var(--radius-md);
+        border:2px solid rgba(254,236,2,0.45);
+        background:#1a1a1a;
+        color:var(--accent);
+        cursor:pointer;
+    }
+    .body-map-none-btn:active{
+        transform:scale(0.98);
+    }
+    .body-map-selected{
+        font-size:var(--touch-font-md);
+        color:var(--text-main);
+        line-height:1.4;
+        min-height:1.4em;
+    }
+    .body-map-svg-host{
+        width:100%;
+        max-width:min(100%, 720px);
+        margin:0 auto;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+        border-radius:var(--radius-md);
+        border:1px solid rgba(255,255,255,0.12);
+        background:#2a2a2a;
+    }
+    .body-map-svg-host--loading{
+        min-height:200px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:var(--text-dim);
+        font-size:var(--touch-font-md);
+    }
+    .body-map-svg-host--loading::before{
+        content:"Carregando mapa…";
+    }
+    .body-map-svg-host svg.body-map-svg{
+        width:100%;
+        height:auto;
+        display:block;
+    }
+    .body-map-svg-host g.muscle{
+        cursor:pointer;
+        pointer-events:fill;
+    }
+    .body-map-svg-host g.muscle path{
+        fill:#c8c8c8;
+        stroke:#333;
+        stroke-width:1.2;
+        transition:fill .15s ease, stroke .15s ease;
+    }
+    .body-map-svg-host g.muscle:hover path{
+        stroke:#feec02;
+        stroke-width:2;
+    }
+    .body-map-svg-host g.muscle.selected path{
+        fill:rgba(220,60,60,0.78);
+        stroke:#6b0000;
+        stroke-width:2.2;
+    }
+    .body-map-err{
+        color:var(--text-dim);
+        padding:1rem;
+        text-align:center;
+    }
+
     /* ACOMPANHAMENTO */
     .acompanhamento-options{
         display:flex;
@@ -1502,6 +1584,7 @@
 <script src="js/utils.js"></script>
 <script src="js/sheets_sync.js"></script>
 <script src="js/csv.js"></script>
+<script src="js/bodyMap.js"></script>
 <script src="js/screens/home.js"></script>
 <script src="js/screens/trainingSetup.js"></script>
 <script src="js/screens/gameSetup.js"></script>

@@ -49,10 +49,10 @@
       "notaMax": 5
     },
     {
-      "tipo": "checkbox",
+      "tipo": "corpo",
       "texto": "Pontos de dor",
-      "opcoes": ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"],
-      "imagem": "pre/musculo.png"
+      "opcoes": [],
+      "imagem": null
     },
     {
       "tipo": "checkbox",
