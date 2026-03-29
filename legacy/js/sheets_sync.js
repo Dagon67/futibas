@@ -29,6 +29,39 @@ const SHEETS_SYNC_TRAINING_URL = `${BACKEND_BASE_URL}/sync/training`;
 // Flag para habilitar/desabilitar sincronização
 let sheetsSyncEnabled = true;
 
+/** Aviso visual no ecrã (Sheets / Firestore) */
+function ensureSyncToastStyles() {
+    if (typeof document === "undefined" || document.getElementById("tutem-sync-toast-styles")) return;
+    var s = document.createElement("style");
+    s.id = "tutem-sync-toast-styles";
+    s.textContent =
+        ".tutem-sync-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);z-index:99999;max-width:min(92vw,440px);padding:14px 20px;border-radius:14px;font-weight:600;font-size:clamp(0.95rem,2vw,1.05rem);text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.45);border:2px solid #feec02;background:#0a0a0a;color:#feec02;transition:transform .28s ease,opacity .28s ease;opacity:0;pointer-events:none;line-height:1.35;}" +
+        ".tutem-sync-toast--show{transform:translateX(-50%) translateY(0);opacity:1;}" +
+        ".tutem-sync-toast--error{border-color:#f87171;color:#fecaca;}" +
+        ".tutem-sync-toast--info{border-color:#94a3b8;color:#e2e8f0;}";
+    document.head.appendChild(s);
+}
+
+function showSyncToast(text, kind) {
+    if (typeof document === "undefined" || !document.body) return;
+    ensureSyncToastStyles();
+    kind = kind || "success";
+    var el = document.createElement("div");
+    el.className = "tutem-sync-toast tutem-sync-toast--" + kind;
+    el.setAttribute("role", "status");
+    el.textContent = text;
+    document.body.appendChild(el);
+    requestAnimationFrame(function () {
+        el.classList.add("tutem-sync-toast--show");
+    });
+    setTimeout(function () {
+        el.classList.remove("tutem-sync-toast--show");
+        setTimeout(function () {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        }, 320);
+    }, 4500);
+}
+
 // Debounce: várias chamadas em sequência viram 1 sync "tudo" para não estourar quota (60 writes/min)
 const SYNC_DEBOUNCE_MS = 3000;
 let _syncDebounceTimer = null;
@@ -67,7 +100,7 @@ async function saveTenantSnapshotToFirestore(allData) {
     var tenant = typeof window !== "undefined" ? window.__TUTEM_TENANT__ : null;
     var db = typeof window !== "undefined" ? window.__TUTEM_FIREBASE_DB__ : null;
     if (!tenant || !tenant.tenantId || !db) {
-        return;
+        return { skipped: true };
     }
     var firestore = await import(FIRESTORE_SDK);
     var payload = cloneDataForFirestoreSnapshot(allData);
@@ -85,6 +118,7 @@ async function saveTenantSnapshotToFirestore(allData) {
         { merge: true }
     );
     console.log("✅ Snapshot guardado no Firestore (tenants/" + tenant.tenantId + "/snapshot/last)");
+    return { ok: true };
 }
 
 /** Cancela o sync agendado (útil antes de "Limpar treinos" para não reenviar depois). */
@@ -161,9 +195,21 @@ async function syncAllToSheets() {
         }
         const result = await response.json();
         console.log("✅ Todos os dados sincronizados com sucesso");
-        saveTenantSnapshotToFirestore(allData).catch(function (err) {
-            console.warn("⚠️ Snapshot Firestore (não bloqueia o Sheets):", err);
-        });
+        showSyncToast("Google Sheets: exportado com sucesso.", "success");
+        try {
+            var fsResult = await saveTenantSnapshotToFirestore(allData);
+            if (fsResult && fsResult.skipped) {
+                showSyncToast("Firestore: não gravado (sem sessão Firebase no painel).", "info");
+            } else if (fsResult && fsResult.ok) {
+                showSyncToast("Base de dados (Firestore): exportado com sucesso.", "success");
+            }
+        } catch (err) {
+            console.warn("⚠️ Snapshot Firestore (Sheets já OK):", err);
+            showSyncToast(
+                "Firestore: falhou — " + (err && err.message ? err.message : String(err)),
+                "error"
+            );
+        }
         return result;
     } catch (error) {
         console.error("❌ Erro ao conectar com serviço de sincronização:", error);
