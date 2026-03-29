@@ -15,6 +15,66 @@ var BODY_MAP_PART_NAMES = [
 
 var BODY_MAP_SVG_W = 750;
 var BODY_MAP_SVG_H = 610;
+var BODY_MAP_MID_X = 375;
+
+/** frente = só vista anterior; costas = só posterior; both = aparece nas duas colunas. */
+var PART_VIEW_OVERRIDE = {
+    Peitoral: "front",
+    Abdômen: "front",
+    "Pé ": "front",
+    Quadríceps: "front",
+    Bíceps: "front",
+    Serrátil: "front",
+    Adutor: "front",
+    Calcanhar: "back",
+    Glúteo: "back",
+    Lombar: "back",
+    Posterior: "back",
+    Latíssimo: "back",
+    Trapézio: "back",
+    Tríceps: "back",
+    Quadril: "back"
+};
+
+function findMuscleGroupByPart(svg, partName) {
+    var all = svg.querySelectorAll("g.muscle");
+    for (var i = 0; i < all.length; i++) {
+        if ((all[i].getAttribute("data-part") || "") === partName) return all[i];
+    }
+    return null;
+}
+
+function resolvePartSides(partName, g) {
+    if (!g) return { front: false, back: false };
+    var keys = Object.keys(PART_VIEW_OVERRIDE);
+    for (var k = 0; k < keys.length; k++) {
+        var prefix = keys[k];
+        if (partName.indexOf(prefix) === 0) {
+            var v = PART_VIEW_OVERRIDE[prefix];
+            if (v === "front") return { front: true, back: false };
+            if (v === "back") return { front: false, back: true };
+        }
+    }
+    try {
+        var b = g.getBBox();
+        var crosses = b.x < 368 && b.x + b.width > 382;
+        if (crosses) return { front: true, back: true };
+        var cx = b.x + b.width / 2;
+        return cx < BODY_MAP_MID_X ? { front: true, back: false } : { front: false, back: true };
+    } catch (e) {
+        return { front: true, back: true };
+    }
+}
+
+function buildPartButton(partName) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "body-map-part-btn";
+    btn.setAttribute("data-part", partName);
+    btn.setAttribute("aria-pressed", "false");
+    btn.textContent = partName;
+    return btn;
+}
 
 function legacyParseMuscularTokens(t) {
     var compact = t.replace(/\s/g, "");
@@ -24,7 +84,6 @@ function legacyParseMuscularTokens(t) {
     return t.split(/[;,]/).map(function (x) { return x.trim(); }).filter(Boolean);
 }
 
-/** Interpreta valor salvo em "Pontos de dor": nomes com espaço, ou legado (letras A–Z / vírgulas). */
 function parsePontosDorMuscularValue(str) {
     if (str == null) return [];
     var t = String(str).trim();
@@ -94,6 +153,26 @@ function initBodyMapQuestion(qIdx, qId) {
             orig.removeAttribute("width");
             orig.removeAttribute("height");
 
+            var frontItems = [];
+            var backItems = [];
+            for (var pi = 0; pi < BODY_MAP_PART_NAMES.length; pi++) {
+                var nm = BODY_MAP_PART_NAMES[pi];
+                var g = findMuscleGroupByPart(orig, nm);
+                if (!g) continue;
+                var sides = resolvePartSides(nm, g);
+                var b;
+                try {
+                    b = g.getBBox();
+                } catch (e) {
+                    continue;
+                }
+                var cy = b.y + b.height / 2;
+                if (sides.front) frontItems.push({ name: nm, cy: cy });
+                if (sides.back) backItems.push({ name: nm, cy: cy });
+            }
+            frontItems.sort(function (a, b) { return a.cy - b.cy; });
+            backItems.sort(function (a, b) { return a.cy - b.cy; });
+
             function cloneHalfView(viewBoxAttr) {
                 var s = orig.cloneNode(true);
                 s.setAttribute("viewBox", viewBoxAttr);
@@ -104,48 +183,43 @@ function initBodyMapQuestion(qIdx, qId) {
                 return s;
             }
 
-            var layout = document.createElement("div");
-            layout.className = "body-map-layout";
-            var main = document.createElement("div");
-            main.className = "body-map-main";
-            var stack = document.createElement("div");
-            stack.className = "body-map-body-stack";
-
-            var labF = document.createElement("div");
-            labF.className = "body-map-view-label";
-            labF.textContent = "Frente";
-            var svgF = cloneHalfView("0 0 375 610");
-            var labB = document.createElement("div");
-            labB.className = "body-map-view-label";
-            labB.textContent = "Costas";
-            var svgB = cloneHalfView("375 0 375 610");
-
-            stack.appendChild(labF);
-            stack.appendChild(svgF);
-            stack.appendChild(labB);
-            stack.appendChild(svgB);
-            main.appendChild(stack);
-
-            var partsPanel = document.createElement("div");
-            partsPanel.className = "body-map-parts-panel";
-            partsPanel.setAttribute("role", "group");
-            partsPanel.setAttribute("aria-label", "Regiões do corpo (toque para marcar)");
-
-            for (var pi = 0; pi < BODY_MAP_PART_NAMES.length; pi++) {
-                var nm = BODY_MAP_PART_NAMES[pi];
-                var btn = document.createElement("button");
-                btn.type = "button";
-                btn.className = "body-map-part-btn";
-                btn.setAttribute("data-part", nm);
-                btn.setAttribute("aria-pressed", "false");
-                btn.textContent = nm;
-                partsPanel.appendChild(btn);
+            function makeViewBlock(title, svgEl, items) {
+                var block = document.createElement("div");
+                block.className = "body-map-view-block";
+                var lab = document.createElement("div");
+                lab.className = "body-map-view-label";
+                lab.textContent = title;
+                var row = document.createElement("div");
+                row.className = "body-map-svg-row";
+                var slot = document.createElement("div");
+                slot.className = "body-map-svg-slot";
+                slot.appendChild(svgEl);
+                var btnCol = document.createElement("div");
+                btnCol.className = "body-map-btn-col";
+                for (var i = 0; i < items.length; i++) {
+                    btnCol.appendChild(buildPartButton(items[i].name));
+                }
+                row.appendChild(slot);
+                row.appendChild(btnCol);
+                block.appendChild(lab);
+                block.appendChild(row);
+                return block;
             }
 
+            var svgF = cloneHalfView("0 0 375 610");
+            var svgB = cloneHalfView("375 0 375 610");
+
+            var stack = document.createElement("div");
+            stack.className = "body-map-body-stack";
+            stack.appendChild(makeViewBlock("Frente", svgF, frontItems));
+            stack.appendChild(makeViewBlock("Costas", svgB, backItems));
+
+            var main = document.createElement("div");
+            main.className = "body-map-main";
+            main.appendChild(stack);
+
             host.innerHTML = "";
-            layout.appendChild(main);
-            layout.appendChild(partsPanel);
-            host.appendChild(layout);
+            host.appendChild(main);
 
             function wireBodyMap() {
                 var muscles = host.querySelectorAll("g.muscle");
@@ -217,15 +291,13 @@ function initBodyMapQuestion(qIdx, qId) {
                 for (var j = 0; j < muscles.length; j++) {
                     muscles[j].addEventListener("click", function (e) {
                         e.preventDefault();
-                        var g = e.currentTarget;
-                        var part = g.getAttribute("data-part");
-                        togglePart(part);
+                        togglePart(e.currentTarget.getAttribute("data-part"));
                     });
                 }
 
-                partsPanel.addEventListener("click", function (e) {
+                host.addEventListener("click", function (e) {
                     var t = e.target.closest(".body-map-part-btn");
-                    if (!t || !partsPanel.contains(t)) return;
+                    if (!t || !host.contains(t)) return;
                     e.preventDefault();
                     togglePart(t.getAttribute("data-part"));
                 });
