@@ -13,6 +13,9 @@ var BODY_MAP_PART_NAMES = [
     "Peitoral direito", "Peitoral esquerdo", "Quadril"
 ];
 
+var BODY_MAP_SVG_W = 750;
+var BODY_MAP_SVG_H = 610;
+
 function legacyParseMuscularTokens(t) {
     var compact = t.replace(/\s/g, "");
     if (/^[A-Za-z]+$/.test(compact) && compact.length <= 26) {
@@ -61,92 +64,6 @@ function bodyMapUpdateListEl(listEl, names) {
     listEl.textContent = names.sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(", ");
 }
 
-/** Regiões com painel de zoom lateral (clone ampliado + nome). Ordem = ordem na coluna. */
-var BODY_MAP_ZOOM_PARTS = [
-    "Calcanhar esquerdo", "Pulso esquerdo", "Pé esquerdo", "Mão esquerda",
-    "Calcanhar direito", "Pulso direito", "Pé direito", "Mão direita"
-];
-
-var BODY_MAP_SVG_W = 750;
-var BODY_MAP_SVG_H = 610;
-
-function bodyMapZoomColumn(partName) {
-    if (/esquerdo|esquerda/i.test(partName)) return "left";
-    if (/direito|direita/i.test(partName)) return "right";
-    return null;
-}
-
-/** Mini-SVG com viewBox apertado na região (mesmas coordenadas do desenho original). */
-function buildZoomMiniSvg(sourceGroup) {
-    var NS = "http://www.w3.org/2000/svg";
-    var b;
-    try {
-        b = sourceGroup.getBBox();
-    } catch (e) {
-        return null;
-    }
-    if (!isFinite(b.width) || !isFinite(b.height) || b.width < 0.5 || b.height < 0.5) return null;
-    var pad = Math.max(10, Math.max(b.width, b.height) * 0.42);
-    var vx = Math.max(0, b.x - pad);
-    var vy = Math.max(0, b.y - pad);
-    var vw = Math.min(BODY_MAP_SVG_W - vx, b.width + 2 * pad);
-    var vh = Math.min(BODY_MAP_SVG_H - vy, b.height + 2 * pad);
-    if (vw < 4 || vh < 4) return null;
-    var mini = document.createElementNS(NS, "svg");
-    mini.setAttribute("viewBox", vx + " " + vy + " " + vw + " " + vh);
-    mini.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    mini.classList.add("body-map-zoom-svg");
-    mini.appendChild(sourceGroup.cloneNode(true));
-    return mini;
-}
-
-function findMuscleGroupByPart(svg, partName) {
-    var all = svg.querySelectorAll("g.muscle");
-    for (var i = 0; i < all.length; i++) {
-        if ((all[i].getAttribute("data-part") || "") === partName) return all[i];
-    }
-    return null;
-}
-
-function populateBodyMapZoomColumns(mainSvg, colLeft, colRight) {
-    var items = [];
-    for (var p = 0; p < BODY_MAP_ZOOM_PARTS.length; p++) {
-        var partName = BODY_MAP_ZOOM_PARTS[p];
-        var col = bodyMapZoomColumn(partName);
-        if (!col) continue;
-        var g = findMuscleGroupByPart(mainSvg, partName);
-        if (!g) continue;
-        var b;
-        try {
-            b = g.getBBox();
-        } catch (e) {
-            continue;
-        }
-        items.push({ partName: partName, col: col, y: b.y + b.height / 2 });
-    }
-    function appendSortedCol(colName, targetCol) {
-        var sub = items.filter(function (x) { return x.col === colName; });
-        sub.sort(function (a, b) { return a.y - b.y; });
-        for (var j = 0; j < sub.length; j++) {
-            var it = sub[j];
-            var src = findMuscleGroupByPart(mainSvg, it.partName);
-            if (!src) continue;
-            var mini = buildZoomMiniSvg(src);
-            if (!mini) continue;
-            var card = document.createElement("div");
-            card.className = "body-map-zoom-card";
-            var lab = document.createElement("div");
-            lab.className = "body-map-zoom-card-label";
-            lab.textContent = it.partName;
-            card.appendChild(lab);
-            card.appendChild(mini);
-            targetCol.appendChild(card);
-        }
-    }
-    appendSortedCol("left", colLeft);
-    appendSortedCol("right", colRight);
-}
-
 function initBodyMapQuestion(qIdx, qId) {
     var wrap = document.getElementById(qId + "_wrap");
     var host = document.getElementById(qId + "_svg");
@@ -177,26 +94,62 @@ function initBodyMapQuestion(qIdx, qId) {
             orig.removeAttribute("width");
             orig.removeAttribute("height");
 
+            function cloneHalfView(viewBoxAttr) {
+                var s = orig.cloneNode(true);
+                s.setAttribute("viewBox", viewBoxAttr);
+                s.setAttribute("preserveAspectRatio", "xMidYMid meet");
+                s.removeAttribute("width");
+                s.removeAttribute("height");
+                s.classList.add("body-map-svg");
+                return s;
+            }
+
             var layout = document.createElement("div");
             layout.className = "body-map-layout";
-            var colLeft = document.createElement("div");
-            colLeft.className = "body-map-zoom-col body-map-zoom-col--left";
             var main = document.createElement("div");
             main.className = "body-map-main";
-            var colRight = document.createElement("div");
-            colRight.className = "body-map-zoom-col body-map-zoom-col--right";
+            var stack = document.createElement("div");
+            stack.className = "body-map-body-stack";
+
+            var labF = document.createElement("div");
+            labF.className = "body-map-view-label";
+            labF.textContent = "Frente";
+            var svgF = cloneHalfView("0 0 375 610");
+            var labB = document.createElement("div");
+            labB.className = "body-map-view-label";
+            labB.textContent = "Costas";
+            var svgB = cloneHalfView("375 0 375 610");
+
+            stack.appendChild(labF);
+            stack.appendChild(svgF);
+            stack.appendChild(labB);
+            stack.appendChild(svgB);
+            main.appendChild(stack);
+
+            var partsPanel = document.createElement("div");
+            partsPanel.className = "body-map-parts-panel";
+            partsPanel.setAttribute("role", "group");
+            partsPanel.setAttribute("aria-label", "Regiões do corpo (toque para marcar)");
+
+            for (var pi = 0; pi < BODY_MAP_PART_NAMES.length; pi++) {
+                var nm = BODY_MAP_PART_NAMES[pi];
+                var btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "body-map-part-btn";
+                btn.setAttribute("data-part", nm);
+                btn.setAttribute("aria-pressed", "false");
+                btn.textContent = nm;
+                partsPanel.appendChild(btn);
+            }
 
             host.innerHTML = "";
-            main.appendChild(orig);
-            layout.appendChild(colLeft);
             layout.appendChild(main);
-            layout.appendChild(colRight);
+            layout.appendChild(partsPanel);
             host.appendChild(layout);
 
             function wireBodyMap() {
-                populateBodyMapZoomColumns(orig, colLeft, colRight);
-
                 var muscles = host.querySelectorAll("g.muscle");
+                var partBtns = host.querySelectorAll(".body-map-part-btn");
                 var selected = new Set();
 
                 function applyClassForPart(part, on) {
@@ -207,12 +160,34 @@ function initBodyMapQuestion(qIdx, qId) {
                     }
                 }
 
+                function updatePartButtons() {
+                    for (var i = 0; i < partBtns.length; i++) {
+                        var p = partBtns[i].getAttribute("data-part");
+                        var on = selected.has(p);
+                        partBtns[i].classList.toggle("selected", on);
+                        partBtns[i].setAttribute("aria-pressed", on ? "true" : "false");
+                    }
+                }
+
                 function syncFromSet() {
                     var serial = serializeBodyMapSelection(selected);
                     if (qText && typeof state !== "undefined" && state.tempAnswers) {
                         state.tempAnswers[qText] = serial;
                     }
                     bodyMapUpdateListEl(listEl, Array.from(selected));
+                    updatePartButtons();
+                }
+
+                function togglePart(part) {
+                    if (!part) return;
+                    if (selected.has(part)) {
+                        selected.delete(part);
+                        applyClassForPart(part, false);
+                    } else {
+                        selected.add(part);
+                        applyClassForPart(part, true);
+                    }
+                    syncFromSet();
                 }
 
                 function restoreFromStored(val) {
@@ -222,11 +197,13 @@ function initBodyMapQuestion(qIdx, qId) {
                     }
                     if (val == null || val === "") {
                         bodyMapUpdateListEl(listEl, []);
+                        updatePartButtons();
                         return;
                     }
                     var v = String(val).trim();
                     if (/^nenhuma$/i.test(v)) {
                         bodyMapUpdateListEl(listEl, []);
+                        updatePartButtons();
                         return;
                     }
                     var parts = parsePontosDorMuscularValue(v);
@@ -242,17 +219,16 @@ function initBodyMapQuestion(qIdx, qId) {
                         e.preventDefault();
                         var g = e.currentTarget;
                         var part = g.getAttribute("data-part");
-                        if (!part) return;
-                        if (selected.has(part)) {
-                            selected.delete(part);
-                            applyClassForPart(part, false);
-                        } else {
-                            selected.add(part);
-                            applyClassForPart(part, true);
-                        }
-                        syncFromSet();
+                        togglePart(part);
                     });
                 }
+
+                partsPanel.addEventListener("click", function (e) {
+                    var t = e.target.closest(".body-map-part-btn");
+                    if (!t || !partsPanel.contains(t)) return;
+                    e.preventDefault();
+                    togglePart(t.getAttribute("data-part"));
+                });
 
                 if (noneBtn) {
                     noneBtn.addEventListener("click", function () {
@@ -264,6 +240,7 @@ function initBodyMapQuestion(qIdx, qId) {
                             state.tempAnswers[qText] = "Nenhuma";
                         }
                         bodyMapUpdateListEl(listEl, []);
+                        updatePartButtons();
                     });
                 }
 
