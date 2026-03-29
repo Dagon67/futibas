@@ -73,7 +73,10 @@ function applyMuscleTouchScale(svg) {
             if (!isFinite(b.width) || !isFinite(b.height)) continue;
             if (b.width < 0.25 && b.height < 0.25) continue;
             var maxSide = Math.max(b.width, b.height);
-            var scale = maxSide < 38 ? 1.14 : maxSide < 72 ? 1.1 : maxSide < 120 ? 1.06 : 1.04;
+            var partName = g.getAttribute("data-part") || "";
+            var scale = maxSide < 32 ? 1.36 : maxSide < 50 ? 1.24 : maxSide < 80 ? 1.14 : maxSide < 120 ? 1.08 : 1.05;
+            if (/Calcanhar|Pulso/i.test(partName)) scale *= 1.12;
+            scale = Math.min(scale, 1.52);
             var cx = b.x + b.width / 2;
             var cy = b.y + b.height / 2;
             var prev = (g.getAttribute("transform") || "").trim();
@@ -102,15 +105,42 @@ function initBodyMapQuestion(qIdx, qId) {
         .then(function (svgText) {
             host.innerHTML = svgText;
             host.classList.remove("body-map-svg-host--loading");
-            var svg = host.querySelector("svg");
-            if (svg) {
-                svg.classList.add("body-map-svg");
-                svg.removeAttribute("id");
+            var orig = host.querySelector("svg");
+            if (!orig) {
+                host.innerHTML = "<p class=\"body-map-err\">Mapa corporal inválido.</p>";
+                return;
+            }
+            orig.classList.add("body-map-svg");
+            orig.removeAttribute("id");
+
+            var stack = document.createElement("div");
+            stack.className = "body-map-stack";
+
+            function appendHalfView(labelText, viewBoxAttr) {
+                var lab = document.createElement("div");
+                lab.className = "body-map-view-label";
+                lab.textContent = labelText;
+                var s = orig.cloneNode(true);
+                s.setAttribute("viewBox", viewBoxAttr);
+                s.setAttribute("preserveAspectRatio", "xMidYMid meet");
+                s.removeAttribute("width");
+                s.removeAttribute("height");
+                s.classList.add("body-map-svg");
+                stack.appendChild(lab);
+                stack.appendChild(s);
             }
 
+            appendHalfView("Frente", "0 0 375 610");
+            appendHalfView("Costas", "375 0 375 610");
+            host.innerHTML = "";
+            host.appendChild(stack);
+
             function wireBodyMap() {
-                if (!svg) return;
-                applyMuscleTouchScale(svg);
+                var svgs = host.querySelectorAll("svg.body-map-svg");
+                if (!svgs.length) return;
+                for (var si = 0; si < svgs.length; si++) {
+                    applyMuscleTouchScale(svgs[si]);
+                }
 
                 var muscles = host.querySelectorAll("g.muscle");
                 var selected = new Set();
