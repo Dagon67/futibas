@@ -76,6 +76,9 @@ function buildPartButton(partName) {
     return btn;
 }
 
+/** Separador gravado no Sheets / estado — nomes têm espaços ("Ombro direito"); não usar espaço como delimitador. */
+var BODY_MAP_ANSWER_SEP = "; ";
+
 function legacyParseMuscularTokens(t) {
     var compact = t.replace(/\s/g, "");
     if (/^[A-Za-z]+$/.test(compact) && compact.length <= 26) {
@@ -84,10 +87,27 @@ function legacyParseMuscularTokens(t) {
     return t.split(/[;,]/).map(function (x) { return x.trim(); }).filter(Boolean);
 }
 
-function parsePontosDorMuscularValue(str) {
-    if (str == null) return [];
-    var t = String(str).trim();
-    if (!t || /^sem dor$/i.test(t) || /^nenhuma$/i.test(t)) return [];
+function bodyMapPartNamesSet() {
+    var o = {};
+    for (var i = 0; i < BODY_MAP_PART_NAMES.length; i++) {
+        o[BODY_MAP_PART_NAMES[i]] = true;
+    }
+    return o;
+}
+
+function parsePontosDorMuscularDelimited(t) {
+    var known = bodyMapPartNamesSet();
+    var chunks = t.split(/\s*[;,]\s*/).map(function (x) { return x.trim(); }).filter(Boolean);
+    var out = [];
+    for (var c = 0; c < chunks.length; c++) {
+        if (known[chunks[c]]) {
+            out.push(chunks[c]);
+        }
+    }
+    return out;
+}
+
+function parsePontosDorMuscularGreedySpaces(t) {
     var s = t;
     var out = [];
     while (s.length) {
@@ -110,8 +130,33 @@ function parsePontosDorMuscularValue(str) {
     return out;
 }
 
+function dedupePartList(arr) {
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+        var x = arr[i];
+        if (seen[x]) continue;
+        seen[x] = true;
+        out.push(x);
+    }
+    return out;
+}
+
+function parsePontosDorMuscularValue(str) {
+    if (str == null) return [];
+    var t = String(str).trim();
+    if (!t || /^sem dor$/i.test(t) || /^nenhuma$/i.test(t)) return [];
+    var parsed;
+    if (/[;,]/.test(t)) {
+        parsed = parsePontosDorMuscularDelimited(t);
+        if (parsed.length) return dedupePartList(parsed);
+    }
+    parsed = parsePontosDorMuscularGreedySpaces(t);
+    return dedupePartList(parsed);
+}
+
 function serializeBodyMapSelection(selectedSet) {
-    return Array.from(selectedSet).sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(" ");
+    return Array.from(selectedSet).sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(BODY_MAP_ANSWER_SEP);
 }
 
 function bodyMapUpdateListEl(listEl, names) {
@@ -120,7 +165,7 @@ function bodyMapUpdateListEl(listEl, names) {
         listEl.textContent = "Nenhuma região selecionada";
         return;
     }
-    listEl.textContent = names.sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(", ");
+    listEl.textContent = names.sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(BODY_MAP_ANSWER_SEP);
 }
 
 function initBodyMapQuestion(qIdx, qId) {
