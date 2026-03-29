@@ -44,6 +44,13 @@ logs/
 .env
 .env.local
 secrets.local
+firestore.txt
+
+# Pasta antiga na raiz com credenciais locais (não versionar)
+/sheets/
+
+# Firebase (opcional: não commitar config local; use firebase-config.example.js como modelo)
+legacy/js/firebase-config.local.js
 
 # Build
 dist/

@@ -89,10 +89,14 @@ function initDefaultPlayersThenHome() {
         if (!tryRestoreResumeState()) goHome();
     }
 }
-// Em produção, acordar o backend (Render) em background para reduzir 502 no primeiro sync
-if (typeof wakeBackendIfNeeded === "function") wakeBackendIfNeeded();
-// Inicializar (carrega jogadores do servidor se vazio, depois mostra home) — não rodar se redirecionando para campin
-if (!redirectToCampinIfGameInProgress) initDefaultPlayersThenHome();
+// Arranque da app só depois de Firebase + senha do painel (ver index.html / startTutemApp)
+function startTutemApp() {
+    if (window.__tutemAppStarted) return;
+    window.__tutemAppStarted = true;
+    if (typeof wakeBackendIfNeeded === "function") wakeBackendIfNeeded();
+    if (!redirectToCampinIfGameInProgress) initDefaultPlayersThenHome();
+}
+window.startTutemApp = startTutemApp;
 
 window.addEventListener('beforeunload', function(){
     if (window.dateTimeInterval) clearInterval(window.dateTimeInterval);

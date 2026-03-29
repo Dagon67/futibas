@@ -108,7 +108,7 @@ async function syncAllToSheets() {
         return result;
     } catch (error) {
         console.error("❌ Erro ao conectar com serviço de sincronização:", error);
-        var hint = "Certifique-se de que o backend está rodando (local: python sheets/app.py). ";
+        var hint = "Certifique-se de que o backend está rodando (local: cd backend/legacy && python app.py). ";
         if (typeof window !== "undefined" && window.location && window.location.protocol === "file:") {
             hint += "Abriu por file:// — use um servidor local (ex.: npx serve . ou Live Server) para evitar CORS (origin null). ";
         }

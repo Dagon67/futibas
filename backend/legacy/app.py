@@ -12,13 +12,17 @@ import base64
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
+# Raiz do repositório (uploads/ e pastas pre|pos ficam na raiz, não em backend/legacy)
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.dirname(os.path.dirname(_BACKEND_DIR))
+
 app = Flask(__name__)
 # CORS: permitir qualquer origem (localhost, file:// com origin null, app hospedado)
 # Sem isso, ao abrir index.html por file:// o navegador bloqueia por origin 'null'
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
 
-# Configuração de upload
-UPLOAD_FOLDER = 'uploads/players'
+# Configuração de upload (sempre relativo à raiz do repo)
+UPLOAD_FOLDER = os.path.join(_REPO_ROOT, 'uploads', 'players')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
 
@@ -92,7 +96,7 @@ def upload_player_photo():
         # Isso permite que as fotos sejam persistidas no repositório
         try:
             import subprocess
-            repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            repo_root = _REPO_ROOT
             git_enabled = os.getenv('GIT_AUTO_COMMIT', 'false').lower() == 'true'
             
             if git_enabled:
@@ -146,8 +150,7 @@ def list_images(folder):
     if folder not in ('pre', 'pos'):
         return jsonify({"success": False, "error": "Pasta inválida"}), 400
     try:
-        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        folder_path = os.path.join(repo_root, folder)
+        folder_path = os.path.join(_REPO_ROOT, folder)
         if not os.path.isdir(folder_path):
             return jsonify({"success": True, "images": []}), 200
         files = []

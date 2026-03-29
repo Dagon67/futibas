@@ -150,7 +150,7 @@ class SheetsEditor:
                         "1. Acesse: https://console.cloud.google.com/\n"
                         "2. Crie um projeto e ative Google Sheets API e Drive API\n"
                         "3. Vá em 'Credentials' > 'Create Credentials' > 'OAuth client ID'\n"
-                        "4. Baixe o JSON e salve na pasta sheets/\n"
+                        "4. Baixe o JSON e salve em backend/legacy/ (ou defina GOOGLE_APPLICATION_CREDENTIALS)\n"
                         "="*60
                     )
                 

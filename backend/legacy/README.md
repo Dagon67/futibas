@@ -2,11 +2,14 @@
 
 Aplicativo Python para conectar e editar a planilha do Google Sheets "tester" (aba "primeiro").
 
+Se você ainda tiver credenciais na pasta antiga `sheets/` na raiz do clone, **mova** os JSON / `token.pickle` / `config.py` para esta pasta (`backend/legacy/`) e remova `sheets/` — o deploy e o código passam a usar só `backend/legacy/`.
+
 ## Configuração
 
 ### 1. Instalar dependências
 
 ```bash
+cd backend/legacy   # a partir da raiz do repositório
 pip install -r requirements.txt
 ```
 

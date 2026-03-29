@@ -252,7 +252,7 @@ function proceedToPlayerSelection() {
     console.log('Salvando SELECTION_COMPLETED_KEY...');
     saveToStorage(SELECTION_COMPLETED_KEY, true);
     console.log('Redirecionando para index.html...');
-    window.location.href = 'index.html';
+    window.location.href = '../index.html';
 }
 
 function proceedToPosTreinoSelection() {
@@ -262,7 +262,7 @@ function proceedToPosTreinoSelection() {
     console.log('Salvando SELECTION_COMPLETED_KEY_POS...');
     saveToStorage(SELECTION_COMPLETED_KEY_POS, true);
     console.log('Redirecionando para pos-treino.html...');
-    window.location.href = 'pos-treino.html';
+    window.location.href = '../index.html';
 }
 
 /**
@@ -862,7 +862,7 @@ function initForm() {
     const backButton = document.getElementById('backButton');
     if (backButton) {
         backButton.addEventListener('click', () => {
-            window.location.href = 'index.html';
+            window.location.href = '../index.html';
         });
     }
     
@@ -1033,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Estamos no form.html
             backButton.addEventListener('click', () => {
                 const tipoTreino = localStorage.getItem('tipo_treino') || 'pre';
-                window.location.href = tipoTreino === 'pos' ? 'pos_treino.html' : 'index.html';
+                window.location.href = '../index.html';
             });
         }
     }
@@ -1067,7 +1067,7 @@ checkSVG();
             if (confirm('Tem certeza que deseja reiniciar tudo? Todos os dados serão perdidos.')) {
                 clearAllData();
                 alert('Dados reiniciados com sucesso!');
-                window.location.href = 'index.html';
+                window.location.href = '../index.html';
             }
         });
     }

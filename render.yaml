@@ -2,11 +2,11 @@ services:
   - type: web
     name: tutem-backend
     env: python
-    buildCommand: pip install -r sheets/requirements.txt && pip install gunicorn
-    startCommand: cd sheets && gunicorn app:app --bind 0.0.0.0:$PORT
+    buildCommand: pip install -r backend/legacy/requirements.txt && pip install gunicorn
+    startCommand: cd backend/legacy && gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PORT
         value: 10000
       # Adicione suas variáveis de ambiente aqui
       # - key: GOOGLE_APPLICATION_CREDENTIALS
-      #   value: /opt/render/project/src/sheets/futsal-476923-19e955d7ed78.json
+      #   value: /opt/render/project/src/backend/legacy/service-account.json

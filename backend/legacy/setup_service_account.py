@@ -21,7 +21,7 @@ if os.path.exists(source_file):
         print("   Compartilhe a planilha com:")
         print("   futilouco@futsal-476923.iam.gserviceaccount.com")
         print("   (com permissão de Editor)")
-        print("\n   Depois execute: python teste_completo.py")
+        print("\n   Depois execute: python app.py (nesta pasta)")
     except Exception as e:
         print(f"\n❌ Erro ao copiar arquivo: {e}")
 else:
