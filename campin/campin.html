@@ -294,23 +294,41 @@
       -webkit-user-select: none;
     }
 
+    /* Quadra: faixa externa azul (pista/lateral) + superfície marrom (madeira/sintético) */
     .court{
       position: relative;
-      min-height: 520px;
+      width: 80%;
+      max-width: 80%;
+      justify-self: start;
+      min-height: 416px;
       border-radius: 0 22px 22px 0;
       overflow: hidden;
       border: 1px solid rgba(255,255,255,.12);
       box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
-      background: linear-gradient(180deg, #1e5631 0%, #2d7a3e 50%, #1e5631 100%);
+      background: linear-gradient(180deg, #4eb8ea 0%, #5cc4f0 35%, #4aadde 100%);
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
+    }
+    .court::before{
+      content: "";
+      position: absolute;
+      left: 5%;
+      right: 5%;
+      top: 7%;
+      bottom: 7%;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #c9a66a 0%, #8f6a3d 48%, #6b4a28 100%);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
+      z-index: 0;
+      pointer-events: none;
     }
 
     .court svg{
       position:absolute; inset:0;
       width:100%; height:100%;
       opacity:.95;
+      z-index: 1;
     }
 
     /* On-court side (left half) – evita seleção de texto e rolagem ao arrastar */
@@ -320,6 +338,7 @@
       pointer-events:none;
       user-select: none;
       -webkit-user-select: none;
+      z-index: 2;
     }
 
     .posSlot{
@@ -705,6 +724,64 @@
       flex-wrap:wrap;
     }
 
+    /* Seleção de elenco (antes da quadra) */
+    #playerSelectOverlay{ z-index: 60; display: none; }
+    #playerSelectOverlay .modal{ width: min(560px, 100%); }
+    .playerPickBody{
+      display: flex !important;
+      flex-direction: column;
+      grid-template-columns: unset !important;
+      gap: 12px !important;
+      max-height: min(52vh, 420px);
+      overflow-y: auto;
+      padding: 16px !important;
+    }
+    .playerPickHint{
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .playerPickRow{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.1);
+      cursor: pointer;
+      user-select: none;
+    }
+    .playerPickRow input{
+      width: auto;
+      flex: 0 0 auto;
+      accent-color: #60a5fa;
+    }
+    .playerPickRow .ppName{
+      font-size: 13px;
+      font-weight: 650;
+      flex: 1;
+      min-width: 0;
+    }
+    .playerPickRow .ppNum{
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .playerPickActions{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .playerPickErr{
+      margin: 0;
+      font-size: 12px;
+      color: var(--bad);
+      min-height: 1.2em;
+    }
+
     /* Report */
     .report{
       padding: 14px;
@@ -970,6 +1047,33 @@
     </div>
   </div>
 
+  <!-- Seleção de jogadores do jogo (antes da quadra) -->
+  <div class="overlay" id="playerSelectOverlay" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="playerSelectTitle">
+      <div class="modalHeader">
+        <div>
+          <h2 id="playerSelectTitle">Quem joga hoje?</h2>
+          <p>Marque os atletas que entram no elenco desta partida (mínimo 5).</p>
+        </div>
+      </div>
+      <div class="modalBody playerPickBody">
+        <p class="playerPickHint">Só os selecionados aparecem na quadra e no banco. Você pode ajustar depois saindo e entrando de novo no controle, se precisar mudar o elenco.</p>
+        <div class="playerPickActions">
+          <button type="button" id="btnPickAll">Marcar todos</button>
+          <button type="button" id="btnPickNone">Desmarcar todos</button>
+        </div>
+        <p class="playerPickErr" id="playerPickErr" aria-live="polite"></p>
+        <div id="playerSelectList"></div>
+      </div>
+      <div class="modalFooter">
+        <button id="btnPlayerSelectConfirm" class="btnPrimary">
+          <span class="ico" aria-hidden="true">⚽</span>
+          Ir para a quadra
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Confirmação ao encerrar jogo -->
   <div class="overlay" id="confirmEndOverlay" style="display:none;">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmEndTitle" style="width: min(400px, 100%);">
@@ -1102,6 +1206,58 @@
       });
     }
 
+    function buildPlayerSelectList(){
+      if (!playerSelectListEl) return;
+      playerSelectListEl.innerHTML = "";
+      for (const p of state.players){
+        const row = document.createElement("label");
+        row.className = "playerPickRow";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = true;
+        cb.dataset.playerId = p.id;
+        const span = document.createElement("span");
+        span.className = "ppName";
+        span.textContent = p.name || ("Jogador " + p.id);
+        const num = document.createElement("span");
+        num.className = "ppNum";
+        num.textContent = "#" + p.numero;
+        row.appendChild(cb);
+        row.appendChild(span);
+        row.appendChild(num);
+        playerSelectListEl.appendChild(row);
+      }
+    }
+
+    function openPlayerSelectUI(){
+      if (playerPickErrEl) {
+        playerPickErrEl.textContent = "";
+        if (state.players.length < 5) {
+          playerPickErrEl.textContent = "Há menos de 5 jogadores no elenco. Cadastre mais no sistema ou use o modo local (lista padrão).";
+        }
+      }
+      buildPlayerSelectList();
+      if (playerSelectOverlay) playerSelectOverlay.style.display = "flex";
+    }
+
+    function confirmPlayerSelection(){
+      if (!playerSelectListEl) return;
+      const ids = new Set();
+      playerSelectListEl.querySelectorAll("input[type=checkbox]").forEach(function(inp){
+        if (inp.checked) ids.add(inp.dataset.playerId);
+      });
+      if (ids.size < 5){
+        if (playerPickErrEl) playerPickErrEl.textContent = "Selecione pelo menos 5 jogadores para montar o quinteto.";
+        return;
+      }
+      state.players = state.players.filter(function(p){ return ids.has(p.id); });
+      state.posToPlayer = { gk:null, fix:null, alaL:null, alaR:null, pivo:null };
+      state.configured = true;
+      if (playerSelectOverlay) playerSelectOverlay.style.display = "none";
+      renderAll();
+      updateFilledUI();
+    }
+
     function loadPlayersFromSheets(cb){
       const base = getBackendUrl();
       if (!base) {
@@ -1159,6 +1315,13 @@
     const noteEl = document.getElementById("note");
     const btnSetupContinue = document.getElementById("btnSetupContinue");
     const gameDatetimeSmallEl = document.getElementById("gameDatetimeSmall");
+
+    const playerSelectOverlay = document.getElementById("playerSelectOverlay");
+    const playerSelectListEl = document.getElementById("playerSelectList");
+    const btnPlayerSelectConfirm = document.getElementById("btnPlayerSelectConfirm");
+    const playerPickErrEl = document.getElementById("playerPickErr");
+    const btnPickAll = document.getElementById("btnPickAll");
+    const btnPickNone = document.getElementById("btnPickNone");
 
     const selectedTagEl = document.getElementById("selectedTag");
 
@@ -1880,14 +2043,23 @@
       state.gameDatetimeISO = iso;
       state.teamName = teamNameEl.value.trim();
       state.note = noteEl.value.trim();
-      state.configured = true;
 
       setupOverlay.style.display = "none";
 
       const dt = new Date(state.gameDatetimeISO);
       gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
 
-      updateFilledUI();
+      openPlayerSelectUI();
+    });
+
+    if (btnPlayerSelectConfirm) btnPlayerSelectConfirm.addEventListener("click", confirmPlayerSelection);
+    if (btnPickAll) btnPickAll.addEventListener("click", function(){
+      if (!playerSelectListEl) return;
+      playerSelectListEl.querySelectorAll("input[type=checkbox]").forEach(function(i){ i.checked = true; });
+    });
+    if (btnPickNone) btnPickNone.addEventListener("click", function(){
+      if (!playerSelectListEl) return;
+      playerSelectListEl.querySelectorAll("input[type=checkbox]").forEach(function(i){ i.checked = false; });
     });
 
     function goToMenu(){
@@ -1971,7 +2143,6 @@
       parseUrlParams();
 
       if (state.gameDatetimeISO) {
-        state.configured = true;
         setupOverlay.style.display = "none";
         const dt = new Date(state.gameDatetimeISO);
         gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
@@ -1992,6 +2163,9 @@
         try { hadGame = localStorage.getItem(CAMPIN_GAME_KEY) === "1"; } catch(e) {}
         if (hadGame && restoreCampinState()) {
           return;
+        }
+        if (state.gameDatetimeISO) {
+          openPlayerSelectUI();
         }
         renderAll();
       });

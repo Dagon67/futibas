@@ -17,7 +17,7 @@ function goGameSetup() {
                 </button>
             </div>
             <div class="screen-title" style="margin-bottom:1rem;">Configurar Jogo</div>
-            <div class="screen-sub" style="margin-bottom:2rem;">Data e horário padrão do sistema. Depois você monta o time no controle de jogo.</div>
+            <div class="screen-sub" style="margin-bottom:2rem;">Data e horário padrão do sistema. No controle de jogo você escolhe quem entra no elenco e monta o quinteto na quadra.</div>
             <div style="width:100%;max-width:600px;display:flex;flex-direction:column;gap:var(--touch-gap);">
                 <div class="label-col">
                     <label>Data do jogo</label>
