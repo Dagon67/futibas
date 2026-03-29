@@ -567,6 +567,61 @@
       align-items:center;
       justify-content:flex-start;
     }
+    .teamDurationRow{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px;
+      justify-content:space-between;
+      margin-bottom:6px;
+    }
+    .teamDurationRow .teamTag{
+      flex:1;
+      min-width:0;
+      font-size:11px;
+      font-weight:650;
+      color: rgba(255,255,255,.88);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .btnDurationMini{
+      flex-shrink:0;
+      font-size:11px;
+      font-weight:650;
+      padding:5px 10px;
+      border-radius:10px;
+      border:1px solid rgba(96,165,250,.35);
+      background: rgba(96,165,250,.12);
+      color: var(--text);
+      cursor:pointer;
+    }
+    .btnDurationMini:hover{ background: rgba(96,165,250,.2); }
+    .durationPop{
+      display:none;
+      padding:8px 0 10px;
+      margin-bottom:6px;
+      border-bottom:1px solid rgba(255,255,255,.1);
+    }
+    .durationPop.is-open{ display:block; }
+    .durationPop .durLab{
+      display:block;
+      font-size:11px;
+      color: var(--muted);
+      margin-bottom:4px;
+    }
+    .durationPop input[type="number"]{
+      width:100%;
+      max-width:100px;
+      padding:8px 10px;
+      border-radius:12px;
+    }
+    .durationPop .durHint{
+      margin:6px 0 0;
+      font-size:10px;
+      color: var(--muted);
+      line-height:1.35;
+    }
     .periodRules{
       display:flex;
       flex-wrap:wrap;
@@ -952,9 +1007,19 @@
 
       <!-- Coluna direita: reservas para substituição + cronômetro do jogo -->
       <aside class="rightColumn">
+        <div class="teamDurationRow">
+          <span class="teamTag" id="campinTeamTag" title="">Time: —</span>
+          <button type="button" class="btnDurationMini" id="btnToggleDurationEdit" aria-expanded="false" aria-controls="durationPop">Tempos</button>
+        </div>
+        <div class="durationPop" id="durationPop" role="region" aria-label="Ajustar duração da partida">
+          <label class="durLab" for="halfMinutesEdit">Minutos por tempo (total = 2×)</label>
+          <input type="number" id="halfMinutesEdit" min="5" max="45" step="1" value="20" inputmode="numeric" />
+          <button type="button" class="btnPrimary" id="btnApplyMatchDuration" style="margin-top:8px;padding:8px 12px;font-size:12px;border-radius:12px;">Aplicar</button>
+          <p class="durHint">Use se perdeu o momento de pausar no intervalo ou fim. Com jogo em andamento, o relógio ajusta ao novo teto.</p>
+        </div>
         <div class="periodRules">
-          <span class="kbd">1º tempo 20:00</span>
-          <span class="kbd">2º tempo 20:00</span>
+          <span class="kbd" id="kbdHalf1">1º tempo 20:00</span>
+          <span class="kbd" id="kbdHalf2">2º tempo 20:00</span>
         </div>
         <div class="hint" style="justify-content:flex-start;">
           <span class="tag" id="selectedTag" style="display:none;">Selecionado: —</span>
@@ -1045,7 +1110,12 @@
         <div class="field">
           <label for="halfRule">Regra de tempos</label>
           <select id="halfRule">
-            <option value="20">2 tempos de 20 minutos (padrão)</option>
+            <option value="15">2 tempos de 15 minutos</option>
+            <option value="20" selected>2 tempos de 20 minutos (padrão)</option>
+            <option value="25">2 tempos de 25 minutos</option>
+            <option value="30">2 tempos de 30 minutos</option>
+            <option value="35">2 tempos de 35 minutos</option>
+            <option value="40">2 tempos de 40 minutos</option>
           </select>
         </div>
 
@@ -1355,6 +1425,7 @@
       state.posToPlayer = { gk:null, fix:null, alaL:null, alaR:null, pivo:null };
       state.configured = true;
       if (playerSelectOverlay) playerSelectOverlay.style.display = "none";
+      updateCampinTeamTag();
       renderAll();
       updateFilledUI();
     }
@@ -1416,6 +1487,11 @@
     const noteEl = document.getElementById("note");
     const btnSetupContinue = document.getElementById("btnSetupContinue");
     const gameDatetimeSmallEl = document.getElementById("gameDatetimeSmall");
+    const halfRuleEl = document.getElementById("halfRule");
+    const durationPopEl = document.getElementById("durationPop");
+    const btnToggleDurationEdit = document.getElementById("btnToggleDurationEdit");
+    const halfMinutesEditEl = document.getElementById("halfMinutesEdit");
+    const btnApplyMatchDuration = document.getElementById("btnApplyMatchDuration");
 
     const playerSelectOverlay = document.getElementById("playerSelectOverlay");
     const playerSelectListEl = document.getElementById("playerSelectList");
@@ -1677,6 +1753,48 @@
       }
     }
 
+    function updatePeriodRulesKbd(){
+      const h = state.halfLenMs || (20 * MIN);
+      const label = msToClock(h);
+      const e1 = document.getElementById("kbdHalf1");
+      const e2 = document.getElementById("kbdHalf2");
+      if (e1) e1.textContent = "1º tempo " + label;
+      if (e2) e2.textContent = "2º tempo " + label;
+    }
+
+    function updateCampinTeamTag(){
+      const el = document.getElementById("campinTeamTag");
+      if (!el) return;
+      const t = (state.teamName || "").trim();
+      el.textContent = t ? ("Time: " + t) : "Time: (sem nome)";
+      el.title = t;
+    }
+
+    function syncHalfMinutesInput(){
+      if (!halfMinutesEditEl) return;
+      const m = Math.round(state.halfLenMs / MIN);
+      halfMinutesEditEl.value = String(Math.max(5, Math.min(45, isFinite(m) ? m : 20)));
+    }
+
+    function applyMatchDurationFromInput(){
+      let m = halfMinutesEditEl ? parseInt(halfMinutesEditEl.value, 10) : NaN;
+      if (!isFinite(m) || m < 5) m = 5;
+      if (m > 45) m = 45;
+      state.halfLenMs = m * MIN;
+      state.totalLenMs = 2 * m * MIN;
+      if (state.elapsedMs > state.totalLenMs) state.elapsedMs = state.totalLenMs;
+      if (halfRuleEl) {
+        const opt = halfRuleEl.querySelector('option[value="' + m + '"]');
+        if (opt) halfRuleEl.value = String(m);
+      }
+      updatePeriodRulesKbd();
+      updateTimersUI();
+      updateFilledUI();
+      if (state.started && !state.matchEnded) saveCampinState();
+      if (durationPopEl) durationPopEl.classList.remove("is-open");
+      if (btnToggleDurationEdit) btnToggleDurationEdit.setAttribute("aria-expanded", "false");
+    }
+
     function updateTimersUI(){
       // match clock
       const remaining = Math.max(0, state.totalLenMs - state.elapsedMs);
@@ -1878,7 +1996,9 @@
           matchEnded: state.matchEnded,
           gameDatetimeISO: state.gameDatetimeISO,
           teamName: state.teamName,
-          note: state.note
+          note: state.note,
+          halfLenMs: state.halfLenMs,
+          totalLenMs: state.totalLenMs
         };
         localStorage.setItem(CAMPIN_STATE_KEY, JSON.stringify(payload));
       } catch(e) {}
@@ -1910,10 +2030,17 @@
         state.gameDatetimeISO = payload.gameDatetimeISO || "";
         state.teamName = payload.teamName || "";
         state.note = payload.note || "";
+        if (payload.halfLenMs > 0) state.halfLenMs = payload.halfLenMs;
+        if (payload.totalLenMs > 0) state.totalLenMs = payload.totalLenMs;
+        if (state.halfLenMs > 0 && (!payload.totalLenMs || payload.totalLenMs <= 0))
+          state.totalLenMs = 2 * state.halfLenMs;
         state.configured = true;
         if (setupOverlay) setupOverlay.style.display = "none";
         var dt = new Date(state.gameDatetimeISO);
         if (gameDatetimeSmallEl) gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
+        updatePeriodRulesKbd();
+        updateCampinTeamTag();
+        syncHalfMinutesInput();
         renderAll();
         updateFilledUI();
         if (state.running) { state.lastTick = performance.now(); tick(); }
@@ -2183,14 +2310,33 @@
       state.gameDatetimeISO = iso;
       state.teamName = teamNameEl.value.trim();
       state.note = noteEl.value.trim();
+      let hm = halfRuleEl ? parseInt(halfRuleEl.value, 10) : 20;
+      if (!isFinite(hm) || hm < 5) hm = 20;
+      if (hm > 45) hm = 45;
+      state.halfLenMs = hm * MIN;
+      state.totalLenMs = 2 * hm * MIN;
 
       setupOverlay.style.display = "none";
 
       const dt = new Date(state.gameDatetimeISO);
       gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
+      matchClockEl.textContent = msToClock(state.totalLenMs);
+      updatePeriodRulesKbd();
+      updateCampinTeamTag();
+      syncHalfMinutesInput();
 
       openPlayerSelectUI();
     });
+
+    if (btnToggleDurationEdit && durationPopEl) {
+      btnToggleDurationEdit.addEventListener("click", function(){
+        const open = !durationPopEl.classList.contains("is-open");
+        durationPopEl.classList.toggle("is-open", open);
+        btnToggleDurationEdit.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) syncHalfMinutesInput();
+      });
+    }
+    if (btnApplyMatchDuration) btnApplyMatchDuration.addEventListener("click", applyMatchDurationFromInput);
 
     if (btnPlayerSelectConfirm) btnPlayerSelectConfirm.addEventListener("click", confirmPlayerSelection);
     if (btnPickAll) btnPickAll.addEventListener("click", function(){
@@ -2297,6 +2443,9 @@
 
       matchClockEl.textContent = msToClock(state.totalLenMs);
       if (!state.gameDatetimeISO) gameDatetimeSmallEl.textContent = "—";
+      updatePeriodRulesKbd();
+      updateCampinTeamTag();
+      syncHalfMinutesInput();
 
       loadPlayersFromSheets(function(){
         var hadGame = false;

@@ -1572,24 +1572,37 @@
             }, 2000);
         }
 
+        var lockPasswordCheckInProgress = false;
+
         function checkPassword() {
+            if (lockPasswordCheckInProgress) return;
             var input = (passwordInput.value || '').trim();
             if (!input) { showError(); return; }
+            lockPasswordCheckInProgress = true;
+            if (submitBtn) submitBtn.disabled = true;
             sha256Hex(input).then(function(hash) {
+                lockPasswordCheckInProgress = false;
+                if (submitBtn) submitBtn.disabled = false;
                 if (hash === LOCK_PASSWORD_HASH) {
                     unlockApp();
                     var callback = window.pendingActionAfterUnlock;
                     window.pendingActionAfterUnlock = null;
+                    passwordInput.value = '';
                     if (typeof fetchPlayersFromSheets === 'function') {
-                        fetchPlayersFromSheets().catch(function() {}).finally(function() {
-                            if (callback) callback();
+                        fetchPlayersFromSheets().catch(function() {});
+                    }
+                    if (typeof callback === 'function') {
+                        requestAnimationFrame(function() {
+                            try { callback(); } catch (err) { console.warn(err); }
                         });
-                    } else {
-                        if (callback) callback();
                     }
                 } else {
                     showError();
                 }
+            }).catch(function() {
+                lockPasswordCheckInProgress = false;
+                if (submitBtn) submitBtn.disabled = false;
+                showError();
             });
         }
 
