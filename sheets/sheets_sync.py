@@ -425,7 +425,8 @@ class SheetsSync:
     def append_game(self, payload: Dict[str, Any]) -> None:
         """
         Acrescenta um jogo nas abas 'Jogos' e 'Jogos_Logs' (cria as abas no final se não existirem).
-        payload: gameId, datetime, date, time, teamName, note, logs[], minutesPerPlayer[]
+        payload: gameId, datetime, date, time, teamName, note, logs[] (durationMs em saídas),
+        minutesPerPlayer[], playerSummaries[] (opcional: detalhe por jogador para aba Jogos_Elenco).
         """
         game_id = self._str(payload.get("gameId", ""))
         dt_raw = self._str(payload.get("datetime", ""))
