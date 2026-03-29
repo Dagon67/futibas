@@ -1147,6 +1147,57 @@
       return `${idx + 1}ª: entrou ${inLbl} • saiu ${outLbl} • ${dur} (${pl})`;
     }
 
+    function aggregateMsByPosId(player){
+      const map = {};
+      const stints = player.stints || [];
+      for (var i = 0; i < stints.length; i++) {
+        const st = stints[i];
+        const pid = st.posId;
+        if (!pid) continue;
+        const ms = stintDurationMs(st);
+        map[pid] = (map[pid] || 0) + ms;
+      }
+      return map;
+    }
+
+    function positionBreakdownSummaryText(p){
+      const map = aggregateMsByPosId(p);
+      const order = state.positions.map(function(x){ return x.id; });
+      const parts = [];
+      for (var oi = 0; oi < order.length; oi++) {
+        const pid = order[oi];
+        if (map[pid]) {
+          const po = state.positions.find(function(x){ return x.id === pid; });
+          parts.push((po ? po.label : pid) + ": " + msToClock(map[pid]));
+        }
+      }
+      Object.keys(map).forEach(function(k){
+        if (order.indexOf(k) === -1) parts.push(k + ": " + msToClock(map[k]));
+      });
+      return parts.length ? parts.join(" | ") : "—";
+    }
+
+    function playerPositionTimesRowsForSheets(){
+      const out = [];
+      state.players.forEach(function(p){
+        const map = aggregateMsByPosId(p);
+        Object.keys(map).forEach(function(posId){
+          if (!map[posId]) return;
+          const po = state.positions.find(function(x){ return x.id === posId; });
+          out.push({
+            playerId: p.id,
+            name: p.name,
+            number: p.numero,
+            posId: posId,
+            posLabel: po ? po.label : posId,
+            timeLabel: msToClock(map[posId]),
+            timeMs: Math.round(map[posId])
+          });
+        });
+      });
+      return out;
+    }
+
     function svgAvatarDataUriNumber(numero){
       const num = String(numero);
       const svg =
@@ -1959,6 +2010,7 @@
             <th style="width:200px;">Jogador</th>
             <th style="width:120px;">Tempo em quadra</th>
             <th style="width:120px;">Tempo no banco</th>
+            <th style="width:200px;">Tempo por posição</th>
             <th>Permanências (por entrada)</th>
           </tr>
         </thead>
@@ -1993,6 +2045,12 @@
         tdBench.style.fontWeight = "750";
         tdBench.textContent = msToClock(Math.max(0, state.elapsedMs - p.totalMs));
 
+        const tdPos = document.createElement("td");
+        tdPos.className = "eventsCell";
+        tdPos.style.fontSize = "12px";
+        tdPos.style.lineHeight = "1.35";
+        tdPos.textContent = positionBreakdownSummaryText(p);
+
         const tdEv = document.createElement("td");
         tdEv.className = "eventsCell";
         tdEv.innerHTML = formatPlayerEvents(p);
@@ -2000,6 +2058,7 @@
         tr.appendChild(tdName);
         tr.appendChild(tdTime);
         tr.appendChild(tdBench);
+        tr.appendChild(tdPos);
         tr.appendChild(tdEv);
         tbody.appendChild(tr);
       }
@@ -2290,7 +2349,8 @@
           totalOnFieldLabel: msToClock(p.totalMs || 0),
           benchMs: benchMs,
           benchLabel: msToClock(benchMs),
-          stintsDetailText: detail
+          stintsDetailText: detail,
+          positionBreakdownText: positionBreakdownSummaryText(p)
         };
       });
 
@@ -2301,7 +2361,8 @@
         note: state.note || "",
         logs,
         minutesPerPlayer,
-        playerSummaries
+        playerSummaries,
+        playerPositionTimes: playerPositionTimesRowsForSheets()
       };
 
       fetch(base + "/games", {

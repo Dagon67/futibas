@@ -425,8 +425,9 @@ class SheetsSync:
     def append_game(self, payload: Dict[str, Any]) -> None:
         """
         Acrescenta um jogo nas abas 'Jogos' e 'Jogos_Logs' (cria as abas no final se não existirem).
-        payload: gameId, datetime, date, time, teamName, note, logs[] (durationMs em saídas),
-        minutesPerPlayer[], playerSummaries[] (opcional: detalhe por jogador para aba Jogos_Elenco).
+        payload: gameId, datetime, teamName, note, logs[], minutesPerPlayer[],
+        playerSummaries[] (incl. positionBreakdownText, stintsDetailText),
+        playerPositionTimes[] (opcional: uma linha por jogador+posição → aba Jogos_Tempo_Posicao).
         """
         game_id = self._str(payload.get("gameId", ""))
         dt_raw = self._str(payload.get("datetime", ""))
@@ -519,6 +520,7 @@ class SheetsSync:
             "Qtd entradas",
             "Tempo total em quadra",
             "Tempo no banco",
+            "Tempo por posição",
             "Detalhe permanências",
         ]
         ws_elenco = self._get_or_create_worksheet_append("Jogos_Elenco", header_elenco)
@@ -533,14 +535,41 @@ class SheetsSync:
                 self._str(s.get("entryCount", "")),
                 self._str(s.get("totalOnFieldLabel", "")),
                 self._str(s.get("benchLabel", "")),
+                self._str(s.get("positionBreakdownText", "")),
                 self._str(s.get("stintsDetailText", "")),
             ])
         if rows_elenco:
             ws_elenco.append_rows(rows_elenco, value_input_option='USER_ENTERED')
 
+        header_pos_time = [
+            "ID Jogo",
+            "ID Jogador",
+            "Nome",
+            "Número",
+            "Posição",
+            "Tempo",
+            "Tempo (ms)",
+        ]
+        ws_pos_time = self._get_or_create_worksheet_append("Jogos_Tempo_Posicao", header_pos_time)
+        pos_rows = payload.get("playerPositionTimes") or []
+        rows_pos_time = []
+        for r in pos_rows:
+            rows_pos_time.append([
+                game_id,
+                self._str(r.get("playerId")),
+                self._str(r.get("name")),
+                self._str(r.get("number")),
+                self._str(r.get("posLabel", r.get("posId", ""))),
+                self._str(r.get("timeLabel", "")),
+                self._str(r.get("timeMs", "")),
+            ])
+        if rows_pos_time:
+            ws_pos_time.append_rows(rows_pos_time, value_input_option='USER_ENTERED')
+
         print(
             f"✅ Jogo {game_id} registrado: {len(rows_jogos)} Jogos, "
-            f"{len(rows_logs)} Jogos_Logs, {len(rows_elenco)} Jogos_Elenco"
+            f"{len(rows_logs)} Jogos_Logs, {len(rows_elenco)} Jogos_Elenco, "
+            f"{len(rows_pos_time)} Jogos_Tempo_Posicao"
         )
 
     def get_analytics_data(self) -> Dict[str, Any]:
