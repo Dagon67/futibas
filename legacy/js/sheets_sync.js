@@ -93,35 +93,158 @@ function cloneDataForFirestoreSnapshot(allData) {
     return out;
 }
 
-/**
- * Grava espelho dos dados em tenants/{tenantId}/snapshot/last (regras: ownsTenant).
- */
-async function saveTenantSnapshotToFirestore(allData) {
+/** @returns {{ tenantId: string, db: object } | null } */
+function getTenantFirestoreContext() {
     var tenant = typeof window !== "undefined" ? window.__TUTEM_TENANT__ : null;
     var db = typeof window !== "undefined" ? window.__TUTEM_FIREBASE_DB__ : null;
-    if (!tenant || !tenant.tenantId || !db) {
-        return { skipped: true };
+    if (!tenant || !tenant.tenantId || !db) return null;
+    return { tenantId: tenant.tenantId, db: db };
+}
+
+/** Remove fotos base64 grandes em qualquer profundidade (treino + respostas). */
+function stripLargePhotosDeep(obj, depth) {
+    depth = depth || 0;
+    if (depth > 40 || obj == null) return;
+    if (Array.isArray(obj)) {
+        obj.forEach(function (item) {
+            stripLargePhotosDeep(item, depth + 1);
+        });
+        return;
     }
+    if (typeof obj !== "object") return;
+    if (obj.photo && typeof obj.photo === "string" && obj.photo.length > 8000) {
+        obj.photoOmitted = true;
+        delete obj.photo;
+    }
+    Object.keys(obj).forEach(function (k) {
+        stripLargePhotosDeep(obj[k], depth + 1);
+    });
+}
+
+/**
+ * Payload para um doc em trainingExports/{trainingId} — espelha “uma linha lógica” por treino (como no Sheets).
+ */
+function cloneTrainingExportPayload(training, questions) {
+    var t = JSON.parse(JSON.stringify(training));
+    stripLargePhotosDeep(t);
+    var q = JSON.parse(JSON.stringify(questions || { pre: [], post: [] }));
+    stripLargePhotosDeep(q);
+    return { training: t, questionsAtExport: q };
+}
+
+/** Um documento por treino: agrega/atualiza só esse treino (não reescreve o resto). */
+async function saveTrainingExportToFirestore(training, questions) {
+    var ctx = getTenantFirestoreContext();
+    if (!ctx || !training || !training.id) return { skipped: true };
     var firestore = await import(FIRESTORE_SDK);
-    var payload = cloneDataForFirestoreSnapshot(allData);
-    var ref = firestore.doc(db, "tenants", tenant.tenantId, "snapshot", "last");
+    var pair = cloneTrainingExportPayload(training, questions);
+    var ref = firestore.doc(ctx.db, "tenants", ctx.tenantId, "trainingExports", training.id);
     await firestore.setDoc(
         ref,
         {
             updatedAt: firestore.serverTimestamp(),
-            source: "sync_all",
-            players: payload.players,
-            trainings: payload.trainings,
-            responses: payload.responses,
-            questions: payload.questions
+            trainingId: training.id,
+            training: pair.training,
+            questionsAtExport: pair.questionsAtExport
         },
         { merge: true }
     );
-    console.log("✅ Snapshot guardado no Firestore (tenants/" + tenant.tenantId + "/snapshot/last)");
+    console.log("✅ Firestore trainingExports/" + training.id + " atualizado");
     return { ok: true };
 }
 
-/** Mesmo payload que o sync/all envia ao Sheets — para espelhar no Firestore. */
+/** Plantel atual num único doc (como uma aba “Jogadores”). */
+async function saveRosterToFirestore(players) {
+    var ctx = getTenantFirestoreContext();
+    if (!ctx) return { skipped: true };
+    var payload = cloneDataForFirestoreSnapshot({
+        players: players || [],
+        trainings: [],
+        responses: [],
+        questions: { pre: [], post: [] }
+    });
+    var firestore = await import(FIRESTORE_SDK);
+    var ref = firestore.doc(ctx.db, "tenants", ctx.tenantId, "roster", "current");
+    await firestore.setDoc(
+        ref,
+        {
+            updatedAt: firestore.serverTimestamp(),
+            players: payload.players
+        },
+        { merge: true }
+    );
+    console.log("✅ Firestore roster/current atualizado");
+    return { ok: true };
+}
+
+/** Registo append-only (histórico de exportações) para dashboards / auditoria. */
+async function appendExportEventFirestore(kind, extra) {
+    var ctx = getTenantFirestoreContext();
+    if (!ctx) return { skipped: true };
+    var firestore = await import(FIRESTORE_SDK);
+    var col = firestore.collection(ctx.db, "tenants", ctx.tenantId, "exportEvents");
+    var data = Object.assign({ createdAt: firestore.serverTimestamp(), kind: kind }, extra || {});
+    await firestore.addDoc(col, data);
+    return { ok: true };
+}
+
+/** Após sync completo: grava cada treino no seu doc + plantel (batches ≤450 ops). */
+async function saveAllTrainingExportsAndRosterToFirestore(allData) {
+    var ctx = getTenantFirestoreContext();
+    if (!ctx) return { skipped: true };
+    var firestore = await import(FIRESTORE_SDK);
+    var questions = allData.questions || { pre: [], post: [] };
+    var trainings = allData.trainings || [];
+    var batch = firestore.writeBatch(ctx.db);
+    var opCount = 0;
+    async function commitBatch() {
+        if (opCount === 0) return;
+        await batch.commit();
+        batch = firestore.writeBatch(ctx.db);
+        opCount = 0;
+    }
+    for (var i = 0; i < trainings.length; i++) {
+        var training = trainings[i];
+        if (!training || !training.id) continue;
+        if (opCount >= 450) await commitBatch();
+        var ref = firestore.doc(ctx.db, "tenants", ctx.tenantId, "trainingExports", training.id);
+        var pair = cloneTrainingExportPayload(training, questions);
+        batch.set(
+            ref,
+            {
+                updatedAt: firestore.serverTimestamp(),
+                trainingId: training.id,
+                training: pair.training,
+                questionsAtExport: pair.questionsAtExport
+            },
+            { merge: true }
+        );
+        opCount++;
+    }
+    if (opCount >= 450) await commitBatch();
+    var rosterRef = firestore.doc(ctx.db, "tenants", ctx.tenantId, "roster", "current");
+    var pl = cloneDataForFirestoreSnapshot({
+        players: allData.players || [],
+        trainings: [],
+        responses: [],
+        questions: { pre: [], post: [] }
+    });
+    batch.set(
+        rosterRef,
+        { updatedAt: firestore.serverTimestamp(), players: pl.players },
+        { merge: true }
+    );
+    opCount++;
+    await commitBatch();
+    console.log(
+        "✅ Firestore: " +
+            trainings.length +
+            " treino(s) em trainingExports + roster/current"
+    );
+    return { ok: true };
+}
+
+/** Mesmo payload que o sync/all envia ao Sheets. */
 function getAllDataForSnapshot() {
     return {
         players: typeof loadPlayers === "function" ? loadPlayers() : [],
@@ -131,27 +254,72 @@ function getAllDataForSnapshot() {
     };
 }
 
-/**
- * Grava snapshot local no Firestore (não chama o backend).
- * @param {{ showToast?: boolean }} opts — showToast false = só consola (ex.: ao abrir o app e puxar jogadores).
- */
-async function writeFirestoreSnapshotIfPossible(opts) {
-    opts = opts || {};
-    var showToast = opts.showToast !== false;
-    var allData = getAllDataForSnapshot();
+async function writeFirestoreAfterTrainingSync(training, questions, showToast) {
+    showToast = showToast !== false;
     try {
-        var fsResult = await saveTenantSnapshotToFirestore(allData);
+        var fsResult = await saveTrainingExportToFirestore(training, questions);
         if (fsResult && fsResult.skipped) {
             if (showToast) showSyncToast("Firestore: não gravado (sem sessão Firebase).", "info");
-        } else if (fsResult && fsResult.ok) {
-            if (showToast) {
-                showSyncToast("Base de dados (Firestore): exportado com sucesso.", "success");
-            } else {
-                console.log("✅ Firestore snapshot atualizado (silencioso).");
-            }
+            return;
+        }
+        var resp = training.responses || [];
+        await appendExportEventFirestore("training_sync", {
+            trainingId: training.id,
+            mode: training.mode || null,
+            responseCount: resp.length
+        });
+        if (showToast) {
+            showSyncToast("Firestore: dados do treino agregados (coleção trainingExports).", "success");
         }
     } catch (err) {
-        console.warn("⚠️ Firestore snapshot:", err);
+        console.warn("⚠️ Firestore (treino):", err);
+        if (showToast) {
+            showSyncToast("Firestore: falhou — " + (err && err.message ? err.message : String(err)), "error");
+        }
+    }
+}
+
+async function writeFirestoreAfterRosterSync(players, showToast) {
+    showToast = showToast !== false;
+    try {
+        var fsResult = await saveRosterToFirestore(players);
+        if (fsResult && fsResult.skipped) {
+            if (showToast) showSyncToast("Firestore: não gravado (sem sessão Firebase).", "info");
+            return;
+        }
+        await appendExportEventFirestore("roster_sync", {
+            playerCount: (players || []).length
+        });
+        if (showToast) {
+            showSyncToast("Firestore: plantel agregado (roster/current).", "success");
+        } else {
+            console.log("✅ Firestore roster atualizado (silencioso).");
+        }
+    } catch (err) {
+        console.warn("⚠️ Firestore (plantel):", err);
+        if (showToast) {
+            showSyncToast("Firestore: falhou — " + (err && err.message ? err.message : String(err)), "error");
+        }
+    }
+}
+
+async function writeFirestoreAfterFullSync(allData, showToast) {
+    showToast = showToast !== false;
+    try {
+        var fsResult = await saveAllTrainingExportsAndRosterToFirestore(allData);
+        if (fsResult && fsResult.skipped) {
+            if (showToast) showSyncToast("Firestore: não gravado (sem sessão Firebase).", "info");
+            return;
+        }
+        await appendExportEventFirestore("full_sync", {
+            trainingCount: (allData.trainings || []).length,
+            playerCount: (allData.players || []).length
+        });
+        if (showToast) {
+            showSyncToast("Firestore: treinos e plantel agregados (trainingExports + roster).", "success");
+        }
+    } catch (err) {
+        console.warn("⚠️ Firestore (sync completo):", err);
         if (showToast) {
             showSyncToast("Firestore: falhou — " + (err && err.message ? err.message : String(err)), "error");
         }
@@ -228,20 +396,7 @@ async function syncAllToSheets() {
         const result = await response.json();
         console.log("✅ Todos os dados sincronizados com sucesso");
         showSyncToast("Google Sheets: exportado com sucesso.", "success");
-        try {
-            var fsResult = await saveTenantSnapshotToFirestore(allData);
-            if (fsResult && fsResult.skipped) {
-                showSyncToast("Firestore: não gravado (sem sessão Firebase no painel).", "info");
-            } else if (fsResult && fsResult.ok) {
-                showSyncToast("Base de dados (Firestore): exportado com sucesso.", "success");
-            }
-        } catch (err) {
-            console.warn("⚠️ Snapshot Firestore (Sheets já OK):", err);
-            showSyncToast(
-                "Firestore: falhou — " + (err && err.message ? err.message : String(err)),
-                "error"
-            );
-        }
+        await writeFirestoreAfterFullSync(allData, true);
         return result;
     } catch (error) {
         console.error("❌ Erro ao conectar com serviço de sincronização:", error);
@@ -295,7 +450,7 @@ async function syncSingleTrainingToSheets(trainingId) {
         }
         const result = await response.json();
         console.log("✅ Treino " + trainingId + " sincronizado com o Sheets");
-        await writeFirestoreSnapshotIfPossible({ showToast: true });
+        await writeFirestoreAfterTrainingSync(trainingToSend, questions, true);
         return result;
     } catch (error) {
         console.error("❌ Erro ao conectar:", error);
@@ -357,7 +512,7 @@ async function fetchPlayersFromSheets() {
             var merged = result.players.concat(onlyLocal);
             savePlayers(merged);
             console.log("✅ Lista de jogadores atualizada do Sheets (" + result.players.length + " do Sheets, " + onlyLocal.length + " só locais = " + merged.length + " total)");
-            await writeFirestoreSnapshotIfPossible({ showToast: false });
+            await writeFirestoreAfterRosterSync(merged, false);
             return { success: true, players: merged };
         }
         return result;
@@ -388,7 +543,7 @@ async function pushPlayersToSheets() {
         const result = await response.json();
         if (result.success) {
             console.log("✅ Lista de jogadores enviada para o Sheets (" + players.length + " jogadores)");
-            await writeFirestoreSnapshotIfPossible({ showToast: true });
+            await writeFirestoreAfterRosterSync(players, true);
         }
         return result;
     } catch (error) {

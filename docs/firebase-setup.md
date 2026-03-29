@@ -11,7 +11,7 @@
 
 - `legacy/js/firebase-config.js` — objeto `firebaseConfig` (podes copiar de `firebase-config.example.js`).
 - `legacy/js/firebase-auth-gate.js` — módulo que trata do Auth + gate das telas.
-- `legacy/js/sheets_sync.js` — após sync completo ao Sheets, grava **`tenants/{tenantId}/snapshot/last`** no Firestore (espelho dos dados; fotos base64 muito grandes podem ser omitidas).
+- `legacy/js/sheets_sync.js` — após sync ao Sheets, grava no Firestore de forma **incremental**: **`trainingExports/{trainingId}`** (um documento por treino), **`roster/current`** (plantel), e **`exportEvents`** (registo por export). Fotos base64 grandes são omitidas nos payloads.
 
 ## Testar localmente
 
