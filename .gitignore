@@ -43,6 +43,7 @@ logs/
 # Ambiente
 .env
 .env.local
+secrets.local
 
 # Build
 dist/
