@@ -61,6 +61,29 @@ function bodyMapUpdateListEl(listEl, names) {
     listEl.textContent = names.sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(", ");
 }
 
+/** Escala cada região a partir do centro do bbox (área de toque maior; regiões miúdas ganham mais). */
+function applyMuscleTouchScale(svg) {
+    if (!svg) return;
+    var groups = svg.querySelectorAll("g.muscle");
+    for (var i = 0; i < groups.length; i++) {
+        var g = groups[i];
+        if (g.getAttribute("data-touch-scale")) continue;
+        try {
+            var b = g.getBBox();
+            if (!isFinite(b.width) || !isFinite(b.height)) continue;
+            if (b.width < 0.25 && b.height < 0.25) continue;
+            var maxSide = Math.max(b.width, b.height);
+            var scale = maxSide < 38 ? 1.32 : maxSide < 72 ? 1.2 : maxSide < 120 ? 1.13 : 1.08;
+            var cx = b.x + b.width / 2;
+            var cy = b.y + b.height / 2;
+            var prev = (g.getAttribute("transform") || "").trim();
+            var extra = "translate(" + cx + "," + cy + ") scale(" + scale + ") translate(" + (-cx) + "," + (-cy) + ")";
+            g.setAttribute("transform", prev ? prev + " " + extra : extra);
+            g.setAttribute("data-touch-scale", "1");
+        } catch (e) {}
+    }
+}
+
 function initBodyMapQuestion(qIdx, qId) {
     var wrap = document.getElementById(qId + "_wrap");
     var host = document.getElementById(qId + "_svg");
@@ -85,81 +108,90 @@ function initBodyMapQuestion(qIdx, qId) {
                 svg.removeAttribute("id");
             }
 
-            var muscles = host.querySelectorAll("g.muscle");
-            var selected = new Set();
+            function wireBodyMap() {
+                if (!svg) return;
+                applyMuscleTouchScale(svg);
 
-            function applyClassForPart(part, on) {
-                for (var i = 0; i < muscles.length; i++) {
-                    if ((muscles[i].getAttribute("data-part") || "") === part) {
-                        muscles[i].classList.toggle("selected", on);
+                var muscles = host.querySelectorAll("g.muscle");
+                var selected = new Set();
+
+                function applyClassForPart(part, on) {
+                    for (var i = 0; i < muscles.length; i++) {
+                        if ((muscles[i].getAttribute("data-part") || "") === part) {
+                            muscles[i].classList.toggle("selected", on);
+                        }
                     }
                 }
-            }
 
-            function syncFromSet() {
-                var serial = serializeBodyMapSelection(selected);
-                if (qText && typeof state !== "undefined" && state.tempAnswers) {
-                    state.tempAnswers[qText] = serial;
-                }
-                bodyMapUpdateListEl(listEl, Array.from(selected));
-            }
-
-            function restoreFromStored(val) {
-                selected.clear();
-                for (var i = 0; i < muscles.length; i++) {
-                    muscles[i].classList.remove("selected");
-                }
-                if (val == null || val === "") {
-                    bodyMapUpdateListEl(listEl, []);
-                    return;
-                }
-                var v = String(val).trim();
-                if (/^nenhuma$/i.test(v)) {
-                    bodyMapUpdateListEl(listEl, []);
-                    return;
-                }
-                var parts = parsePontosDorMuscularValue(v);
-                parts.forEach(function (p) {
-                    selected.add(p);
-                    applyClassForPart(p, true);
-                });
-                syncFromSet();
-            }
-
-            for (var j = 0; j < muscles.length; j++) {
-                muscles[j].addEventListener("click", function (e) {
-                    e.preventDefault();
-                    var g = e.currentTarget;
-                    var part = g.getAttribute("data-part");
-                    if (!part) return;
-                    if (selected.has(part)) {
-                        selected.delete(part);
-                        applyClassForPart(part, false);
-                    } else {
-                        selected.add(part);
-                        applyClassForPart(part, true);
-                    }
-                    syncFromSet();
-                });
-            }
-
-            if (noneBtn) {
-                noneBtn.addEventListener("click", function () {
-                    selected.clear();
-                    for (var k = 0; k < muscles.length; k++) {
-                        muscles[k].classList.remove("selected");
-                    }
+                function syncFromSet() {
+                    var serial = serializeBodyMapSelection(selected);
                     if (qText && typeof state !== "undefined" && state.tempAnswers) {
-                        state.tempAnswers[qText] = "Nenhuma";
+                        state.tempAnswers[qText] = serial;
                     }
-                    bodyMapUpdateListEl(listEl, []);
-                });
+                    bodyMapUpdateListEl(listEl, Array.from(selected));
+                }
+
+                function restoreFromStored(val) {
+                    selected.clear();
+                    for (var i = 0; i < muscles.length; i++) {
+                        muscles[i].classList.remove("selected");
+                    }
+                    if (val == null || val === "") {
+                        bodyMapUpdateListEl(listEl, []);
+                        return;
+                    }
+                    var v = String(val).trim();
+                    if (/^nenhuma$/i.test(v)) {
+                        bodyMapUpdateListEl(listEl, []);
+                        return;
+                    }
+                    var parts = parsePontosDorMuscularValue(v);
+                    parts.forEach(function (p) {
+                        selected.add(p);
+                        applyClassForPart(p, true);
+                    });
+                    syncFromSet();
+                }
+
+                for (var j = 0; j < muscles.length; j++) {
+                    muscles[j].addEventListener("click", function (e) {
+                        e.preventDefault();
+                        var g = e.currentTarget;
+                        var part = g.getAttribute("data-part");
+                        if (!part) return;
+                        if (selected.has(part)) {
+                            selected.delete(part);
+                            applyClassForPart(part, false);
+                        } else {
+                            selected.add(part);
+                            applyClassForPart(part, true);
+                        }
+                        syncFromSet();
+                    });
+                }
+
+                if (noneBtn) {
+                    noneBtn.addEventListener("click", function () {
+                        selected.clear();
+                        for (var k = 0; k < muscles.length; k++) {
+                            muscles[k].classList.remove("selected");
+                        }
+                        if (qText && typeof state !== "undefined" && state.tempAnswers) {
+                            state.tempAnswers[qText] = "Nenhuma";
+                        }
+                        bodyMapUpdateListEl(listEl, []);
+                    });
+                }
+
+                var existing = qText && typeof state !== "undefined" && state.tempAnswers
+                    ? state.tempAnswers[qText]
+                    : "";
+                restoreFromStored(existing);
             }
 
-            var existing = qText && typeof state !== "undefined" && state.tempAnswers
-                ? state.tempAnswers[qText]
-                : "";
-            restoreFromStored(existing);
+            requestAnimationFrame(function () {
+                requestAnimationFrame(wireBodyMap);
+            });
         })
         .catch(function () {
             host.classList.remove("body-map-svg-host--loading");
