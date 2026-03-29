@@ -61,30 +61,90 @@ function bodyMapUpdateListEl(listEl, names) {
     listEl.textContent = names.sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(", ");
 }
 
-/** Escala cada região a partir do centro do bbox (área de toque maior; regiões miúdas ganham mais). */
-function applyMuscleTouchScale(svg) {
-    if (!svg) return;
-    var groups = svg.querySelectorAll("g.muscle");
-    for (var i = 0; i < groups.length; i++) {
-        var g = groups[i];
-        if (g.getAttribute("data-touch-scale")) continue;
-        try {
-            var b = g.getBBox();
-            if (!isFinite(b.width) || !isFinite(b.height)) continue;
-            if (b.width < 0.25 && b.height < 0.25) continue;
-            var maxSide = Math.max(b.width, b.height);
-            var partName = g.getAttribute("data-part") || "";
-            var scale = maxSide < 32 ? 1.36 : maxSide < 50 ? 1.24 : maxSide < 80 ? 1.14 : maxSide < 120 ? 1.08 : 1.05;
-            if (/Calcanhar|Pulso/i.test(partName)) scale *= 1.12;
-            scale = Math.min(scale, 1.52);
-            var cx = b.x + b.width / 2;
-            var cy = b.y + b.height / 2;
-            var prev = (g.getAttribute("transform") || "").trim();
-            var extra = "translate(" + cx + "," + cy + ") scale(" + scale + ") translate(" + (-cx) + "," + (-cy) + ")";
-            g.setAttribute("transform", prev ? prev + " " + extra : extra);
-            g.setAttribute("data-touch-scale", "1");
-        } catch (e) {}
+/** Regiões com painel de zoom lateral (clone ampliado + nome). Ordem = ordem na coluna. */
+var BODY_MAP_ZOOM_PARTS = [
+    "Calcanhar esquerdo", "Pulso esquerdo", "Pé esquerdo", "Mão esquerda",
+    "Calcanhar direito", "Pulso direito", "Pé direito", "Mão direita"
+];
+
+var BODY_MAP_SVG_W = 750;
+var BODY_MAP_SVG_H = 610;
+
+function bodyMapZoomColumn(partName) {
+    if (/esquerdo|esquerda/i.test(partName)) return "left";
+    if (/direito|direita/i.test(partName)) return "right";
+    return null;
+}
+
+/** Mini-SVG com viewBox apertado na região (mesmas coordenadas do desenho original). */
+function buildZoomMiniSvg(sourceGroup) {
+    var NS = "http://www.w3.org/2000/svg";
+    var b;
+    try {
+        b = sourceGroup.getBBox();
+    } catch (e) {
+        return null;
     }
+    if (!isFinite(b.width) || !isFinite(b.height) || b.width < 0.5 || b.height < 0.5) return null;
+    var pad = Math.max(10, Math.max(b.width, b.height) * 0.42);
+    var vx = Math.max(0, b.x - pad);
+    var vy = Math.max(0, b.y - pad);
+    var vw = Math.min(BODY_MAP_SVG_W - vx, b.width + 2 * pad);
+    var vh = Math.min(BODY_MAP_SVG_H - vy, b.height + 2 * pad);
+    if (vw < 4 || vh < 4) return null;
+    var mini = document.createElementNS(NS, "svg");
+    mini.setAttribute("viewBox", vx + " " + vy + " " + vw + " " + vh);
+    mini.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    mini.classList.add("body-map-zoom-svg");
+    mini.appendChild(sourceGroup.cloneNode(true));
+    return mini;
+}
+
+function findMuscleGroupByPart(svg, partName) {
+    var all = svg.querySelectorAll("g.muscle");
+    for (var i = 0; i < all.length; i++) {
+        if ((all[i].getAttribute("data-part") || "") === partName) return all[i];
+    }
+    return null;
+}
+
+function populateBodyMapZoomColumns(mainSvg, colLeft, colRight) {
+    var items = [];
+    for (var p = 0; p < BODY_MAP_ZOOM_PARTS.length; p++) {
+        var partName = BODY_MAP_ZOOM_PARTS[p];
+        var col = bodyMapZoomColumn(partName);
+        if (!col) continue;
+        var g = findMuscleGroupByPart(mainSvg, partName);
+        if (!g) continue;
+        var b;
+        try {
+            b = g.getBBox();
+        } catch (e) {
+            continue;
+        }
+        items.push({ partName: partName, col: col, y: b.y + b.height / 2 });
+    }
+    function appendSortedCol(colName, targetCol) {
+        var sub = items.filter(function (x) { return x.col === colName; });
+        sub.sort(function (a, b) { return a.y - b.y; });
+        for (var j = 0; j < sub.length; j++) {
+            var it = sub[j];
+            var src = findMuscleGroupByPart(mainSvg, it.partName);
+            if (!src) continue;
+            var mini = buildZoomMiniSvg(src);
+            if (!mini) continue;
+            var card = document.createElement("div");
+            card.className = "body-map-zoom-card";
+            var lab = document.createElement("div");
+            lab.className = "body-map-zoom-card-label";
+            lab.textContent = it.partName;
+            card.appendChild(lab);
+            card.appendChild(mini);
+            targetCol.appendChild(card);
+        }
+    }
+    appendSortedCol("left", colLeft);
+    appendSortedCol("right", colRight);
 }
 
 function initBodyMapQuestion(qIdx, qId) {
@@ -112,35 +172,29 @@ function initBodyMapQuestion(qIdx, qId) {
             }
             orig.classList.add("body-map-svg");
             orig.removeAttribute("id");
+            orig.setAttribute("viewBox", "0 0 " + BODY_MAP_SVG_W + " " + BODY_MAP_SVG_H);
+            orig.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            orig.removeAttribute("width");
+            orig.removeAttribute("height");
 
-            var stack = document.createElement("div");
-            stack.className = "body-map-stack";
+            var layout = document.createElement("div");
+            layout.className = "body-map-layout";
+            var colLeft = document.createElement("div");
+            colLeft.className = "body-map-zoom-col body-map-zoom-col--left";
+            var main = document.createElement("div");
+            main.className = "body-map-main";
+            var colRight = document.createElement("div");
+            colRight.className = "body-map-zoom-col body-map-zoom-col--right";
 
-            function appendHalfView(labelText, viewBoxAttr) {
-                var lab = document.createElement("div");
-                lab.className = "body-map-view-label";
-                lab.textContent = labelText;
-                var s = orig.cloneNode(true);
-                s.setAttribute("viewBox", viewBoxAttr);
-                s.setAttribute("preserveAspectRatio", "xMidYMid meet");
-                s.removeAttribute("width");
-                s.removeAttribute("height");
-                s.classList.add("body-map-svg");
-                stack.appendChild(lab);
-                stack.appendChild(s);
-            }
-
-            appendHalfView("Frente", "0 0 375 610");
-            appendHalfView("Costas", "375 0 375 610");
             host.innerHTML = "";
-            host.appendChild(stack);
+            main.appendChild(orig);
+            layout.appendChild(colLeft);
+            layout.appendChild(main);
+            layout.appendChild(colRight);
+            host.appendChild(layout);
 
             function wireBodyMap() {
-                var svgs = host.querySelectorAll("svg.body-map-svg");
-                if (!svgs.length) return;
-                for (var si = 0; si < svgs.length; si++) {
-                    applyMuscleTouchScale(svgs[si]);
-                }
+                populateBodyMapZoomColumns(orig, colLeft, colRight);
 
                 var muscles = host.querySelectorAll("g.muscle");
                 var selected = new Set();

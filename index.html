@@ -692,22 +692,71 @@
     .q-item:has(.body-map-question){
         padding-bottom:1.25rem;
     }
-    .body-map-stack{
+    .body-map-layout{
+        display:flex;
+        flex-direction:row;
+        align-items:flex-start;
+        justify-content:center;
+        gap:clamp(0.35rem,1.5vw,0.65rem);
+        width:100%;
+    }
+    .body-map-main{
+        flex:0 0 50%;
+        max-width:50%;
+        min-width:0;
+    }
+    .body-map-main svg.body-map-svg{
+        width:100%;
+        height:auto;
+        display:block;
+        margin:0 auto;
+    }
+    .body-map-zoom-col{
+        flex:1 1 25%;
+        min-width:0;
         display:flex;
         flex-direction:column;
         gap:0.4rem;
-        width:100%;
     }
-    .body-map-view-label{
-        font-size:var(--touch-font-md);
+    .body-map-zoom-card{
+        background:#1e1e1e;
+        border:1px solid rgba(255,255,255,0.14);
+        border-radius:var(--radius-md);
+        padding:0.35rem 0.3rem 0.45rem;
+    }
+    .body-map-zoom-card-label{
+        font-size:clamp(0.7rem,2.2vw,0.85rem);
         font-weight:700;
         color:var(--accent);
         text-align:center;
-        letter-spacing:0.03em;
-        padding-top:0.25rem;
+        line-height:1.2;
+        margin-bottom:0.3rem;
+        padding:0 0.15rem;
     }
-    .body-map-stack .body-map-view-label:first-child{
-        padding-top:0;
+    .body-map-zoom-card svg.body-map-zoom-svg{
+        width:100%;
+        height:auto;
+        display:block;
+        min-height:4.5rem;
+        max-height:min(22vw,140px);
+    }
+    @media (max-width:700px){
+        .body-map-layout{
+            flex-wrap:wrap;
+        }
+        .body-map-main{
+            flex:1 1 100%;
+            max-width:100%;
+            order:0;
+        }
+        .body-map-zoom-col--left{
+            order:1;
+            flex:1 1 calc(50% - 0.35rem);
+        }
+        .body-map-zoom-col--right{
+            order:2;
+            flex:1 1 calc(50% - 0.35rem);
+        }
     }
     .body-map-svg-host{
         width:100%;
@@ -733,11 +782,7 @@
         content:"Carregando mapa…";
     }
     .body-map-svg-host svg.body-map-svg{
-        width:100%;
         max-width:none;
-        height:auto;
-        display:block;
-        margin:0 auto;
     }
     .body-map-svg-host g.muscle{
         cursor:pointer;
