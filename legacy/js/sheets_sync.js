@@ -121,6 +121,43 @@ async function saveTenantSnapshotToFirestore(allData) {
     return { ok: true };
 }
 
+/** Mesmo payload que o sync/all envia ao Sheets — para espelhar no Firestore. */
+function getAllDataForSnapshot() {
+    return {
+        players: typeof loadPlayers === "function" ? loadPlayers() : [],
+        trainings: typeof loadTrainings === "function" ? loadTrainings() : [],
+        responses: typeof loadResponses === "function" ? loadResponses() : [],
+        questions: typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] }
+    };
+}
+
+/**
+ * Grava snapshot local no Firestore (não chama o backend).
+ * @param {{ showToast?: boolean }} opts — showToast false = só consola (ex.: ao abrir o app e puxar jogadores).
+ */
+async function writeFirestoreSnapshotIfPossible(opts) {
+    opts = opts || {};
+    var showToast = opts.showToast !== false;
+    var allData = getAllDataForSnapshot();
+    try {
+        var fsResult = await saveTenantSnapshotToFirestore(allData);
+        if (fsResult && fsResult.skipped) {
+            if (showToast) showSyncToast("Firestore: não gravado (sem sessão Firebase).", "info");
+        } else if (fsResult && fsResult.ok) {
+            if (showToast) {
+                showSyncToast("Base de dados (Firestore): exportado com sucesso.", "success");
+            } else {
+                console.log("✅ Firestore snapshot atualizado (silencioso).");
+            }
+        }
+    } catch (err) {
+        console.warn("⚠️ Firestore snapshot:", err);
+        if (showToast) {
+            showSyncToast("Firestore: falhou — " + (err && err.message ? err.message : String(err)), "error");
+        }
+    }
+}
+
 /** Cancela o sync agendado (útil antes de "Limpar treinos" para não reenviar depois). */
 function cancelSyncDebounce() {
     if (_syncDebounceTimer) {
@@ -157,12 +194,7 @@ async function syncAllToSheets() {
         return;
     }
     try {
-        const allData = {
-            players: typeof loadPlayers === "function" ? loadPlayers() : [],
-            trainings: typeof loadTrainings === "function" ? loadTrainings() : [],
-            responses: typeof loadResponses === "function" ? loadResponses() : [],
-            questions: typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] }
-        };
+        const allData = getAllDataForSnapshot();
         const numTrainings = (allData.trainings || []).length;
         const numResponses = (allData.responses || []).length;
         const preResponses = (allData.trainings || []).filter(function(t){ return t.mode === "pre"; }).reduce(function(acc, t){ return acc + (t.responses || []).length; }, 0);
@@ -263,6 +295,7 @@ async function syncSingleTrainingToSheets(trainingId) {
         }
         const result = await response.json();
         console.log("✅ Treino " + trainingId + " sincronizado com o Sheets");
+        await writeFirestoreSnapshotIfPossible({ showToast: true });
         return result;
     } catch (error) {
         console.error("❌ Erro ao conectar:", error);
@@ -324,6 +357,7 @@ async function fetchPlayersFromSheets() {
             var merged = result.players.concat(onlyLocal);
             savePlayers(merged);
             console.log("✅ Lista de jogadores atualizada do Sheets (" + result.players.length + " do Sheets, " + onlyLocal.length + " só locais = " + merged.length + " total)");
+            await writeFirestoreSnapshotIfPossible({ showToast: false });
             return { success: true, players: merged };
         }
         return result;
@@ -352,7 +386,10 @@ async function pushPlayersToSheets() {
             return { success: false, error: text || response.statusText };
         }
         const result = await response.json();
-        if (result.success) console.log("✅ Lista de jogadores enviada para o Sheets (" + players.length + " jogadores)");
+        if (result.success) {
+            console.log("✅ Lista de jogadores enviada para o Sheets (" + players.length + " jogadores)");
+            await writeFirestoreSnapshotIfPossible({ showToast: true });
+        }
         return result;
     } catch (error) {
         console.error("[SHEETS] Erro ao enviar jogadores:", error);
