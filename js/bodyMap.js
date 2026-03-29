@@ -73,7 +73,7 @@ function applyMuscleTouchScale(svg) {
             if (!isFinite(b.width) || !isFinite(b.height)) continue;
             if (b.width < 0.25 && b.height < 0.25) continue;
             var maxSide = Math.max(b.width, b.height);
-            var scale = maxSide < 38 ? 1.32 : maxSide < 72 ? 1.2 : maxSide < 120 ? 1.13 : 1.08;
+            var scale = maxSide < 38 ? 1.14 : maxSide < 72 ? 1.1 : maxSide < 120 ? 1.06 : 1.04;
             var cx = b.x + b.width / 2;
             var cy = b.y + b.height / 2;
             var prev = (g.getAttribute("transform") || "").trim();
