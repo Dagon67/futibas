@@ -20,6 +20,8 @@ function getBackendUrl() {
 }
 
 const BACKEND_BASE_URL = getBackendUrl();
+const FIRESTORE_SDK = "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
 const SHEETS_SYNC_URL = `${BACKEND_BASE_URL}/sync`;
 const SHEETS_SYNC_ALL_URL = `${BACKEND_BASE_URL}/sync/all`;
 const SHEETS_SYNC_TRAINING_URL = `${BACKEND_BASE_URL}/sync/training`;
@@ -30,6 +32,60 @@ let sheetsSyncEnabled = true;
 // Debounce: várias chamadas em sequência viram 1 sync "tudo" para não estourar quota (60 writes/min)
 const SYNC_DEBOUNCE_MS = 3000;
 let _syncDebounceTimer = null;
+
+/**
+ * Clona dados para o Firestore; remove fotos base64 muito grandes (limite ~1MB por documento).
+ */
+function cloneDataForFirestoreSnapshot(allData) {
+    try {
+        var raw = JSON.stringify(allData);
+        if (raw.length < 800000) {
+            return JSON.parse(raw);
+        }
+    } catch (e) {}
+    var out = {
+        players: [],
+        trainings: allData.trainings || [],
+        responses: allData.responses || [],
+        questions: allData.questions || { pre: [], post: [] }
+    };
+    (allData.players || []).forEach(function (p) {
+        var o = Object.assign({}, p);
+        if (o.photo && typeof o.photo === "string" && o.photo.length > 8000) {
+            o.photoOmitted = true;
+            delete o.photo;
+        }
+        out.players.push(o);
+    });
+    return out;
+}
+
+/**
+ * Grava espelho dos dados em tenants/{tenantId}/snapshot/last (regras: ownsTenant).
+ */
+async function saveTenantSnapshotToFirestore(allData) {
+    var tenant = typeof window !== "undefined" ? window.__TUTEM_TENANT__ : null;
+    var db = typeof window !== "undefined" ? window.__TUTEM_FIREBASE_DB__ : null;
+    if (!tenant || !tenant.tenantId || !db) {
+        return;
+    }
+    var firestore = await import(FIRESTORE_SDK);
+    var payload = cloneDataForFirestoreSnapshot(allData);
+    var ref = firestore.doc(db, "tenants", tenant.tenantId, "snapshot", "last");
+    await firestore.setDoc(
+        ref,
+        {
+            updatedAt: firestore.serverTimestamp(),
+            source: "sync_all",
+            players: payload.players,
+            trainings: payload.trainings,
+            responses: payload.responses,
+            questions: payload.questions
+        },
+        { merge: true }
+    );
+    console.log("✅ Snapshot guardado no Firestore (tenants/" + tenant.tenantId + "/snapshot/last)");
+}
 
 /** Cancela o sync agendado (útil antes de "Limpar treinos" para não reenviar depois). */
 function cancelSyncDebounce() {
@@ -105,6 +161,9 @@ async function syncAllToSheets() {
         }
         const result = await response.json();
         console.log("✅ Todos os dados sincronizados com sucesso");
+        saveTenantSnapshotToFirestore(allData).catch(function (err) {
+            console.warn("⚠️ Snapshot Firestore (não bloqueia o Sheets):", err);
+        });
         return result;
     } catch (error) {
         console.error("❌ Erro ao conectar com serviço de sincronização:", error);

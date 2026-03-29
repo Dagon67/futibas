@@ -1,26 +1,39 @@
-# Regras Firestore (mínimo para o login no painel)
+# Regras Firestore
 
-Com o SDK web, o utilizador autenticado precisa de **ler** o próprio documento `users/{uid}`.
+Cole no Firebase Console → Firestore → **Regras** → **Publicar**.
 
-No Firebase Console → Firestore → Regras, exemplo para desenvolvimento (ajuste antes de escalar):
+Inclui: leitura do perfil `users/{uid}`, leitura do documento do clube `tenants/{tenantId}`, e **leitura/escrita** em `tenants/{tenantId}/snapshot/{docId}` (o app grava `snapshot/last` após sync ao Sheets).
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function userTenantId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId;
+    }
+
+    function ownsTenant(tenantId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userTenantId() == tenantId;
+    }
+
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if false;
     }
+
     match /tenants/{tenantId} {
-      allow read: if request.auth != null;
+      allow read: if ownsTenant(tenantId);
       allow write: if false;
+
+      match /snapshot/{docId} {
+        allow read, write: if ownsTenant(tenantId);
+      }
     }
   }
 }
 ```
 
-- `users`: só o dono do UID lê o seu perfil. Escrita só via Admin/Consola (como tens feito).
-- `tenants`: leitura para qualquer utilizador autenticado (suficiente para listar nome do clube depois). Se quiseres restringir por `tenantId`, refine depois.
-
-**Authentication → Authorized domains:** adiciona o domínio do teu site no Render (ex. `algo.onrender.com`) e `localhost` para testes locais.
+**Authentication → Authorized domains:** domínio do Render + `localhost`.

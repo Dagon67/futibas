@@ -73,6 +73,10 @@ function showFirebaseError(msg) {
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  /** Usado por `sheets_sync.js` para gravar snapshot no Firestore após sync ao Sheets */
+  if (typeof window !== "undefined") {
+    window.__TUTEM_FIREBASE_DB__ = db;
+  }
 
   const form = $("firebase-auth-form");
   const emailIn = $("firebase-email");
