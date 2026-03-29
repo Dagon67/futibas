@@ -310,20 +310,6 @@
       -webkit-user-select: none;
       touch-action: none;
     }
-    .court::before{
-      content: "";
-      position: absolute;
-      left: 5%;
-      right: 5%;
-      top: 7%;
-      bottom: 7%;
-      border-radius: 18px;
-      background: linear-gradient(180deg, #c9a66a 0%, #8f6a3d 48%, #6b4a28 100%);
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
-      z-index: 0;
-      pointer-events: none;
-    }
-
     .court svg{
       position:absolute; inset:0;
       width:100%; height:100%;
@@ -346,8 +332,8 @@
       user-select: none;
       -webkit-user-select: none;
       position:absolute;
-      width: 120px;
-      max-width: 28vw;
+      width: 150px;
+      max-width: 34vw;
       transform: translate(-50%, -50%);
       display:flex;
       flex-direction:column;
@@ -359,7 +345,7 @@
       position: relative;
       user-select: none;
       -webkit-user-select: none;
-      width: 100px; height: 100px;
+      width: 128px; height: 128px;
       border-radius: 999px;
       border: 2px solid rgba(255,255,255,.4);
       /* Preenchimento sólido para discernir bem o círculo e o jogador */
@@ -413,17 +399,17 @@
       user-select: none;
     }
     .slotRing .playerChip.fieldChip .avatar{
-      width: 28px; height: 28px;
+      width: 36px; height: 36px;
       flex-shrink: 0;
     }
     .slotRing .playerChip.fieldChip .pname{
-      font-size: 10px;
+      font-size: 11px;
       max-width: none;
       text-align: center;
     }
     .slotRing .playerChip.fieldChip .ptime,
     .slotRing .playerChip.fieldChip .smallTimer{
-      font-size: 10px;
+      font-size: 11px;
     }
     .slotRing .playerChip.fieldChip .smallTimer{
       margin-top: 0;
@@ -431,7 +417,7 @@
     }
 
     .posLabel{
-      font-size: 10px;
+      font-size: 11px;
       color: rgba(255,255,255,.8);
       letter-spacing:.2px;
     }
@@ -530,7 +516,7 @@
       box-shadow: var(--ring);
     }
     .reservasStrip .bolinha .bolinhaAvatar{
-      width: 40px; height: 40px;
+      width: 48px; height: 48px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,.22);
       background: linear-gradient(135deg, rgba(96,165,250,.35), rgba(167,139,250,.35));
@@ -545,17 +531,17 @@
       min-width: 0;
     }
     .reservasStrip .bolinha .bolinhaName{
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 750;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 72px;
+      max-width: 110px;
       line-height: 1.15;
     }
     .reservasStrip .bolinha .bolinhaTime{
       font-variant-numeric: tabular-nums;
-      font-size: 10px;
+      font-size: 11px;
       color: rgba(255,255,255,.7);
       line-height: 1.2;
     }
@@ -565,8 +551,16 @@
       gap:10px;
       flex-wrap:wrap;
       align-items:center;
-      justify-content:space-between;
+      justify-content:flex-start;
     }
+    .periodRules{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin-bottom:6px;
+    }
+    .periodRules .kbd{ font-size:10px; padding:4px 8px; }
     .hint{
       color: var(--muted);
       font-size: 12px;
@@ -881,10 +875,6 @@
               <span class="tag" id="filledCountTag">0/5 no campo</span>
               <span>Preencha as 5 posições para liberar o “Iniciar jogo”.</span>
             </div>
-            <div class="hint">
-              <span class="tag">1º tempo: 20:00</span>
-              <span class="tag">2º tempo: 20:00</span>
-            </div>
           </div>
 
           <div class="court" id="court">
@@ -895,8 +885,15 @@
                   <stop offset="0" stop-color="rgba(255,255,255,.7)"/>
                   <stop offset="1" stop-color="rgba(255,255,255,.4)"/>
                 </linearGradient>
+                <linearGradient id="courtBrownGrad" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0" stop-color="#c9a66a"/>
+                  <stop offset="0.48" stop-color="#8f6a3d"/>
+                  <stop offset="1" stop-color="#6b4a28"/>
+                </linearGradient>
               </defs>
 
+              <!-- Superfície marrom: mesmos x/y/rx do traçado branco -->
+              <rect x="45" y="45" width="910" height="510" rx="30" fill="url(#courtBrownGrad)"/>
               <!-- Outer -->
               <rect x="45" y="45" width="910" height="510" rx="30" fill="none" stroke="url(#lineGlow)" stroke-width="4"/>
               <!-- Mid line -->
@@ -934,6 +931,10 @@
 
       <!-- Coluna direita: reservas para substituição + cronômetro do jogo -->
       <aside class="rightColumn">
+        <div class="periodRules">
+          <span class="kbd">1º tempo 20:00</span>
+          <span class="kbd">2º tempo 20:00</span>
+        </div>
         <div class="hint" style="justify-content:flex-start;">
           <span class="tag" id="selectedTag" style="display:none;">Selecionado: —</span>
         </div>
@@ -1116,6 +1117,34 @@
       const half = (ms < halfLen) ? 1 : 2;
       const within = (half === 1) ? ms : (ms - halfLen);
       return `T${half} ${msToClock(within)}`;
+    }
+
+    function stintDurationMs(st){
+      if (!st) return 0;
+      const end = st.outMs != null ? st.outMs : state.elapsedMs;
+      return Math.max(0, end - st.inMs);
+    }
+
+    function currentStintElapsedMs(p){
+      if (!p || !p.onField || !state.started) return 0;
+      const st = p.stints && p.stints.length ? p.stints[p.stints.length - 1] : null;
+      if (!st || st.outMs != null) return 0;
+      return Math.max(0, state.elapsedMs - st.inMs);
+    }
+
+    function benchAccumLabel(p){
+      if (!p) return "0/0:00";
+      const completed = (p.stints || []).filter(function(s){ return s.outMs != null; }).length;
+      return completed + "/" + msToClock(p.totalMs || 0);
+    }
+
+    function formatStintLine(st, idx){
+      const posLbl = state.positions.find(function(x){ return x.id === st.posId; });
+      const pl = posLbl ? posLbl.label : (st.posId || "");
+      const inLbl = matchMsToLabel(st.inMs);
+      const outLbl = st.outMs == null ? "—" : matchMsToLabel(st.outMs);
+      const dur = msToClock(stintDurationMs(st));
+      return `${idx + 1}ª: entrou ${inLbl} • saiu ${outLbl} • ${dur} (${pl})`;
     }
 
     function svgAvatarDataUriNumber(numero){
@@ -1442,7 +1471,7 @@
       chip.dataset.playerId = player.id;
       chip.setAttribute("role", "button");
       chip.setAttribute("tabindex", "0");
-      chip.setAttribute("aria-label", `${player.name}, tempo em quadra: ${msToClock(player.totalMs)}. Arraste para a posição desejada ou toque e depois toque na posição.`);
+      chip.setAttribute("aria-label", `${player.name}, no banco: ${benchAccumLabel(player)} (entradas/tempo acumulado). Arraste para a posição desejada.`);
 
       const av = document.createElement("div");
       av.className = "bolinhaAvatar";
@@ -1458,7 +1487,7 @@
       name.textContent = player.name;
       const time = document.createElement("div");
       time.className = "bolinhaTime";
-      time.textContent = msToClock(player.totalMs);
+      time.textContent = benchAccumLabel(player);
       time.dataset.timerFor = player.id;
       info.appendChild(name);
       info.appendChild(time);
@@ -1500,10 +1529,9 @@
       chip.appendChild(info);
 
       if(context === "field"){
-        // Abaixo do nome: apenas o tempo total em campo (atualizado em tempo real)
         const badge = document.createElement("div");
-        badge.className = "smallTimer";
-        badge.textContent = msToClock(player.totalMs);
+        badge.className = "smallTimer fieldStintTimer";
+        badge.textContent = msToClock(currentStintElapsedMs(player));
         badge.dataset.timerFor = player.id;
         chip.appendChild(badge);
 
@@ -1561,9 +1589,12 @@
         const line2 = document.createElement("div");
         line2.style.marginTop = "2px";
         line2.style.color = "rgba(255,255,255,.7)";
-        line2.textContent = ev.type === "IN"
-          ? `Horário de entrada: ${horario}`
-          : `Horário de saída: ${horario}`;
+        if (ev.type === "IN") {
+          line2.textContent = `Horário de entrada: ${horario}`;
+        } else {
+          var durTxt = ev.durationMs != null ? ` • Permanência: ${msToClock(ev.durationMs)}` : "";
+          line2.textContent = `Horário de saída: ${horario}${durTxt}`;
+        }
 
         txt.appendChild(line1);
         txt.appendChild(line2);
@@ -1593,18 +1624,16 @@
       else if(state.running) statusDotEl.classList.add("running");
       else statusDotEl.classList.add("paused");
 
-      // update small badges on field
-      document.querySelectorAll("[data-timer-for]").forEach(el=>{
+      document.querySelectorAll(".fieldStintTimer[data-timer-for]").forEach(function(el){
         const pid = el.dataset.timerFor;
         const p = getPlayer(pid);
-        if(p) el.textContent = msToClock(p.totalMs);
+        if (p) el.textContent = msToClock(currentStintElapsedMs(p));
       });
 
-      // update bolinha times in reservas strip
-      document.querySelectorAll(".bolinhaTime[data-timer-for]").forEach(el=>{
+      document.querySelectorAll(".bolinhaTime[data-timer-for]").forEach(function(el){
         const pid = el.dataset.timerFor;
         const p = getPlayer(pid);
-        if(p) el.textContent = msToClock(p.totalMs);
+        if (p) el.textContent = benchAccumLabel(p);
       });
     }
 
@@ -1672,11 +1701,13 @@
       return all;
     }
 
-    function logEvent(type, playerId, posId){
+    function logEvent(type, playerId, posId, extra){
       const p = getPlayer(playerId);
       if(!p) return;
       const atMs = state.elapsedMs;
-      p.events.push({ type, atMs, posId });
+      const ev = { type: type, atMs: atMs, posId: posId };
+      if (extra && extra.durationMs != null) ev.durationMs = extra.durationMs;
+      p.events.push(ev);
       renderLog();
     }
 
@@ -1684,13 +1715,14 @@
       const p = getPlayer(playerId);
       if(!p || !p.onField) return;
 
-      // close current stint
       const last = p.stints[p.stints.length - 1];
+      var dur = null;
       if(last && last.outMs == null){
         last.outMs = state.elapsedMs;
+        dur = state.elapsedMs - last.inMs;
       }
       p.onField = false;
-      logEvent("OUT", playerId, posId);
+      logEvent("OUT", playerId, posId, dur != null ? { durationMs: dur } : {});
     }
 
     function playerIn(playerId, posId){
@@ -1704,33 +1736,54 @@
     }
 
     function placePlayerIntoPosition(playerId, posId){
-      // If player is already on field somewhere, ignore to avoid duplicates
-      const alreadyPos = Object.entries(state.posToPlayer).find(([k,v])=>v===playerId);
-      if(alreadyPos && alreadyPos[0] === posId) return;
-      if(alreadyPos && alreadyPos[0] !== posId){
-        // move between positions (treat as OUT+IN at same ms)
-        const fromPos = alreadyPos[0];
-        state.posToPlayer[fromPos] = null;
-        // close stint and reopen (keeps accounting cleaner)
-        playerOut(playerId, fromPos);
+      const fromEntry = Object.entries(state.posToPlayer).find(function(kv){ return kv[1] === playerId; });
+      const fromPos = fromEntry ? fromEntry[0] : null;
+      const occupant = state.posToPlayer[posId];
+
+      if (fromPos === posId) return;
+
+      if (fromPos && occupant && occupant !== playerId) {
         state.posToPlayer[posId] = playerId;
-        playerIn(playerId, posId);
+        state.posToPlayer[fromPos] = occupant;
+        if (state.started) {
+          playerOut(playerId, fromPos);
+          playerIn(playerId, posId);
+          playerOut(occupant, posId);
+          playerIn(occupant, fromPos);
+        }
         renderAll();
         return;
       }
 
-      const outgoing = state.posToPlayer[posId];
-      if(outgoing){
-        state.posToPlayer[posId] = null;
-        // outgoing goes to bench (timer pauses)
-        playerOut(outgoing, posId);
+      if (fromPos && !occupant) {
+        state.posToPlayer[fromPos] = null;
+        state.posToPlayer[posId] = playerId;
+        if (state.started) {
+          playerOut(playerId, fromPos);
+          playerIn(playerId, posId);
+        }
+        renderAll();
+        return;
       }
 
-      // incoming
-      state.posToPlayer[posId] = playerId;
-      playerIn(playerId, posId);
-
-      renderAll();
+      if (!fromPos) {
+        if (occupant) {
+          state.posToPlayer[posId] = null;
+          if (state.started) playerOut(occupant, posId);
+          else {
+            const op = getPlayer(occupant);
+            if (op) op.onField = false;
+          }
+        }
+        state.posToPlayer[posId] = playerId;
+        if (state.started) playerIn(playerId, posId);
+        else {
+          const inc = getPlayer(playerId);
+          if (inc) inc.onField = true;
+        }
+        renderAll();
+        return;
+      }
     }
 
     var CAMPIN_GAME_KEY = "tutem_campin_game_in_progress";
@@ -1900,9 +1953,10 @@
       table.innerHTML = `
         <thead>
           <tr>
-            <th style="width:220px;">Jogador</th>
-            <th style="width:140px;">Tempo em quadra</th>
-            <th>Entradas / Saídas</th>
+            <th style="width:200px;">Jogador</th>
+            <th style="width:120px;">Tempo em quadra</th>
+            <th style="width:120px;">Tempo no banco</th>
+            <th>Permanências (por entrada)</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -1915,12 +1969,13 @@
         const tr = document.createElement("tr");
 
         const tdName = document.createElement("td");
+        const entriesN = (p.stints || []).length;
         tdName.innerHTML = `
           <div style="display:flex;align-items:center;gap:10px;">
             <div class="avatar" style="width:32px;height:32px;"><img src="${p.photo}" alt="${escapeHtml(p.name)}"/></div>
             <div style="min-width:0;">
               <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name)}</div>
-              <div style="color:rgba(255,255,255,.6);font-size:11px;">${p.stints.length} stint(s)</div>
+              <div style="color:rgba(255,255,255,.6);font-size:11px;">${entriesN} entrada(s) registrada(s)</div>
             </div>
           </div>
         `;
@@ -1930,12 +1985,18 @@
         tdTime.style.fontWeight = "800";
         tdTime.textContent = msToClock(p.totalMs);
 
+        const tdBench = document.createElement("td");
+        tdBench.style.fontVariantNumeric = "tabular-nums";
+        tdBench.style.fontWeight = "750";
+        tdBench.textContent = msToClock(Math.max(0, state.elapsedMs - p.totalMs));
+
         const tdEv = document.createElement("td");
         tdEv.className = "eventsCell";
         tdEv.innerHTML = formatPlayerEvents(p);
 
         tr.appendChild(tdName);
         tr.appendChild(tdTime);
+        tr.appendChild(tdBench);
         tr.appendChild(tdEv);
         tbody.appendChild(tr);
       }
@@ -1949,15 +2010,11 @@
     }
 
     function formatPlayerEvents(p){
-      if(!p.events || p.events.length === 0) return `<span style="color:rgba(255,255,255,.55)">—</span>`;
+      if(!p.stints || p.stints.length === 0) return `<span style="color:rgba(255,255,255,.55)">—</span>`;
 
       const chunks = [];
-      // Group by stints (IN then OUT)
-      for(const stint of p.stints){
-        const inLbl = matchMsToLabel(stint.inMs);
-        const outLbl = (stint.outMs == null) ? "—" : matchMsToLabel(stint.outMs);
-        const posLbl = state.positions.find(x=>x.id===stint.posId)?.label ?? stint.posId;
-        chunks.push(`<div>• <b>Entrou</b> ${escapeHtml(inLbl)} (<span style="color:rgba(255,255,255,.68)">${escapeHtml(posLbl)}</span>) → <b>Saiu</b> ${escapeHtml(outLbl)}</div>`);
+      for (let i = 0; i < p.stints.length; i++) {
+        chunks.push(`<div style="margin-bottom:6px;">• ${escapeHtml(formatStintLine(p.stints[i], i))}</div>`);
       }
       return chunks.join("");
     }
@@ -2189,7 +2246,7 @@
           const eventTime = new Date(gameStart + atMs).toISOString();
           const pos = state.positions.find(x => x.id === ev.posId);
           const posLabel = pos ? pos.label : (ev.posId || "");
-          logs.push({
+          const row = {
             type: ev.type,
             atMs,
             minuteLabel: matchMsToLabel(atMs),
@@ -2199,7 +2256,9 @@
             number: p.numero,
             posId: ev.posId,
             posLabel
-          });
+          };
+          if (ev.durationMs != null) row.durationMs = ev.durationMs;
+          logs.push(row);
         }
       }
       logs.sort((a, b) => a.atMs - b.atMs);
@@ -2211,13 +2270,35 @@
         minutes: Math.round(p.totalMs / 60000 * 10) / 10
       }));
 
+      const playerSummaries = state.players.map(function(p){
+        const stints = p.stints || [];
+        var detail = "";
+        for (var i = 0; i < stints.length; i++) {
+          if (i) detail += " | ";
+          detail += formatStintLine(stints[i], i);
+        }
+        var benchMs = Math.max(0, state.elapsedMs - (p.totalMs || 0));
+        return {
+          playerId: p.id,
+          name: p.name,
+          number: p.numero,
+          entryCount: stints.length,
+          totalMs: p.totalMs || 0,
+          totalOnFieldLabel: msToClock(p.totalMs || 0),
+          benchMs: benchMs,
+          benchLabel: msToClock(benchMs),
+          stintsDetailText: detail
+        };
+      });
+
       const payload = {
         gameId,
         datetime: state.gameDatetimeISO || new Date().toISOString(),
         teamName: state.teamName || "",
         note: state.note || "",
         logs,
-        minutesPerPlayer
+        minutesPerPlayer,
+        playerSummaries
       };
 
       fetch(base + "/games", {

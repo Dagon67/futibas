@@ -463,8 +463,18 @@ class SheetsSync:
         if rows_jogos:
             ws_jogos.append_rows(rows_jogos, value_input_option='USER_ENTERED')
 
-        # Aba Jogos_Logs: ID Jogo, Data/Hora do log, Minuto do jogo, ID Jogador, Nome, Número, Evento, Posição
-        header_logs = ["ID Jogo", "Data/Hora", "Minuto do jogo", "ID Jogador", "Nome", "Número", "Evento", "Posição"]
+        # Aba Jogos_Logs: + coluna duração na saída (mm:ss) quando houver durationMs
+        header_logs = [
+            "ID Jogo",
+            "Data/Hora",
+            "Minuto do jogo",
+            "ID Jogador",
+            "Nome",
+            "Número",
+            "Evento",
+            "Posição",
+            "Duração saída",
+        ]
         ws_logs = self._get_or_create_worksheet_append("Jogos_Logs", header_logs)
         logs_list = payload.get("logs") or []
         rows_logs = []
@@ -476,6 +486,15 @@ class SheetsSync:
                 m = int(total_m)
                 s = int((total_m - m) * 60)
                 min_label = f"{m}:{s:02d}"
+            dur_lbl = ""
+            if ev.get("type") == "OUT" and ev.get("durationMs") is not None:
+                try:
+                    ms = float(ev["durationMs"])
+                    dm = int(ms // 60000)
+                    ds = int((ms % 60000) // 1000)
+                    dur_lbl = f"{dm}:{ds:02d}"
+                except (TypeError, ValueError):
+                    dur_lbl = ""
             rows_logs.append([
                 game_id,
                 self._str(ev.get("timestamp", dt_raw)),
@@ -485,11 +504,43 @@ class SheetsSync:
                 self._str(ev.get("number")),
                 "Entrada" if ev.get("type") == "IN" else "Saída",
                 self._str(ev.get("posLabel", ev.get("posId", ""))),
+                dur_lbl,
             ])
         if rows_logs:
             ws_logs.append_rows(rows_logs, value_input_option='USER_ENTERED')
 
-        print(f"✅ Jogo {game_id} registrado: {len(rows_jogos)} linhas em Jogos, {len(rows_logs)} linhas em Jogos_Logs")
+        # Resumo por jogador: entradas, tempos, detalhe textual das permanências
+        header_elenco = [
+            "ID Jogo",
+            "ID Jogador",
+            "Nome",
+            "Número",
+            "Qtd entradas",
+            "Tempo total em quadra",
+            "Tempo no banco",
+            "Detalhe permanências",
+        ]
+        ws_elenco = self._get_or_create_worksheet_append("Jogos_Elenco", header_elenco)
+        summaries = payload.get("playerSummaries") or []
+        rows_elenco = []
+        for s in summaries:
+            rows_elenco.append([
+                game_id,
+                self._str(s.get("playerId")),
+                self._str(s.get("name")),
+                self._str(s.get("number")),
+                self._str(s.get("entryCount", "")),
+                self._str(s.get("totalOnFieldLabel", "")),
+                self._str(s.get("benchLabel", "")),
+                self._str(s.get("stintsDetailText", "")),
+            ])
+        if rows_elenco:
+            ws_elenco.append_rows(rows_elenco, value_input_option='USER_ENTERED')
+
+        print(
+            f"✅ Jogo {game_id} registrado: {len(rows_jogos)} Jogos, "
+            f"{len(rows_logs)} Jogos_Logs, {len(rows_elenco)} Jogos_Elenco"
+        )
 
     def get_analytics_data(self) -> Dict[str, Any]:
         """Lê abas pre, pos e Jogadores para o dashboard de acompanhamento. Retorna dados estruturados para gráficos."""
