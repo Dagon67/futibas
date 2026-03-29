@@ -87,7 +87,11 @@ function showFirebaseError(msg) {
     const ref = doc(db, "users", user.uid);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
-      throw new Error("Este utilizador não tem perfil no Firestore. Peça ao administrador para criar users/" + user.uid);
+      throw new Error(
+        "O documento users/" +
+          user.uid +
+          " não existe. No Firestore, o ID do documento na coleção \"users\" tem de ser EXATAMENTE o UID do Authentication (copiar da consola), não \"admin\" nem \"jaragua\" — só os campos email, role e tenantId."
+      );
     }
     const data = snap.data();
     if (!data.tenantId) {

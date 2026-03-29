@@ -3,7 +3,7 @@
 ## Fluxo
 
 1. **Login Firebase** (e-mail/senha) — sessão persistente no browser.
-2. Leitura do documento **`users/{uid}`** no Firestore (`tenantId`, etc.).
+2. Leitura do documento **`users/{uid}`** no Firestore (`tenantId`, etc.). O **ID do documento** tem de ser o **mesmo UID** que aparece em Authentication (não use `admin` ou `jaragua` como ID; pode guardar o UID também num campo `uid` à parte, mas o **caminho** tem de ser `users/<UID>`).
 3. **Senha do painel** (a mesma de sempre, hash no `index.html`).
 4. Arranque da app (`startTutemApp`).
 
