@@ -200,16 +200,16 @@
       border-color: rgba(251,113,133,.28);
     }
 
-    /* Layout: quadra à esquerda (sem margem) | direita: reservas + cronômetro */
+    /* ~44% quadra / ~56% reservas+cronômetro — preenche o vão que existia à direita do campo */
     .grid{
       display: grid;
-      grid-template-columns: 1fr 280px;
+      grid-template-columns: minmax(0, 44%) minmax(280px, 56%);
       gap: 0;
       flex: 1;
       min-height: 0;
     }
     @media (max-width: 900px){
-      .grid{ grid-template-columns: 1fr 240px; }
+      .grid{ grid-template-columns: minmax(0, 1fr) minmax(240px, 42%); }
     }
 
     .grid > .panel:first-child{
@@ -286,10 +286,10 @@
       position: relative;
       flex: 1;
       min-height: 0;
-      padding: 12px 10px 12px 0;
+      padding: 8px 6px 8px 0;
       display: grid;
       grid-template-rows: auto 1fr;
-      gap: 10px;
+      gap: 8px;
       user-select: none;
       -webkit-user-select: none;
     }
@@ -297,11 +297,11 @@
     /* Quadra: faixa externa azul (pista/lateral) + superfície marrom (madeira/sintético) */
     .court{
       position: relative;
-      width: 80%;
-      max-width: 80%;
-      justify-self: start;
+      width: 100%;
+      max-width: 100%;
+      justify-self: stretch;
       min-height: 416px;
-      border-radius: 0 22px 22px 0;
+      border-radius: 0 18px 18px 0;
       overflow: hidden;
       border: 1px solid rgba(255,255,255,.12);
       box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
@@ -496,14 +496,14 @@
     .reservasStrip .bolinha{
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px 8px 8px;
+      gap: 10px;
+      padding: 10px 14px 10px 10px;
       border-radius: 999px;
       background: rgba(0,0,0,.5);
       border: 2px solid rgba(255,255,255,.3);
       cursor: grab;
       user-select: none;
-      min-height: 52px;
+      min-height: 62px;
       transition: box-shadow .15s ease, border-color .15s ease, transform .06s ease;
     }
     .reservasStrip .bolinha:hover{
@@ -516,7 +516,7 @@
       box-shadow: var(--ring);
     }
     .reservasStrip .bolinha .bolinhaAvatar{
-      width: 48px; height: 48px;
+      width: 58px; height: 58px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,.22);
       background: linear-gradient(135deg, rgba(96,165,250,.35), rgba(167,139,250,.35));
@@ -531,17 +531,17 @@
       min-width: 0;
     }
     .reservasStrip .bolinha .bolinhaName{
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 750;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 110px;
+      max-width: 140px;
       line-height: 1.15;
     }
     .reservasStrip .bolinha .bolinhaTime{
       font-variant-numeric: tabular-nums;
-      font-size: 11px;
+      font-size: 13px;
       color: rgba(255,255,255,.7);
       line-height: 1.2;
     }
@@ -892,8 +892,8 @@
                 </linearGradient>
               </defs>
 
-              <!-- Superfície marrom: mesmos x/y/rx do traçado branco -->
-              <rect x="45" y="45" width="910" height="510" rx="30" fill="url(#courtBrownGrad)"/>
+              <!-- Marrom levemente maior para cobrir metade interna do traço (evita halo azul entre fill e linha) -->
+              <rect x="43" y="43" width="914" height="514" rx="31" fill="url(#courtBrownGrad)"/>
               <!-- Outer -->
               <rect x="45" y="45" width="910" height="510" rx="30" fill="none" stroke="url(#lineGlow)" stroke-width="4"/>
               <!-- Mid line -->
@@ -1735,6 +1735,14 @@
       logEvent("IN", playerId, posId);
     }
 
+    /** Só atualiza a posição tática do período atual — não zera tempo (troca entre jogadores em campo). */
+    function updateOpenStintPosId(playerId, newPosId){
+      const p = getPlayer(playerId);
+      if (!p || !p.stints || !p.stints.length) return;
+      const last = p.stints[p.stints.length - 1];
+      if (last && last.outMs == null) last.posId = newPosId;
+    }
+
     function placePlayerIntoPosition(playerId, posId){
       const fromEntry = Object.entries(state.posToPlayer).find(function(kv){ return kv[1] === playerId; });
       const fromPos = fromEntry ? fromEntry[0] : null;
@@ -1746,10 +1754,8 @@
         state.posToPlayer[posId] = playerId;
         state.posToPlayer[fromPos] = occupant;
         if (state.started) {
-          playerOut(playerId, fromPos);
-          playerIn(playerId, posId);
-          playerOut(occupant, posId);
-          playerIn(occupant, fromPos);
+          updateOpenStintPosId(playerId, posId);
+          updateOpenStintPosId(occupant, fromPos);
         }
         renderAll();
         return;
@@ -1758,10 +1764,7 @@
       if (fromPos && !occupant) {
         state.posToPlayer[fromPos] = null;
         state.posToPlayer[posId] = playerId;
-        if (state.started) {
-          playerOut(playerId, fromPos);
-          playerIn(playerId, posId);
-        }
+        if (state.started) updateOpenStintPosId(playerId, posId);
         renderAll();
         return;
       }
