@@ -17,17 +17,15 @@
     }
 
     async function startTutemApp() {
-        // Magnus precisa recarregar o roster/current ao destrancar (para refletir mudanças).
-        // Usamos um guard separado para não bloquear re-import.
-
         if (!isMagnusMode()) {
             // fallback: não deveria acontecer
             if (typeof window.goHome === "function") window.goHome();
             return;
         }
 
-        // Init do storage (FireStore). Se falhar por rules/latência, ainda assim
-        // tentamos seed local para que a UI mostre jogadores.
+        // Magnus precisa recarregar o roster/current ao destrancar (para refletir mudanças).
+        // IMPORTANTE: NÃO navegar para Home aqui, porque o fluxo de "Jogadores"
+        // usa o lock-screen com callback (goPlayers). Se eu redirecionar, a tela pisca.
         try {
             if (typeof window.initMagnusStorage !== "function") {
                 console.warn("MAGNUS: initMagnusStorage não encontrado.");
@@ -52,12 +50,18 @@
             console.warn("MAGNUS: seed de defaults falhou:", err);
         }
 
-        // Redesenhar Home.
-        if (typeof window.goHome === "function") {
-            try {
-                window.goHome();
-            } catch (e) {
-                console.warn("MAGNUS: goHome falhou:", e);
+        // Só renderizar Home quando necessário (primeiro unlock após selecionar/ativar tenant).
+        // Se o lock-screen tinha callback pendente (ex.: goPlayers), suprimimos o redirect para não piscar.
+        const suppress = !!window.__TUTEM_MAGNUS_SUPPRESS_HOME_RENDER__;
+        if (suppress) {
+            window.__TUTEM_MAGNUS_SUPPRESS_HOME_RENDER__ = false;
+            return;
+        }
+
+        if (window.__TUTEM_MAGNUS_NEEDS_HOME_RENDER__) {
+            window.__TUTEM_MAGNUS_NEEDS_HOME_RENDER__ = false;
+            if (typeof window.goHome === "function") {
+                try { window.goHome(); } catch (e) { console.warn("MAGNUS: goHome falhou:", e); }
             }
         }
     }

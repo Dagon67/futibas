@@ -186,6 +186,9 @@ async function activateTenant(tenantId) {
   window.__TUTEM_SHEETS_MODE__ = mode === "magnus" ? "none" : "sheets";
 
   if (mode === "magnus") {
+    // Render de "Home" só quando necessário (primeiro unlock após ativar/selecionar tenant).
+    // Quando vier de callback do lock-screen (ex.: goPlayers), não navegar para home para evitar o flash.
+    window.__TUTEM_MAGNUS_NEEDS_HOME_RENDER__ = true;
     await loadScriptOnce("js/storage-magnus.js");
     await loadScriptOnce("js/app-magnus.js");
     return;

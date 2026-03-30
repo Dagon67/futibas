@@ -2098,6 +2098,11 @@
 
         function lockApp(callback) {
             window.pendingActionAfterUnlock = callback || null;
+            // Magnus: se houver uma ação pendente (ex.: goPlayers), não redirecionar para Home no unlock.
+            try {
+                window.__TUTEM_MAGNUS_SUPPRESS_HOME_RENDER__ =
+                    window.__TUTEM_APP_MODE__ === "magnus" && typeof callback === "function";
+            } catch (e) {}
             lockScreen.setAttribute('data-unlocked', 'false');
             appShell.style.display = 'none';
             passwordInput.value = '';
