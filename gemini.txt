@@ -11,7 +11,7 @@
 # 3. Save Changes → Manual Deploy (ou aguarde o deploy automático).
 #
 # Opcional:
-#   GEMINI_MODEL = gemini-2.0-flash
+#   GEMINI_MODEL = gemini-2.5-flash-lite
 #
 # Se uma chave foi exposta, revogue no Google e crie outra.
 #

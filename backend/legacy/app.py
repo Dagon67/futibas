@@ -443,8 +443,8 @@ def _insights_call_gemini(prompt):
     import requests
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
-        return None, "GEMINI_API_KEY não configurada no servidor (Render → Environment)."
-    model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+        return None, "GEMINI_API_KEY não configurada no servidor (Render → Environment).", None, None
+    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite").strip()
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     base_cfg = {
         "temperature": 0.35,
@@ -455,6 +455,8 @@ def _insights_call_gemini(prompt):
         base_cfg,
     ]
     last_err = None
+    last_status = None
+    retry_after_ms = None
     for gen_cfg in attempts:
         body = {
             "contents": [{"parts": [{"text": prompt}]}],
@@ -466,6 +468,17 @@ def _insights_call_gemini(prompt):
                 err = r.json()
             except Exception:
                 err = {"raw": r.text[:500]}
+            last_status = r.status_code
+            # RetryInfo costuma vir em details[].retryDelay como "45s"
+            try:
+                details = (err.get("error") or {}).get("details") or []
+                for d in details:
+                    rd = d.get("retryDelay")
+                    if isinstance(rd, str) and rd.endswith("s"):
+                        retry_after_ms = int(float(rd[:-1]) * 1000)
+                        break
+            except Exception:
+                retry_after_ms = None
             last_err = f"Gemini HTTP {r.status_code}: {err}"
             continue
         data = r.json()
@@ -475,8 +488,8 @@ def _insights_call_gemini(prompt):
         except (KeyError, IndexError, TypeError):
             last_err = "Resposta Gemini inesperada."
             continue
-        return text, None
-    return None, last_err or "Falha ao chamar Gemini."
+        return text, None, None, None
+    return None, last_err or "Falha ao chamar Gemini.", last_status, retry_after_ms
 
 
 @app.route('/insights', methods=['POST'])
@@ -545,8 +558,26 @@ def post_insights():
                 "Dados:\n" + summary
             )
 
-            text, err = _insights_call_gemini(prompt)
+            text, err, gem_status, gem_retry_ms = _insights_call_gemini(prompt)
             if err:
+                if gem_status == 429:
+                    fallback = None
+                    if _INSIGHTS_BY_FP:
+                        try:
+                            newest = max(_INSIGHTS_BY_FP.values(), key=lambda x: x.get("ts", 0))
+                            fallback = newest.get("insights")
+                        except Exception:
+                            fallback = None
+                    # Backoff local para segurar spam quando a cota estoura
+                    _LAST_GLOBAL_INSIGHTS_CALL = time.time()
+                    return jsonify({
+                        "success": False,
+                        "error": "quota_exceeded",
+                        "message": "Cota Gemini excedida no momento. Aguarde para tentar novamente.",
+                        "retryAfterMs": gem_retry_ms if gem_retry_ms is not None else 60000,
+                        "insights": (fallback or [])[:5],
+                        "providerError": err,
+                    }), 429
                 return jsonify({"success": False, "error": err}), 503
 
             insights = _insights_parse_gemini_json(text)
