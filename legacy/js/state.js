@@ -25,7 +25,10 @@ function resetPendingForMode(mode){
     state.pendingByMode[mode] = [...state.selectedPlayerIds];
 }
 
-const RESUME_STATE_KEY = "treino_resume_state";
+const RESUME_STATE_KEY =
+    (typeof window !== "undefined" && window.__TUTEM_APP_MODE__ === "magnus")
+        ? "magnus_treino_resume_state"
+        : "treino_resume_state";
 
 function saveResumeState(){
     try {

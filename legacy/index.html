@@ -84,6 +84,87 @@
         display:none;
     }
 
+    /* ---------- TELA DE SELECAO DE TENANT (apenas admin) ---------- */
+    #tenant-select-screen{
+        position:fixed;
+        top:0;left:0;right:0;bottom:0;
+        z-index:10005;
+        background:var(--bg-main);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:var(--safe-pad);
+    }
+    #tenant-select-screen[hidden]{
+        display:none !important;
+    }
+    .tenant-select-overlay{
+        width:100%;
+        max-width:560px;
+    }
+    .tenant-select-card{
+        background:var(--card-bg);
+        border:2px solid var(--card-stroke);
+        box-shadow:0 8px 32px rgba(0,0,0,.4);
+        border-radius:var(--radius-xl);
+        padding:clamp(26px,4vh,42px) clamp(20px,3vw,32px);
+        display:flex;
+        flex-direction:column;
+        gap:0.9rem;
+        align-items:center;
+        text-align:center;
+    }
+    .tenant-select-title{
+        font-size:clamp(1.25rem,2vw + 0.9rem,1.7rem);
+        font-weight:800;
+        color:var(--text-main);
+    }
+    .tenant-select-sub{
+        font-size:var(--touch-font-md);
+        color:var(--text-dim);
+        font-weight:500;
+        line-height:1.35;
+    }
+    .tenant-select-grid{
+        width:100%;
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:14px;
+        margin-top:0.35rem;
+    }
+    .tenant-select-btn{
+        width:100%;
+        border:2px solid rgba(255,255,255,.18);
+        background:rgba(0,0,0,.35);
+        border-radius:var(--radius-lg);
+        padding:14px 12px;
+        cursor:pointer;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:10px;
+        transition:all var(--fast) ease;
+        color:var(--text-main);
+    }
+    .tenant-select-btn:hover{
+        border-color:rgba(255,255,255,.35);
+        transform:translateY(-2px);
+        box-shadow:0 12px 40px rgba(0,0,0,.55);
+    }
+    .tenant-select-logo{
+        width:70px;
+        height:70px;
+        object-fit:contain;
+        border-radius:14px;
+        filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));
+        background:transparent;
+    }
+    .tenant-select-btn-text{
+        font-size:1rem;
+        font-weight:800;
+    }
+
     /* ---------- LOGIN FIREBASE (antes da senha do painel) ---------- */
     #firebase-auth-screen{
         position:fixed;
@@ -1861,12 +1942,34 @@
     </div>
 </div>
 
+<!-- TELA DE SELECAO DE TENANT (apenas admin) -->
+<div id="tenant-select-screen" hidden>
+    <div class="tenant-select-overlay">
+        <div class="tenant-select-card">
+            <div class="tenant-select-title">Escolha o time</div>
+            <div class="tenant-select-sub">Admin: selecione qual tenant você quer controlar agora.</div>
+
+            <div class="tenant-select-grid">
+                <button type="button" class="tenant-select-btn" data-tenant="jaragua-futsal" onclick="chooseTenantFromAdmin('jaragua-futsal')">
+                    <img class="tenant-select-logo" src="Associação_Desportiva_Jaraguá.png" alt="Jaraguá Futsal">
+                    <div class="tenant-select-btn-text">Jaraguá</div>
+                </button>
+
+                <button type="button" class="tenant-select-btn" data-tenant="magnus" onclick="chooseTenantFromAdmin('magnus')">
+                    <img class="tenant-select-logo" src="times/logo-magnus.jpg" alt="Magnus Futsal">
+                    <div class="tenant-select-btn-text">Magnus</div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- TELA DE BLOQUEIO (senha do painel, depois do Firebase) -->
 <div id="lock-screen" data-unlocked="true">
     <div class="lock-container">
-        <img src="Associação_Desportiva_Jaraguá.png" alt="Associação Desportiva Jaraguá" class="lock-logo">
-        <div class="lock-title">Associação Desportiva Jaraguá</div>
-        <div class="lock-subtitle">Painel de Treino • Digite a senha para continuar</div>
+        <img id="lock-logo-img" src="Associação_Desportiva_Jaraguá.png" alt="Associação Desportiva Jaraguá" class="lock-logo">
+        <div id="lock-title-text" class="lock-title">Associação Desportiva Jaraguá</div>
+        <div id="lock-subtitle-text" class="lock-subtitle">Painel de Treino • Digite a senha para continuar</div>
         <div class="lock-input-wrapper">
             <input type="password" id="lock-password" class="lock-input" placeholder="••••••" autocomplete="off">
             <button id="lock-submit" class="lock-btn">Entrar</button>
@@ -1907,10 +2010,31 @@
 </div>
 
 <!-- Módulos JavaScript -->
-<script src="js/storage.js"></script>
+<script>
+    (function () {
+        var params = new URLSearchParams(window.location.search || "");
+        window.__TUTEM_APP_MODE__ = params.get("app") === "magnus" ? "magnus" : "jaragua";
+    })();
+</script>
+<script>
+    (function () {
+        var isMagnus = window.__TUTEM_APP_MODE__ === "magnus";
+        // Importa o storage correto mantendo a ordem de execução.
+        document.write(
+            isMagnus ? '<script src="js/storage-magnus.js"><\/script>' : '<script src="js/storage.js"><\/script>'
+        );
+    })();
+</script>
 <script src="js/state.js"></script>
 <script src="js/utils.js"></script>
-<script src="js/sheets_sync.js"></script>
+<script>
+    (function () {
+        if (window.__TUTEM_APP_MODE__ !== "magnus") {
+            // Sheets só existe no Jaraguá.
+            document.write('<script src="js/sheets_sync.js"><\/script>');
+        }
+    })();
+</script>
 <script src="js/csv.js"></script>
 <script src="js/bodyMap.js"></script>
 <script src="js/screens/home.js"></script>
@@ -1929,7 +2053,14 @@
 <script src="js/screens/settings.js"></script>
 <script src="js/screens/settingsQuestions.js"></script>
 <script src="js/screens/settingsData.js"></script>
-<script src="js/app.js"></script>
+<script>
+    (function () {
+        var isMagnus = window.__TUTEM_APP_MODE__ === "magnus";
+        document.write(
+            isMagnus ? '<script src="js/app-magnus.js"><\/script>' : '<script src="js/app.js"><\/script>'
+        );
+    })();
+</script>
 <script type="module" src="js/firebase-auth-gate.js"></script>
 <script>
     // Função global para o botão Jogadores: pede senha, depois abre Jogadores e puxa lista do Sheets
@@ -2003,8 +2134,9 @@
                     if (typeof window.startTutemApp === 'function') {
                         try { window.startTutemApp(); } catch (err) { console.warn(err); }
                     }
-                    if (typeof fetchPlayersFromSheets === 'function') {
-                        fetchPlayersFromSheets().catch(function() {});
+                    // No Magnus não usamos Sheets.
+                    if (window.__TUTEM_APP_MODE__ !== "magnus" && typeof fetchPlayersFromSheets === 'function') {
+                        fetchPlayersFromSheets().catch(function () { });
                     }
                     if (typeof callback === 'function') {
                         requestAnimationFrame(function() {

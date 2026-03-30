@@ -59,6 +59,131 @@ function showFirebaseError(msg) {
   }
 }
 
+function setTenantSelectVisible(visible) {
+  const el = $("tenant-select-screen");
+  if (!el) return;
+  el.hidden = !visible;
+}
+
+function getTenantTheme(tenantId) {
+  // Ajuste de temas por tenant (cores para legibilidade + logo do time).
+  if (tenantId === "magnus") {
+    return {
+      lockLogoSrc: "times/logo-magnus.jpg",
+      lockLogoAlt: "Magnus Futsal",
+      lockTitle: "Magnus Futsal",
+      lockSubtitle: "Painel de Treino • Digite a senha para continuar",
+      cssVars: {
+        "--bg-main": "radial-gradient(circle at 50% 50%, #ff8a00 0%, #ff5f6d 55%, #5b21b6 100%)",
+        "--card-bg": "#07070a",
+        "--card-stroke": "rgba(255,138,0,0.35)",
+        "--accent": "#ff8a00",
+        "--accent-secondary": "#5b21b6",
+        "--accent-soft": "rgba(255,138,0,0.15)",
+        "--text-main": "#ffffff",
+        "--text-dim": "#e5e7eb",
+        "--text-bright": "#ff8a00",
+        "--pre-color": "#5b21b6",
+        "--pre-glow": "rgba(91,33,182,0.35)",
+        "--post-color": "#ff8a00",
+        "--post-glow": "rgba(255,138,0,0.35)"
+      }
+    };
+  }
+
+  // Default: Jaraguá (mantém o comportamento atual)
+  return {
+    lockLogoSrc: "Associação_Desportiva_Jaraguá.png",
+    lockLogoAlt: "Associação Desportiva Jaraguá",
+    lockTitle: "Associação Desportiva Jaraguá",
+    lockSubtitle: "Painel de Treino • Digite a senha para continuar",
+    cssVars: {
+      "--bg-main": "radial-gradient(circle at 50% 50%, #feec02 0%, #ffcc01 100%)",
+      "--card-bg": "#000000",
+      "--card-stroke": "rgba(254,236,2,0.35)",
+      "--accent": "#feec02",
+      "--accent-secondary": "#ffcc01",
+      "--accent-soft": "rgba(254,236,2,0.15)",
+      "--text-main": "#ffffff",
+      "--text-dim": "#e0e0e0",
+      "--text-bright": "#feec02",
+      "--pre-color": "#feec02",
+      "--pre-glow": "rgba(254,236,2,0.35)",
+      "--post-color": "#ffcc01",
+      "--post-glow": "rgba(255,204,1,0.35)"
+    }
+  };
+}
+
+function applyTenantTheme(tenantId) {
+  const theme = getTenantTheme(tenantId);
+  try {
+    Object.keys(theme.cssVars || {}).forEach(function (k) {
+      document.documentElement.style.setProperty(k, theme.cssVars[k]);
+    });
+  } catch (e) {}
+
+  const logo = $("lock-logo-img");
+  if (logo) {
+    logo.src = theme.lockLogoSrc;
+    logo.alt = theme.lockLogoAlt;
+  }
+  const title = $("lock-title-text");
+  if (title) title.textContent = theme.lockTitle || "";
+  const subtitle = $("lock-subtitle-text");
+  if (subtitle) subtitle.textContent = theme.lockSubtitle || "";
+}
+
+function mapTenantToAppMode(tenantId) {
+  if (tenantId === "magnus") return "magnus";
+  return "jaragua";
+}
+
+function loadScriptOnce(src) {
+  return new Promise(function (resolve, reject) {
+    try {
+      // evita duplicar scripts
+      const existing = document.querySelector('script[data-dyn-src="' + src + '"]') || document.querySelector('script[src="' + src + '"]');
+      if (existing) return resolve();
+      const s = document.createElement("script");
+      s.type = "text/javascript";
+      s.src = src;
+      s.setAttribute("data-dyn-src", src);
+      s.onload = function () { resolve(); };
+      s.onerror = function () { reject(new Error("Falha ao carregar " + src)); };
+      document.head.appendChild(s);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+async function activateTenant(tenantId) {
+  if (!tenantId) return;
+  window.__TUTEM_TENANT__ = window.__TUTEM_TENANT__ || {};
+  window.__TUTEM_TENANT__.tenantId = tenantId;
+
+  applyTenantTheme(tenantId);
+
+  const mode = mapTenantToAppMode(tenantId);
+  window.__TUTEM_APP_MODE__ = mode;
+
+  if (mode === "magnus") {
+    await loadScriptOnce("js/storage-magnus.js");
+    await loadScriptOnce("js/app-magnus.js");
+    // garante que não chamaremos Sheets no Magnus
+    try {
+      if (typeof setSheetsSyncEnabled === "function") setSheetsSyncEnabled(false);
+    } catch (e) {}
+    return;
+  }
+
+  // Jaraguá: precisa das funções de Sheets
+  await loadScriptOnce("js/storage.js");
+  await loadScriptOnce("js/app.js");
+  await loadScriptOnce("js/sheets_sync.js");
+}
+
 (function boot() {
   try {
     if (typeof window !== "undefined" && window.location && window.location.search.indexOf("firebaseLogout=1") !== -1) {
@@ -110,6 +235,16 @@ function showFirebaseError(msg) {
       role: data.role || "staff",
       email: user.email || data.email || null
     };
+
+    // Admin pode trocar tenant via URL (?tenant=magnus ou ?tenantId=magnus).
+    // Isto permite que a mesma conta admin controle Jaraguá e Magnus sem mudar o documento em users/{uid}.
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      const override = params.get("tenant") || params.get("tenantId");
+      if (override && window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.role === "admin") {
+        window.__TUTEM_TENANT__.tenantId = override;
+      }
+    } catch (e) {}
     return data;
   }
 
@@ -143,6 +278,35 @@ function showFirebaseError(msg) {
       return;
     }
 
+    // Decide tenant/app e mostra (ou não) o seletor para admin.
+    const role = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.role ? window.__TUTEM_TENANT__.role : "staff";
+    const tenantIdFromProfile = window.__TUTEM_TENANT__ ? window.__TUTEM_TENANT__.tenantId : null;
+
+    // Se admin e não forneceu tenant por URL, então mostra seleção.
+    let urlHasTenantOverride = false;
+    try {
+      const params = new URLSearchParams(window.location.search || "");
+      urlHasTenantOverride = params.has("tenant") || params.has("tenantId");
+    } catch (e) {}
+
+    if (role === "admin" && !urlHasTenantOverride) {
+      // mantém tema por padrão do tenant do perfil até escolher
+      applyTenantTheme(tenantIdFromProfile);
+      setAuthLoadingVisible(false);
+      setFirebaseScreenVisible(false);
+      setAppShellVisible(false);
+      setLockVisible(false);
+      setTenantSelectVisible(true);
+      return;
+    }
+
+    try {
+      await activateTenant(tenantIdFromProfile);
+    } catch (e) {
+      console.warn("activateTenant falhou (seguimos com tema aplicado):", e);
+    }
+
+    setTenantSelectVisible(false);
     setAuthLoadingVisible(false);
     setFirebaseScreenVisible(false);
     setLockVisible(true);
@@ -181,4 +345,28 @@ function showFirebaseError(msg) {
       }
     });
   }
+
+  // API global para os botões de seleção (admin)
+  window.chooseTenantFromAdmin = async function (tenantId) {
+    try {
+      if (!window.__TUTEM_TENANT__ || window.__TUTEM_TENANT__.role !== "admin") return;
+      if (!tenantId) return;
+
+      window.__TUTEM_TENANT__.tenantId = tenantId;
+      setTenantSelectVisible(false);
+
+      // Aplica tema imediatamente (logo + variáveis)
+      applyTenantTheme(tenantId);
+
+      // Carrega storage/app certo
+      await activateTenant(tenantId);
+
+      // Agora sim mostra o lock-screen
+      setLockVisible(true);
+      setAppShellVisible(false);
+      setAuthLoadingVisible(false);
+    } catch (e) {
+      console.error("chooseTenantFromAdmin falhou:", e);
+    }
+  };
 })();
