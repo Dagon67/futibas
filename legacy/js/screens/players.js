@@ -183,6 +183,8 @@ let playerPhotoBase64FromList = null;
 
 /** Envia a lista atual ao Google Sheets (aba Jogadores), para a coluna Foto (URL) ficar com o link certo. */
 function syncPlayersSheetLinkAfterSave() {
+    // Magnus: sem Sheets (não mostrar toasts nem chamar export).
+    if (window.__TUTEM_SHEETS_MODE__ === "none") return;
     if (typeof pushPlayersToSheets !== "function") return;
     pushPlayersToSheets()
         .then(function (result) {

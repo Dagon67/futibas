@@ -77,8 +77,8 @@ function getTenantTheme(tenantId) {
       lockSubtitle: "Painel de Treino • Digite a senha para continuar",
       cssVars: {
         "--white": "#ffffff",
-        "--bg-main": "radial-gradient(circle at 50% 50%, #FA9E06 0%, #EB8839 22%, #EE151B 52%, #100B08 100%)",
-        "--card-bg": "#100B08",
+        "--bg-main": "radial-gradient(circle at 20% 15%, #FA9E06 0%, #EB8839 35%, #A05B48 55%, #100B08 100%)",
+        "--card-bg": "#0F0904",
         "--card-stroke": "rgba(250,158,6,0.35)",
         "--accent": "#FA9E06",
         "--accent-secondary": "#EE151B",
@@ -188,10 +188,6 @@ async function activateTenant(tenantId) {
   if (mode === "magnus") {
     await loadScriptOnce("js/storage-magnus.js");
     await loadScriptOnce("js/app-magnus.js");
-    // garante que não chamaremos Sheets no Magnus
-    try {
-      if (typeof setSheetsSyncEnabled === "function") setSheetsSyncEnabled(false);
-    } catch (e) {}
     return;
   }
 

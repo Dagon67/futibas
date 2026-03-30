@@ -12,7 +12,15 @@
      tenants/{tenantId}/trainingExports/{trainingId}
 */
 
-const FIRESTORE_SDK = "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+;(function () {
+    // Evita erro de redeclare caso o script seja injetado/ativado mais de uma vez
+    // (ex.: admin troca tenant sem reload de página).
+    if (typeof window !== "undefined") {
+        if (window.__TUTEM_MAGNUS_STORAGE_LOADED__) return;
+        window.__TUTEM_MAGNUS_STORAGE_LOADED__ = true;
+    }
+
+    const FIRESTORE_SDK = "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 // Jogadores padrão (fallback quando roster/current estiver vazio)
 const defaultPlayers = [
@@ -146,7 +154,10 @@ async function loadRosterFromFirestore() {
         if (!snap.exists()) return [];
         const data = snap.data() || {};
         const players = data.players;
-        return Array.isArray(players) ? players : [];
+        if (Array.isArray(players)) return players;
+        // compat: às vezes pode ser objeto {id: {...}}
+        if (players && typeof players === "object") return Object.values(players);
+        return [];
     } catch (e) {
         console.warn("MAGNUS: falha ao carregar roster/current:", e);
         return [];
@@ -184,8 +195,9 @@ async function loadActiveTrainingsFromFirestore() {
     }
 }
 
-async function initMagnusStorage() {
-    if (initPromise) return initPromise;
+async function initMagnusStorage(force) {
+    if (force) initPromise = null;
+    if (initPromise && !force) return initPromise;
     initPromise = (async function () {
         cachePlayers = await loadRosterFromFirestore();
         cacheTrainings = await loadActiveTrainingsFromFirestore();
@@ -356,3 +368,4 @@ window.clearTrainingsAndResponses = clearTrainingsAndResponses;
 window.__MAGNUS_DEFAULT_PLAYERS__ = defaultPlayers;
 window.__MAGNUS_DEFAULT_QUESTIONS__ = defaultQuestions;
 
+})();

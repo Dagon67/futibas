@@ -17,8 +17,8 @@
     }
 
     async function startTutemApp() {
-        if (window.__tutemAppStarted) return;
-        window.__tutemAppStarted = true;
+        // Magnus precisa recarregar o roster/current ao destrancar (para refletir mudanças).
+        // Usamos um guard separado para não bloquear re-import.
 
         if (!isMagnusMode()) {
             // fallback: não deveria acontecer
@@ -32,7 +32,7 @@
             if (typeof window.initMagnusStorage !== "function") {
                 console.warn("MAGNUS: initMagnusStorage não encontrado.");
             } else {
-                await window.initMagnusStorage();
+                await window.initMagnusStorage(true);
             }
         } catch (err) {
             console.error("MAGNUS: erro ao iniciar storage:", err);
