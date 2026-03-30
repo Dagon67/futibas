@@ -69,7 +69,7 @@ function getTenantTheme(tenantId) {
   // Ajuste de temas por tenant (cores para legibilidade + logo do time).
   const backendBase = (typeof window !== "undefined" && window.BACKEND_URL) ? window.BACKEND_URL : "";
   if (tenantId === "magnus") {
-    const magnusLogo = backendBase ? backendBase + "/times/logo-magnus.jpg" : "times/logo-magnus.jpg";
+                const magnusLogo = backendBase ? backendBase + "/times/logo-magnus.png" : "times/logo-magnus.png";
     return {
       lockLogoSrc: magnusLogo,
       lockLogoAlt: "Magnus Futsal",

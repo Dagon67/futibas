@@ -120,6 +120,28 @@ function viewTrainingDetails(trainingId){
 
 /** Finaliza o treino e sincroniza apenas as respostas desse treino com o Google Sheets (não envia outros treinos). */
 function finalizeTrainingAndSyncToSheets(trainingId) {
+    // Magnus: sem Sheets; marcar como concluído no Firestore e voltar para a lista de treinos.
+    try {
+        if (window.__TUTEM_SHEETS_MODE__ === "none") {
+            const trainings = typeof loadTrainings === "function" ? loadTrainings() : [];
+            const t = trainings.find(function (x) { return String(x && x.id) === String(trainingId); });
+            if (t) {
+                t.status = "completed";
+                t.completedAt = nowTimestamp ? nowTimestamp() : new Date().toISOString();
+                t.pendingPlayers = [];
+                if (!t.playerIds && Array.isArray(state && state.selectedPlayerIds)) t.playerIds = [...state.selectedPlayerIds];
+            }
+            if (typeof saveTrainings === "function") saveTrainings(trainings);
+            // Voltar para a lista de treinos (Magnus não usa Sheets).
+            if (typeof goTrainingsList === "function") {
+                goTrainingsList();
+                return;
+            }
+            goHome();
+            return;
+        }
+    } catch (e) {}
+
     if (typeof syncSingleTrainingToSheets !== "function") {
         alert("Sincronização com Sheets não disponível.");
         return;

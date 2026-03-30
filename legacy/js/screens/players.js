@@ -543,6 +543,11 @@ function patchPlayerRowInListDOM(playerId, playerObj) {
 }
 
 async function importPlayersFromSheetsReplaceLocal() {
+    // Magnus: não pode usar Sheets/backend.
+    try {
+        if (window.__TUTEM_SHEETS_MODE__ === "none") return;
+    } catch (e) {}
+
     var feedback = document.getElementById("playersImportFeedback");
     var btn = document.getElementById("btnImportPlayersSheets");
     if (
@@ -596,6 +601,11 @@ async function importPlayersFromSheetsReplaceLocal() {
 }
 
 function updatePlayersListToSheets() {
+    // Magnus: não pode usar Sheets/backend.
+    try {
+        if (window.__TUTEM_SHEETS_MODE__ === "none") return;
+    } catch (e) {}
+
     var btn = document.getElementById("btnUpdatePlayersSheets");
     var feedback = document.getElementById("playersSyncFeedback");
     if (!btn || !feedback) return;

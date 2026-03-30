@@ -56,6 +56,29 @@ function abrirCampin() {
     params.set("datetime", iso);
     if (team) params.set("team", team);
     if (backend) params.set("backend", backend);
+    // Magnus: passar flags para o campin usar Firestore/local e não Sheets/backend.
+    try {
+        if (window.__TUTEM_SHEETS_MODE__ === "none") {
+            params.set("app", "magnus");
+            params.set("tenant", "magnus");
+
+            // Magnus: garantir que o campin pegue o roster/current mais recente do Firestore.
+            // O campin só consome localStorage; então aqui sincronizamos localStorage -> roster atual do Magnus.
+            (async function () {
+                try {
+                    if (typeof window.initMagnusStorage === "function") {
+                        await window.initMagnusStorage(true);
+                    }
+                    if (typeof window.loadPlayers === "function") {
+                        var players = window.loadPlayers() || [];
+                        localStorage.setItem("tutem_campin_players", JSON.stringify(players));
+                    }
+                } catch (e) {}
+                window.location.href = "campin/campin.html?" + params.toString();
+            })();
+            return;
+        }
+    } catch (e) {}
     var url = "campin/campin.html?" + params.toString();
     window.location.href = url;
 }

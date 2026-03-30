@@ -1400,6 +1400,17 @@
       if (window.location.origin && window.location.origin !== "null") return window.location.origin;
       return "";
     }
+
+    function isMagnusMode(){
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const app = (params.get("app") || "").toLowerCase();
+        const tenant = (params.get("tenant") || "").toLowerCase();
+        return app === "magnus" || tenant === "magnus";
+      } catch (e) {
+        return false;
+      }
+    }
     function parseUrlParams(){
       const params = new URLSearchParams(window.location.search);
       const datetime = params.get("datetime");
@@ -1540,6 +1551,50 @@
       updateCampinTeamTag();
       renderAll();
       updateFilledUI();
+    }
+
+    function loadPlayersFromMagnusLocal(cb){
+      const CAMPIN_PLAYERS_LS_KEY = "tutem_campin_players";
+      try {
+        const raw = localStorage.getItem(CAMPIN_PLAYERS_LS_KEY);
+        if (!raw) {
+          createPlayers();
+          if (cb) cb();
+          return;
+        }
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr) || arr.length < 5) {
+          createPlayers();
+          if (cb) cb();
+          return;
+        }
+
+        state.players = arr.map(function(pl, idx){
+          const id = pl && pl.id ? String(pl.id) : "p" + (idx + 1);
+          const numero =
+            pl && pl.number != null ? Number(pl.number) :
+            (pl && pl.numero != null ? Number(pl.numero) : (idx + 1));
+          const numeroSafe = isNaN(numero) ? (idx + 1) : numero;
+
+          const photoVal = pl ? pl.photo : null;
+          const photo = photoVal ? resolvePhotoUrl(photoVal, numeroSafe) : svgAvatarDataUriNumber(numeroSafe);
+
+          return {
+            id,
+            name: (pl && pl.name) ? String(pl.name) : ("Jogador " + id),
+            numero: numeroSafe,
+            photo,
+            totalMs: 0,
+            onField: false,
+            stints: [],
+            events: []
+          };
+        });
+      } catch (e) {
+        createPlayers();
+      }
+
+      if (cb) cb();
     }
 
     function loadPlayersFromSheets(cb){
@@ -2584,7 +2639,8 @@
       updateCampinTeamTag();
       syncHalfMinutesInput();
 
-      loadPlayersFromSheets(function(){
+      const loadFn = isMagnusMode() ? loadPlayersFromMagnusLocal : loadPlayersFromSheets;
+      loadFn(function(){
         var hadGame = false;
         try { hadGame = localStorage.getItem(CAMPIN_GAME_KEY) === "1"; } catch(e) {}
         if (hadGame && restoreCampinState()) {
@@ -2607,7 +2663,7 @@
 
     function saveGameToSheets(){
       const base = getBackendUrl();
-      if (!base) return;
+      if (!base && !isMagnusMode()) return;
 
       const gameId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now());
       const logs = [];
@@ -2675,6 +2731,15 @@
         playerSummaries,
         playerPositionTimes: playerPositionTimesRowsForSheets()
       };
+
+      // Magnus: não salvar no Sheets/backend. Mantém apenas local para não criar vínculo com planilha.
+      if (isMagnusMode()) {
+        try {
+          localStorage.setItem("tutem_campin_last_game_magnus", JSON.stringify(payload));
+        } catch (e) {}
+        console.log("MAGNUS: jogo salvo localmente (sem Sheets).");
+        return;
+      }
 
       fetch(base + "/games", {
         method: "POST",

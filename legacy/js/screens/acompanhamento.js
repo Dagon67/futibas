@@ -6,6 +6,12 @@
 var ACOMPANHAMENTO_CHARTS = [];
 
 function goAcompanhamento() {
+    try {
+        if (window.__TUTEM_SHEETS_MODE__ === "none") {
+            alert("Magnus: Acompanhamento desabilitado (sem Sheets).");
+            return;
+        }
+    } catch (e) {}
     destroyAcompanhamentoCharts();
     state.currentScreen = "acompanhamento";
     setHeaderModeLabel("Acompanhamento");

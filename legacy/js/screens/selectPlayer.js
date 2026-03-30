@@ -149,7 +149,11 @@ function startTraining(){
         state.selectedPlayerIds = [];
         state.pendingByMode[mode] = [];
         if (typeof clearResumeState === "function") clearResumeState();
-        if (typeof syncSingleTrainingToSheets === "function") {
+
+        // Magnus: nunca chamar Sheets (mesmo que sheets_sync.js já tenha sido carregado antes).
+        var sheetsMode = null;
+        try { sheetsMode = window.__TUTEM_SHEETS_MODE__; } catch (e) {}
+        if (sheetsMode !== "none" && typeof syncSingleTrainingToSheets === "function") {
             syncSingleTrainingToSheets(trainingId).then(function (result) {
                 var all = loadTrainings();
                 var filtered = all.filter(function (t) { return t.id !== trainingId; });
@@ -220,7 +224,7 @@ function doStartTrainingIncomplete(){
     state.currentMode = null;
     state.selectedPlayerIds = [];
     state.pendingByMode[mode] = [];
-    
-    // Voltar para home
+
+    // Voltar para home (Jaraguá)
     goHome();
 }

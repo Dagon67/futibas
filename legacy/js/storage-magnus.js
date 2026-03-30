@@ -352,6 +352,57 @@ async function syncSingleTrainingToSheets(_trainingId) {
     return { success: true };
 }
 
+// ==========
+// Helper: abrir Campin a partir do Magnus (sem Sheets)
+// ==========
+function isMagnusApp() {
+    try {
+        if (typeof window === "undefined") return false;
+        if (window.__TUTEM_APP_MODE__ === "magnus") return true;
+        if (window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId === "magnus") return true;
+        const params = new URLSearchParams(window.location.search || "");
+        return params.get("app") === "magnus" || params.get("tenant") === "magnus";
+    } catch (e) {
+        return false;
+    }
+}
+
+const CAMPIN_PLAYERS_LS_KEY = "tutem_campin_players";
+function goCampinForMagnus() {
+    if (!isMagnusApp()) return;
+
+    try {
+        // Usa roster do Firestore mais recente (via cache refresh) para o campin
+        // não precisar buscar do backend (que é Sheets no Jaraguá).
+        (async function () {
+            try {
+                if (typeof initMagnusStorage === "function") {
+                    await initMagnusStorage(true);
+                }
+                const players = typeof loadPlayers === "function" ? loadPlayers() : [];
+                localStorage.setItem(CAMPIN_PLAYERS_LS_KEY, JSON.stringify(players || []));
+            } catch (e) {}
+            continueToCampin();
+        })();
+        return;
+    } catch (e) {}
+
+    function continueToCampin() {
+        const nowIso = new Date().toISOString();
+        const tenantId = (window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId) ? window.__TUTEM_TENANT__.tenantId : "magnus";
+        const backend = (typeof window.BACKEND_URL === "string") ? window.BACKEND_URL : "";
+
+        const params = new URLSearchParams();
+        params.set("datetime", nowIso);
+        params.set("team", tenantId === "magnus" ? "Magnus" : tenantId);
+        if (backend) params.set("backend", backend);
+        params.set("app", "magnus");
+        params.set("tenant", "magnus");
+
+        window.location.href = "campin/campin.html?" + params.toString();
+    }
+}
+
 // Exposição global (algumas telas chamam funções por nome)
 window.loadPlayers = loadPlayers;
 window.savePlayers = savePlayers;
@@ -363,6 +414,9 @@ window.loadResponses = loadResponses;
 window.saveResponses = saveResponses;
 window.clearAllAppStorage = clearAllAppStorage;
 window.clearTrainingsAndResponses = clearTrainingsAndResponses;
+
+// Campin redirect helper (usado após finalizar treino no Magnus)
+window.goCampinForMagnus = goCampinForMagnus;
 
 // Expor defaults para o bootstrap do Magnus (app-magnus.js)
 window.__MAGNUS_DEFAULT_PLAYERS__ = defaultPlayers;
