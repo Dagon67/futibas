@@ -68,6 +68,13 @@
     }
     .mainActionsLeft{ grid-column: 1; }
     .mainActionsCenter{ grid-column: 2; display: flex; justify-content: center; min-width: 0; }
+    .mainActionsCenter .quickActions{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
     .mainActionsRight{ grid-column: 3; }
     .mainActions.mainActions--swapped .mainActionsLeft{ grid-column: 3; }
     .mainActions.mainActions--swapped .mainActionsRight{ grid-column: 1; }
@@ -82,6 +89,14 @@
       white-space: nowrap;
     }
     .mainActions .btnMain .ico{ width: 20px; height: 20px; }
+    .btnSoft{
+      min-height: 44px;
+      padding: 9px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      background: rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.18);
+    }
     .mainActions #btnStartPause{
       min-height: 58px;
       padding: 14px 26px;
@@ -796,6 +811,18 @@
       justify-content:flex-end;
       flex-wrap:wrap;
     }
+    .eventQuickBody{
+      display:flex !important;
+      flex-direction:column;
+      grid-template-columns:unset !important;
+      gap:10px !important;
+    }
+    .eventQuickErr{
+      margin:0;
+      min-height:1.1em;
+      color: var(--bad);
+      font-size:12px;
+    }
 
     /* Seleção de elenco (antes da quadra) */
     #playerSelectOverlay{ z-index: 60; display: none; }
@@ -982,10 +1009,16 @@
           </button>
         </div>
         <div class="mainActionsCenter">
-          <button id="btnBackToMenu" class="btnPrimary btnMain" style="display:none;" title="Voltar ao menu principal">
-            <span class="ico" aria-hidden="true">🏠</span>
-            Voltar ao menu
-          </button>
+          <div class="quickActions">
+            <button id="btnQuickEvent" class="btnSoft" style="display:none;" title="Registrar evento do jogo">
+              <span class="ico" aria-hidden="true">📝</span>
+              Eventos
+            </button>
+            <button id="btnBackToMenu" class="btnPrimary btnMain" style="display:none;" title="Voltar ao menu principal">
+              <span class="ico" aria-hidden="true">🏠</span>
+              Voltar ao menu
+            </button>
+          </div>
         </div>
         <div class="mainActionsRight">
           <button id="btnStartPause" class="btnPrimary btnMain" disabled>
@@ -1250,6 +1283,48 @@
         <button id="btnConfirmEndOk" class="btnDanger">
           <span class="ico" aria-hidden="true">⏹️</span>
           Sim, encerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="eventOverlay" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="eventTitle" style="width: min(430px, 100%);">
+      <div class="modalHeader">
+        <div>
+          <h2 id="eventTitle">Registrar evento</h2>
+          <p>Selecione atleta e evento. O tempo do jogo é gravado automaticamente.</p>
+        </div>
+      </div>
+      <div class="modalBody eventQuickBody">
+        <div class="field">
+          <label for="eventPlayer">Atleta</label>
+          <select id="eventPlayer"></select>
+        </div>
+        <div class="field">
+          <label for="eventType">Evento</label>
+          <select id="eventType">
+            <option value="Gol">Gol</option>
+            <option value="Assistência">Assistência</option>
+            <option value="Finalização">Finalização</option>
+            <option value="Defesa do goleiro">Defesa do goleiro</option>
+            <option value="Desarme">Desarme</option>
+            <option value="Interceptação">Interceptação</option>
+            <option value="Falta cometida">Falta cometida</option>
+            <option value="Falta sofrida">Falta sofrida</option>
+            <option value="Cartão amarelo">Cartão amarelo</option>
+            <option value="Cartão vermelho">Cartão vermelho</option>
+            <option value="Contusão">Contusão</option>
+            <option value="Pedido de tempo">Pedido de tempo</option>
+          </select>
+        </div>
+        <p id="eventQuickErr" class="eventQuickErr" aria-live="polite"></p>
+      </div>
+      <div class="modalFooter">
+        <button id="btnEventCancel">Cancelar</button>
+        <button id="btnEventSave" class="btnPrimary">
+          <span class="ico" aria-hidden="true">💾</span>
+          Salvar
         </button>
       </div>
     </div>
@@ -1648,6 +1723,7 @@
     const btnStartPauseText = document.getElementById("btnStartPauseText");
     const btnEnd = document.getElementById("btnEnd");
     const btnBackToMenu = document.getElementById("btnBackToMenu");
+    const btnQuickEvent = document.getElementById("btnQuickEvent");
 
     const setupOverlay = document.getElementById("setupOverlay");
     const dtGameEl = document.getElementById("dtGame");
@@ -1885,7 +1961,7 @@
         const empty = document.createElement("div");
         empty.style.padding = "10px 0";
         empty.style.color = "rgba(255,255,255,.55)";
-        empty.textContent = "Sem eventos ainda. Faça uma substituição para registrar entradas/saídas.";
+        empty.textContent = "Sem eventos ainda. Faça substituições ou registre eventos da partida.";
         logListEl.appendChild(empty);
         return;
       }
@@ -1897,7 +1973,9 @@
         const horario = matchMsToLabel(ev.atMs);
         const tag = document.createElement("div");
         tag.className = "tag";
-        tag.textContent = ev.type === "IN" ? "Entrada " + horario : "Saída " + horario;
+        if (ev.type === "IN") tag.textContent = "Entrada " + horario;
+        else if (ev.type === "OUT") tag.textContent = "Saída " + horario;
+        else tag.textContent = "Evento " + horario;
 
         const txt = document.createElement("div");
         txt.style.minWidth = "0";
@@ -1908,16 +1986,20 @@
         const line1 = document.createElement("div");
         line1.style.color = "rgba(255,255,255,.82)";
         line1.style.fontWeight = "750";
-        line1.textContent = `${who} — ${ev.type === "IN" ? "ENTROU" : "SAIU"} (${pos})`;
+        if (ev.type === "IN") line1.textContent = `${who} — ENTROU (${pos})`;
+        else if (ev.type === "OUT") line1.textContent = `${who} — SAIU (${pos})`;
+        else line1.textContent = `${who} — ${ev.eventType || "Evento"}${pos ? " (" + pos + ")" : ""}`;
 
         const line2 = document.createElement("div");
         line2.style.marginTop = "2px";
         line2.style.color = "rgba(255,255,255,.7)";
         if (ev.type === "IN") {
           line2.textContent = `Horário de entrada: ${horario}`;
-        } else {
+        } else if (ev.type === "OUT") {
           var durTxt = ev.durationMs != null ? ` • Permanência: ${msToClock(ev.durationMs)}` : "";
           line2.textContent = `Horário de saída: ${horario}${durTxt}`;
+        } else {
+          line2.textContent = `Registro de jogo em ${horario}`;
         }
 
         txt.appendChild(line1);
@@ -2010,11 +2092,13 @@
       if (state.matchEnded) {
         btnEnd.disabled = true;
         btnStartPause.disabled = true;
+        if (btnQuickEvent) btnQuickEvent.style.display = "none";
         if (btnBackToMenu) btnBackToMenu.style.display = "";
         return;
       }
 
       if (btnBackToMenu) btnBackToMenu.style.display = "none";
+      if (btnQuickEvent) btnQuickEvent.style.display = state.started ? "" : "none";
 
       const onePerPosition = state.positions.every(pos => !!state.posToPlayer[pos.id]);
       const canStart = onePerPosition && state.configured && !isMatchFinished();
@@ -2073,8 +2157,42 @@
       const atMs = state.elapsedMs;
       const ev = { type: type, atMs: atMs, posId: posId };
       if (extra && extra.durationMs != null) ev.durationMs = extra.durationMs;
+      if (extra && extra.eventType) ev.eventType = String(extra.eventType);
       p.events.push(ev);
       renderLog();
+    }
+
+    function openQuickEventModal(){
+      if (!eventOverlay || !eventPlayerEl || !eventTypeEl) return;
+      if (!state.started || state.matchEnded) return;
+      eventPlayerEl.innerHTML = "";
+      state.players.forEach(function(p){
+        var opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = "#" + (p.numero != null ? p.numero : "-") + " - " + (p.name || p.id);
+        eventPlayerEl.appendChild(opt);
+      });
+      eventTypeEl.selectedIndex = 0;
+      if (eventQuickErrEl) eventQuickErrEl.textContent = "";
+      eventOverlay.style.display = "flex";
+    }
+
+    function closeQuickEventModal(){
+      if (eventOverlay) eventOverlay.style.display = "none";
+      if (eventQuickErrEl) eventQuickErrEl.textContent = "";
+    }
+
+    function saveQuickEvent(){
+      if (!eventPlayerEl || !eventTypeEl) return;
+      var playerId = eventPlayerEl.value;
+      var eventType = (eventTypeEl.value || "").trim();
+      if (!playerId || !eventType) {
+        if (eventQuickErrEl) eventQuickErrEl.textContent = "Selecione atleta e evento.";
+        return;
+      }
+      var currentPos = Object.keys(state.posToPlayer).find(function(k){ return state.posToPlayer[k] === playerId; }) || "";
+      logEvent("GAME_EVENT", playerId, currentPos, { eventType: eventType });
+      closeQuickEventModal();
     }
 
     function playerOut(playerId, posId){
@@ -2399,11 +2517,17 @@
     }
 
     function formatPlayerEvents(p){
-      if(!p.stints || p.stints.length === 0) return `<span style="color:rgba(255,255,255,.55)">—</span>`;
+      var stints = p.stints || [];
+      var gameEvents = (p.events || []).filter(function(e){ return e.type === "GAME_EVENT"; });
+      if(stints.length === 0 && gameEvents.length === 0) return `<span style="color:rgba(255,255,255,.55)">—</span>`;
 
       const chunks = [];
-      for (let i = 0; i < p.stints.length; i++) {
-        chunks.push(`<div style="margin-bottom:6px;">• ${escapeHtml(formatStintLine(p.stints[i], i))}</div>`);
+      for (let i = 0; i < stints.length; i++) {
+        chunks.push(`<div style="margin-bottom:6px;">• ${escapeHtml(formatStintLine(stints[i], i))}</div>`);
+      }
+      for (let j = 0; j < gameEvents.length; j++) {
+        var ge = gameEvents[j];
+        chunks.push(`<div style="margin-bottom:6px;">• ${escapeHtml((ge.eventType || "Evento") + " em " + matchMsToLabel(ge.atMs || 0))}</div>`);
       }
       return chunks.join("");
     }
@@ -2469,6 +2593,12 @@
     const confirmEndOverlay = document.getElementById("confirmEndOverlay");
     const btnConfirmEndCancel = document.getElementById("btnConfirmEndCancel");
     const btnConfirmEndOk = document.getElementById("btnConfirmEndOk");
+    const eventOverlay = document.getElementById("eventOverlay");
+    const eventPlayerEl = document.getElementById("eventPlayer");
+    const eventTypeEl = document.getElementById("eventType");
+    const eventQuickErrEl = document.getElementById("eventQuickErr");
+    const btnEventCancel = document.getElementById("btnEventCancel");
+    const btnEventSave = document.getElementById("btnEventSave");
 
     btnEnd.addEventListener("click", ()=>{
       if(!state.started) return;
@@ -2483,6 +2613,9 @@
       confirmEndOverlay.style.display = "none";
       endMatch();
     });
+    if (btnQuickEvent) btnQuickEvent.addEventListener("click", openQuickEventModal);
+    if (btnEventCancel) btnEventCancel.addEventListener("click", closeQuickEventModal);
+    if (btnEventSave) btnEventSave.addEventListener("click", saveQuickEvent);
 
     btnSetupContinue.addEventListener("click", ()=>{
       const iso = dtGameEl.value ? new Date(dtGameEl.value).toISOString() : new Date().toISOString();
@@ -2687,6 +2820,7 @@
             posLabel
           };
           if (ev.durationMs != null) row.durationMs = ev.durationMs;
+          if (ev.eventType) row.eventType = ev.eventType;
           logs.push(row);
         }
       }
