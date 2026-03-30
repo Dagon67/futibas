@@ -434,6 +434,13 @@ try:
 except ValueError:
     _GAMES_LIVE_CACHE_TTL = 12.0
 
+# Insights por jogo (relatório): no máximo 1 geração nova por jogo a cada 7 dias (configurável)
+_GAME_INSIGHTS_BY_GAME_ID = {}
+try:
+    GAME_INSIGHTS_TTL_S = max(86400, int(os.getenv("GEMINI_GAME_INSIGHTS_TTL_S", str(7 * 86400))))
+except ValueError:
+    GAME_INSIGHTS_TTL_S = 7 * 86400
+
 
 def _insights_parse_gemini_json(text):
     """Extrai lista de 5 strings do texto da IA (JSON ou fallback)."""
@@ -448,6 +455,20 @@ def _insights_parse_gemini_json(text):
         pass
     lines = [ln.strip().lstrip("0123456789.-) ") for ln in t.splitlines() if ln.strip()]
     return lines[:5]
+
+
+def _parse_game_insights_json(text):
+    """JSON da análise de jogo: resumoTime, porAtleta, observacoes."""
+    if not text:
+        return None
+    t = text.strip()
+    try:
+        obj = json.loads(t)
+        if isinstance(obj, dict) and "resumoTime" in obj:
+            return obj
+    except Exception:
+        pass
+    return None
 
 
 def _insights_call_gemini(prompt):
@@ -662,6 +683,110 @@ def games_live():
         if result.get("success"):
             _GAMES_LIVE_READ_CACHE[ck] = (now + _GAMES_LIVE_CACHE_TTL, result)
         return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/games/reports', methods=['GET'])
+def list_game_reports_route():
+    """Lista jogos com relatório salvo no Sheets (aba Jogos)."""
+    try:
+        limit = request.args.get('limit', 80, type=int)
+        limit = min(max(1, limit), 200)
+        result = sync_data("list_game_reports", limit)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/games/reports/detail', methods=['GET'])
+def game_report_detail_route():
+    """Detalhe de um jogo: minutos, elenco, logs."""
+    try:
+        gid = (request.args.get('gameId') or '').strip()
+        if not gid:
+            return jsonify({"success": False, "error": "gameId obrigatório"}), 400
+        result = sync_data("get_game_report_detail", gid)
+        if not result.get("success"):
+            return jsonify(result), 404
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/insights/game', methods=['POST'])
+def post_insights_game():
+    """
+    Análise IA de um jogo passado (relatório). Máx. 1 nova geração por jogo a cada 7 dias (cache).
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        game_id = (payload.get('gameId') or '').strip()
+        if not game_id:
+            return jsonify({"success": False, "error": "gameId obrigatório"}), 400
+        if not os.getenv("GEMINI_API_KEY", "").strip():
+            return jsonify({
+                "success": False,
+                "error": "GEMINI_API_KEY não configurada no servidor.",
+            }), 503
+
+        lock = _INSIGHTS_LOCK if _INSIGHTS_LOCK else nullcontext()
+        with lock:
+            now = time.time()
+            ent = _GAME_INSIGHTS_BY_GAME_ID.get(game_id)
+            if ent and now - ent.get("ts", 0) < GAME_INSIGHTS_TTL_S:
+                return jsonify({
+                    "success": True,
+                    "cached": True,
+                    "nextRefreshInSec": int(GAME_INSIGHTS_TTL_S - (now - ent["ts"])),
+                    "analysis": ent.get("analysis"),
+                }), 200
+
+            detail = sync_data("get_game_report_detail", game_id)
+            if not detail.get("success"):
+                return jsonify({"success": False, "error": detail.get("error", "Jogo não encontrado")}), 404
+
+            compact = {
+                "gameId": detail.get("gameId"),
+                "date": detail.get("date"),
+                "time": detail.get("time"),
+                "teamName": detail.get("teamName"),
+                "elenco": (detail.get("elenco") or [])[:40],
+                "logsSample": (detail.get("logs") or [])[:120],
+            }
+            prompt = (
+                "Você é analista de futsal. Com base no JSON (tempos, entradas, substituições e eventos), "
+                "responda SOMENTE em JSON válido neste formato exato:\n"
+                '{"resumoTime":"texto sobre o desempenho coletivo (2–4 frases)",'
+                '"porAtleta":[{"nome":"nome do atleta","analise":"1–2 frases objetivas"}],'
+                '"observacoes":["ponto 1","ponto 2"]}\n'
+                "Não invente dados que não estejam no JSON. Use português do Brasil.\n\n"
+                "Dados:\n" + json.dumps(compact, ensure_ascii=False)[:14000]
+            )
+
+            text, err, gem_status, gem_retry_ms = _insights_call_gemini(prompt)
+            if err:
+                return jsonify({
+                    "success": False,
+                    "error": err,
+                    "providerStatus": gem_status,
+                }), 503
+
+            analysis = _parse_game_insights_json(text)
+            if not analysis:
+                analysis = {
+                    "resumoTime": (text or "")[:4000],
+                    "porAtleta": [],
+                    "observacoes": [],
+                }
+
+            _GAME_INSIGHTS_BY_GAME_ID[game_id] = {"ts": time.time(), "analysis": analysis}
+            return jsonify({
+                "success": True,
+                "cached": False,
+                "analysis": analysis,
+                "nextRefreshInSec": int(GAME_INSIGHTS_TTL_S),
+            }), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 

@@ -2166,7 +2166,7 @@
       if (extra && extra.eventType) ev.eventType = String(extra.eventType);
       p.events.push(ev);
       renderLog();
-      if (state.started && !state.matchEnded) scheduleDebouncedLiveSync();
+      if (state.running && !state.matchEnded) scheduleDebouncedLiveSync();
     }
 
     function openQuickEventModal(){
@@ -2249,7 +2249,7 @@
           updateOpenStintPosId(occupant, fromPos);
         }
         renderAll();
-        if (state.started && !state.matchEnded) scheduleDebouncedLiveSync();
+        if (state.running && !state.matchEnded) scheduleDebouncedLiveSync();
         return;
       }
 
@@ -2258,7 +2258,7 @@
         state.posToPlayer[posId] = playerId;
         if (state.started) updateOpenStintPosId(playerId, posId);
         renderAll();
-        if (state.started && !state.matchEnded) scheduleDebouncedLiveSync();
+        if (state.running && !state.matchEnded) scheduleDebouncedLiveSync();
         return;
       }
 
@@ -2284,10 +2284,12 @@
 
     var liveSyncTimer = null;
     var LIVE_SYNC_DEBOUNCE_MS = 3000;
-    var lastPeriodicLiveMs = 0;
+    /** True quando o próximo flush deve enviar mesmo com relógio pausado (ex.: após pausar ou intervalo). */
+    var liveFlushForce = false;
 
-    function scheduleDebouncedLiveSync(){
+    function scheduleDebouncedLiveSync(force){
       if (isMagnusMode()) return;
+      if (force) liveFlushForce = true;
       clearTimeout(liveSyncTimer);
       liveSyncTimer = setTimeout(flushLiveSyncToSheets, LIVE_SYNC_DEBOUNCE_MS);
     }
@@ -2375,6 +2377,9 @@
       if (!base || isMagnusMode()) return;
       if (!state.gameId) return;
       if (!state.started && !state.matchEnded) return;
+      var force = liveFlushForce;
+      liveFlushForce = false;
+      if (!state.matchEnded && !state.running && !force) return;
       var payload = buildCampinLivePayload();
       fetch(base + "/games/live", {
         method: "POST",
@@ -2480,7 +2485,7 @@
         tick();
         scheduleDebouncedLiveSync();
       }else{
-        // toggle pause
+        // toggle pause — força envio para o dash refletir pausa
         state.running = !state.running;
         if(state.running){
           state.lastTick = performance.now();
@@ -2488,7 +2493,7 @@
         btnStartPauseText.textContent = state.running ? "Pausar" : "Retomar";
         updateFilledUI();
         updateTimersUI();
-        scheduleDebouncedLiveSync();
+        scheduleDebouncedLiveSync(true);
       }
     }
 
@@ -2683,19 +2688,13 @@
         if(prevElapsed < state.halfLenMs && state.elapsedMs >= state.halfLenMs){
           state.running = false;
           btnStartPauseText.textContent = "Iniciar 2º tempo";
-          scheduleDebouncedLiveSync();
+          scheduleDebouncedLiveSync(true);
         }
 
         // end auto
         if(state.elapsedMs >= state.totalLenMs){
           endMatch();
           return;
-        }
-
-        var wall = Date.now();
-        if (wall - lastPeriodicLiveMs >= 60000) {
-          lastPeriodicLiveMs = wall;
-          flushLiveSyncToSheets();
         }
       }
 

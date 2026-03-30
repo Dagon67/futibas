@@ -245,7 +245,13 @@
           return;
         }
         if (!data.found || !data.snapshot) {
-          root.innerHTML = "<div class=\"empty\">Nenhum jogo em aberto no Campin. Inicie uma partida no Campin neste dispositivo ou outro com a mesma planilha.</div>";
+          root.innerHTML = "<div class=\"empty\">Jogo não iniciado. Abra o Campin, monte uma partida e dê play no cronômetro.</div>";
+          lastSnap = null;
+          return;
+        }
+        var st = (data.status || "").toLowerCase();
+        if (st === "ended" || data.snapshot.matchEnded) {
+          root.innerHTML = "<div class=\"empty\">Jogo não iniciado. Não há partida em curso no Campin.</div>";
           lastSnap = null;
           return;
         }

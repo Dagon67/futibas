@@ -58,6 +58,10 @@ function goHome(){
                     <i data-feather="activity"></i>
                     <div>Dash tático</div>
                 </button>
+                <button class="home-btn home-btn-secondary" type="button" onclick="abrirAnaliseJogosPassadosComSenha()">
+                    <i data-feather="archive"></i>
+                    <div>Análise de jogos passados</div>
+                </button>
                 ` : ``}
                 <button class="home-btn home-btn-secondary" type="button">
                     <i data-feather="settings"></i>

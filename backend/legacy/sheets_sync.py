@@ -718,6 +718,121 @@ class SheetsSync:
             "message": "Nenhum jogo em aberto no Campin",
         }
 
+    def list_game_reports(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Lista jogos com relatório na aba Jogos (uma linha por jogador; agrupa por ID Jogo).
+        Ordem: mais recentes primeiro (últimas linhas da planilha).
+        """
+        try:
+            ws = self.spreadsheet.worksheet("Jogos")
+        except Exception:
+            return []
+        all_rows = ws.get_all_values()
+        if len(all_rows) < 2:
+            return []
+        out: List[Dict[str, Any]] = []
+        seen = set()
+        for r in all_rows[1:]:
+            if len(r) < 4:
+                continue
+            gid = self._str(r[0]).strip()
+            if not gid or gid in seen:
+                continue
+            seen.add(gid)
+            out.append({
+                "gameId": gid,
+                "date": self._str(r[1]) if len(r) > 1 else "",
+                "time": self._str(r[2]) if len(r) > 2 else "",
+                "teamName": self._str(r[3]) if len(r) > 3 else "",
+            })
+        out.reverse()
+        return out[: max(1, min(limit, 200))]
+
+    def get_game_report_detail(self, game_id: str) -> Dict[str, Any]:
+        """Detalhe de um jogo: minutos (aba Jogos), elenco e logs."""
+        gid = self._str(game_id).strip()
+        if not gid:
+            raise ValueError("gameId obrigatório")
+
+        players_minutes: List[Dict[str, Any]] = []
+        meta_date = ""
+        meta_time = ""
+        meta_team = ""
+
+        try:
+            ws_j = self.spreadsheet.worksheet("Jogos")
+            for r in ws_j.get_all_values()[1:]:
+                if len(r) < 5 or self._str(r[0]).strip() != gid:
+                    continue
+                if not meta_date and len(r) > 3:
+                    meta_date = self._str(r[1])
+                    meta_time = self._str(r[2]) if len(r) > 2 else ""
+                    meta_team = self._str(r[3]) if len(r) > 3 else ""
+                players_minutes.append({
+                    "playerId": self._str(r[4]) if len(r) > 4 else "",
+                    "name": self._str(r[5]) if len(r) > 5 else "",
+                    "number": self._str(r[6]) if len(r) > 6 else "",
+                    "minutes": self._str(r[7]) if len(r) > 7 else "",
+                })
+        except Exception as e:
+            print(f"⚠️ get_game_report_detail Jogos: {e}")
+
+        elenco: List[Dict[str, Any]] = []
+        try:
+            ws_e = self.spreadsheet.worksheet("Jogos_Elenco")
+            for r in ws_e.get_all_values()[1:]:
+                if len(r) < 4 or self._str(r[0]).strip() != gid:
+                    continue
+                elenco.append({
+                    "playerId": self._str(r[1]) if len(r) > 1 else "",
+                    "name": self._str(r[2]) if len(r) > 2 else "",
+                    "number": self._str(r[3]) if len(r) > 3 else "",
+                    "entryCount": self._str(r[4]) if len(r) > 4 else "",
+                    "totalOnField": self._str(r[5]) if len(r) > 5 else "",
+                    "bench": self._str(r[6]) if len(r) > 6 else "",
+                    "positionBreakdown": self._str(r[7]) if len(r) > 7 else "",
+                    "stintsDetail": self._str(r[8]) if len(r) > 8 else "",
+                })
+        except Exception as e:
+            print(f"⚠️ get_game_report_detail Elenco: {e}")
+
+        logs: List[Dict[str, Any]] = []
+        try:
+            ws_l = self.spreadsheet.worksheet("Jogos_Logs")
+            for r in ws_l.get_all_values()[1:]:
+                if len(r) < 6 or self._str(r[0]).strip() != gid:
+                    continue
+                logs.append({
+                    "timestamp": self._str(r[1]) if len(r) > 1 else "",
+                    "minuteLabel": self._str(r[2]) if len(r) > 2 else "",
+                    "playerId": self._str(r[3]) if len(r) > 3 else "",
+                    "playerName": self._str(r[4]) if len(r) > 4 else "",
+                    "number": self._str(r[5]) if len(r) > 5 else "",
+                    "event": self._str(r[6]) if len(r) > 6 else "",
+                    "position": self._str(r[7]) if len(r) > 7 else "",
+                    "durationOut": self._str(r[8]) if len(r) > 8 else "",
+                })
+        except Exception as e:
+            print(f"⚠️ get_game_report_detail Logs: {e}")
+
+        if not players_minutes and not elenco and not logs:
+            return {
+                "success": False,
+                "error": "Jogo não encontrado ou sem relatório nas planilhas",
+                "gameId": gid,
+            }
+
+        return {
+            "success": True,
+            "gameId": gid,
+            "date": meta_date,
+            "time": meta_time,
+            "teamName": meta_team,
+            "playersMinutes": players_minutes,
+            "elenco": elenco,
+            "logs": logs,
+        }
+
     def get_analytics_data(self) -> Dict[str, Any]:
         """Lê abas pre, pos e Jogadores para o dashboard de acompanhamento. Retorna dados estruturados para gráficos."""
         try:
@@ -852,6 +967,20 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
             return {"success": True, "message": "Campin_Live atualizado"}
         if data_type == "get_campin_live":
             return sync.get_campin_live(data)
+        if data_type == "list_game_reports":
+            lim = 100
+            if isinstance(data, int):
+                lim = data
+            elif isinstance(data, dict) and data.get("limit") is not None:
+                try:
+                    lim = int(data["limit"])
+                except (TypeError, ValueError):
+                    lim = 100
+            return {"success": True, "games": sync.list_game_reports(lim)}
+        if data_type == "get_game_report_detail":
+            if not data or not isinstance(data, str):
+                raise ValueError("get_game_report_detail requer gameId string")
+            return sync.get_game_report_detail(data)
         if data_type == "get_analytics":
             return sync.get_analytics_data()
         if data_type == "verify_pre":
