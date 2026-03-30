@@ -539,6 +539,15 @@ class SheetsSync:
                     dur_lbl = f"{dm}:{ds:02d}"
                 except (TypeError, ValueError):
                     dur_lbl = ""
+            ev_type = ev.get("type")
+            if ev_type == "IN":
+                event_cell = "Entrada"
+            elif ev_type == "OUT":
+                event_cell = "Saída"
+            elif ev_type == "GAME_EVENT":
+                event_cell = self._str(ev.get("eventType", "Evento"))
+            else:
+                event_cell = self._str(ev_type or "")
             rows_logs.append([
                 game_id,
                 self._str(ev.get("timestamp", dt_raw)),
@@ -546,7 +555,7 @@ class SheetsSync:
                 self._str(ev.get("playerId")),
                 self._str(ev.get("playerName")),
                 self._str(ev.get("number")),
-                "Entrada" if ev.get("type") == "IN" else "Saída",
+                event_cell,
                 self._str(ev.get("posLabel", ev.get("posId", ""))),
                 dur_lbl,
             ])
@@ -613,6 +622,101 @@ class SheetsSync:
             f"{len(rows_logs)} Jogos_Logs, {len(rows_elenco)} Jogos_Elenco, "
             f"{len(rows_pos_time)} Jogos_Tempo_Posicao"
         )
+
+    def upsert_campin_live(self, payload: Dict[str, Any]) -> None:
+        """
+        Atualiza ou insere linha na aba Campin_Live (snapshot JSON para dash tático em tempo real).
+        Colunas: gameId, atualizadoEm, status, time, snapshotJson
+        """
+        header = ["gameId", "atualizadoEm", "status", "time", "snapshotJson"]
+        ws = self._get_or_create_worksheet_append("Campin_Live", header)
+        rid = self._str(payload.get("gameId", ""))
+        if not rid:
+            raise ValueError("gameId obrigatório para Campin_Live")
+        snap = payload.get("snapshot")
+        if isinstance(snap, dict):
+            snap_json = json.dumps(snap, ensure_ascii=False)
+        else:
+            snap_json = self._str(snap or "")
+        max_chars = 48000
+        if len(snap_json) > max_chars:
+            snap_json = snap_json[:max_chars] + '..."_truncated":true}'
+        row = [
+            rid,
+            self._str(payload.get("updatedAt", "")),
+            self._str(payload.get("status", "open")),
+            self._str(payload.get("teamName", "")),
+            snap_json,
+        ]
+        # Só coluna A: menos dados que get_all_values() (economiza quota/latência)
+        col_a = ws.col_values(1)
+        row_idx: Optional[int] = None
+        if len(col_a) > 1:
+            for j in range(1, len(col_a)):
+                if col_a[j] == rid:
+                    row_idx = j + 1
+                    break
+        if row_idx is not None:
+            ws.update(
+                f"A{row_idx}:E{row_idx}",
+                [row],
+                value_input_option="USER_ENTERED",
+            )
+        else:
+            ws.append_row(row, value_input_option="USER_ENTERED")
+        print(f"✅ Campin_Live atualizado: {rid} ({row[2]})")
+
+    def get_campin_live(self, game_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Lê snapshot ao vivo. Com game_id busca essa partida; sem game_id devolve o último jogo com status 'open'.
+        """
+        try:
+            ws = self.spreadsheet.worksheet("Campin_Live")
+        except Exception:
+            return {"success": True, "found": False, "snapshot": None, "message": "Aba Campin_Live ainda não existe"}
+
+        def row_to_resp(r: List[Any]) -> Dict[str, Any]:
+            snap: Any = None
+            if len(r) > 4 and r[4]:
+                try:
+                    snap = json.loads(r[4])
+                except Exception:
+                    snap = None
+            return {
+                "success": True,
+                "found": True,
+                "gameId": r[0] if len(r) > 0 else "",
+                "updatedAt": r[1] if len(r) > 1 else "",
+                "status": r[2] if len(r) > 2 else "",
+                "teamName": r[3] if len(r) > 3 else "",
+                "snapshot": snap,
+            }
+
+        col_a = ws.col_values(1)
+        if len(col_a) <= 1:
+            return {"success": True, "found": False, "snapshot": None}
+
+        gid = self._str(game_id).strip() if game_id else ""
+        if gid:
+            for j in range(1, len(col_a)):
+                if col_a[j] == gid:
+                    r = ws.row_values(j + 1)
+                    return row_to_resp(r)
+            return {"success": True, "found": False, "snapshot": None, "message": "gameId não encontrado"}
+
+        col_c = ws.col_values(3)
+        for j in range(len(col_a) - 1, 0, -1):
+            st = col_c[j] if j < len(col_c) else ""
+            if self._str(st) == "open":
+                r = ws.row_values(j + 1)
+                return row_to_resp(r)
+
+        return {
+            "success": True,
+            "found": False,
+            "snapshot": None,
+            "message": "Nenhum jogo em aberto no Campin",
+        }
 
     def get_analytics_data(self) -> Dict[str, Any]:
         """Lê abas pre, pos e Jogadores para o dashboard de acompanhamento. Retorna dados estruturados para gráficos."""
@@ -741,6 +845,13 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
                 raise ValueError("append_game requer payload como dict com gameId, datetime, logs, minutesPerPlayer")
             sync.append_game(data)
             return {"success": True, "message": "Jogo registrado nas abas Jogos e Jogos_Logs"}
+        if data_type == "upsert_campin_live":
+            if not isinstance(data, dict):
+                raise ValueError("upsert_campin_live requer dict com gameId e snapshot")
+            sync.upsert_campin_live(data)
+            return {"success": True, "message": "Campin_Live atualizado"}
+        if data_type == "get_campin_live":
+            return sync.get_campin_live(data)
         if data_type == "get_analytics":
             return sync.get_analytics_data()
         if data_type == "verify_pre":

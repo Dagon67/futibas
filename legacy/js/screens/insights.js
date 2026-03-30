@@ -1,10 +1,10 @@
 /* ===========================
    💡 INSIGHTS (Gemini Flash) — Jaraguá
-   - Só chama a API se os dados mudaram de forma relevante E passaram ≥5 min desde a última chamada.
+   - Só chama a API se os dados mudaram de forma relevante E passou o intervalo mínimo (10 min) desde a última chamada.
    - Cache local + fingerprint estável (evita ruído e protege cota).
    =========================== */
 
-var INSIGHTS_MIN_INTERVAL_MS = 5 * 60 * 1000;
+var INSIGHTS_MIN_INTERVAL_MS = 10 * 60 * 1000;
 var INSIGHTS_LS_KEY = "jaragua_insights_v1";
 
 function insightsSha256Hex(str) {
@@ -87,7 +87,7 @@ function getBackendUrlInsights() {
 }
 
 /**
- * Decide se pode chamar a API: primeira vez sem texto, ou (fp mudou E intervalo ≥5min).
+ * Decide se pode chamar a API: primeira vez sem texto, ou (fp mudou E intervalo ≥10 min).
  */
 function insightsShouldCallApi(fp, now, local, hasNetwork) {
     if (!hasNetwork) return false;
@@ -176,11 +176,11 @@ function goInsights() {
                             "<p class=\"item-sub\" style=\"margin-top:0.75rem;padding:0.65rem 0.85rem;border-radius:var(--radius-md);background:rgba(254,236,2,.08);border:1px solid rgba(254,236,2,.25);\">" +
                             "Os dados mudaram; uma nova análise automática poderá ser pedida em " +
                             insightsFormatRetry(wait) +
-                            " (limite para proteger a cota gratuita). Até lá, exibimos a última análise.</p>";
+                            " (limite para proteger cota Gemini). Até lá, exibimos a última análise.</p>";
                     }
                 } else {
                     note =
-                        "<p class=\"item-sub\" style=\"margin-top:0.75rem;\">Última análise (dados equivalentes). Nova requisição só após mudança relevante + intervalo de 5 minutos.</p>";
+                        "<p class=\"item-sub\" style=\"margin-top:0.75rem;\">Última análise (dados equivalentes). Nova requisição só após mudança relevante + intervalo de 10 minutos.</p>";
                 }
                 if (sub) sub.textContent = "Insights do time (cache)";
                 if (content) {
@@ -263,7 +263,7 @@ function goInsights() {
             if (content) {
                 content.innerHTML =
                     insightsRenderList(list) +
-                    "<p class=\"item-sub\" style=\"margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);\">Atualizações automáticas: no máximo a cada 5 minutos, apenas se os dados mudarem de forma relevante.</p>";
+                    "<p class=\"item-sub\" style=\"margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);\">Atualizações automáticas: no máximo a cada 10 minutos, apenas se os dados mudarem de forma relevante.</p>";
             }
         })
         .catch(function (e) {
@@ -299,7 +299,7 @@ function insightsEscapeHtml(s) {
         .replace(/\"/g, "&quot;");
 }
 
-/** Força tentativa de refresh: só efetiva se servidor permitir (ainda respeita 5 min no backend). */
+/** Força tentativa de refresh: só efetiva se servidor permitir (cooldown no backend). */
 function insightsForceRefresh() {
     try {
         localStorage.removeItem(INSIGHTS_LS_KEY);

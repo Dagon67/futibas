@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Dash tático — Jaraguá Futsal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c1118;
+      --card: #141b26;
+      --border: rgba(255,255,255,.08);
+      --text: #e8edf4;
+      --muted: #8b98a8;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --blue: #38bdf8;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    header.top {
+      display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+      gap: 12px; margin-bottom: 16px;
+    }
+    h1 { font-size: 1.35rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin: 4px 0 0; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+      background: rgba(56,189,248,.12); color: var(--blue); border: 1px solid rgba(56,189,248,.25);
+    }
+    .grid { display: grid; gap: 12px; }
+    @media (min-width: 720px) {
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .card h2 {
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); margin: 0 0 10px; font-weight: 700;
+    }
+    .scoreline {
+      font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .scoreline .vs { color: var(--muted); font-weight: 600; font-size: 1.2rem; }
+    .clock { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--blue); }
+    .last-ev { font-size: 0.95rem; color: var(--text); margin-top: 8px; }
+    .last-ev span { color: var(--muted); }
+    .momentum-bar {
+      height: 10px; border-radius: 6px;
+      background: linear-gradient(90deg, var(--red) 0%, var(--yellow) 50%, var(--green) 100%);
+      position: relative; margin-top: 8px;
+    }
+    .momentum-bar .dot {
+      position: absolute; top: -4px; width: 18px; height: 18px; border-radius: 50%;
+      background: #fff; border: 3px solid var(--card); box-shadow: 0 2px 8px rgba(0,0,0,.4);
+      transform: translateX(-50%);
+    }
+    .momentum-label { font-weight: 700; margin-top: 8px; font-size: 1rem; }
+    .player-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .player-row:last-child { border-bottom: none; }
+    .pname { font-weight: 700; font-size: 0.95rem; }
+    .pmeta { font-size: 0.8rem; color: var(--muted); }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+    .tag {
+      font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 6px;
+      text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .tag-fat.low { background: rgba(34,197,94,.2); color: var(--green); }
+    .tag-fat.med { background: rgba(234,179,8,.2); color: var(--yellow); }
+    .tag-fat.high { background: rgba(239,68,68,.2); color: var(--red); }
+    .tag-perf.neu { background: rgba(139,152,168,.2); color: var(--muted); }
+    .tag-perf.pos { background: rgba(34,197,94,.2); color: var(--green); }
+    .tag-perf.neg { background: rgba(239,68,68,.2); color: var(--red); }
+    .alert-item {
+      padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 0.9rem;
+      border-left: 4px solid var(--yellow); background: rgba(234,179,8,.08);
+    }
+    .alert-item.crit { border-color: var(--red); background: rgba(239,68,68,.1); }
+    .alert-item.ok { border-color: var(--green); background: rgba(34,197,94,.1); }
+    .btn {
+      appearance: none; border: none; cursor: pointer;
+      font-family: inherit; font-weight: 700; font-size: 0.9rem;
+      padding: 10px 16px; border-radius: 8px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .timeline {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start;
+      font-size: 0.8rem;
+    }
+    .tl-item {
+      padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+    }
+    .tl-item.gol { border-color: rgba(34,197,94,.4); }
+    .tl-item.sub { border-color: rgba(56,189,248,.4); }
+    .tl-item.inj { border-color: rgba(239,68,68,.4); }
+    .compare { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+    .compare .big { font-size: 1.25rem; font-weight: 800; }
+    .empty, .err {
+      text-align: center; padding: 40px 20px; color: var(--muted);
+    }
+    .err { color: var(--red); }
+    .modal-bg {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65);
+      z-index: 50; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-bg.on { display: flex; }
+    .modal-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      max-width: 400px; width: 100%; padding: 20px;
+    }
+    .modal-box h3 { margin: 0 0 12px; font-size: 1.1rem; }
+    .back-link { display: inline-block; margin-bottom: 12px; color: var(--blue); text-decoration: none; font-size: 0.9rem; }
+    .back-link:hover { text-decoration: underline; }
+    .config-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+    .config-row label { font-size: 0.85rem; color: var(--muted); }
+    .config-row input { width: 64px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: #0a0e14; color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <a class="back-link" href="index.html">← Menu</a>
+        <h1>Dash tático</h1>
+        <p class="sub">Jaraguá Futsal — leitura em tempo real (somente visualização)</p>
+      </div>
+      <div class="pill" id="pollPill">Atualizando…</div>
+    </header>
+
+    <div class="config-row" style="margin-bottom:12px;">
+      <label for="idealMin">Tempo ideal em quadra (min)</label>
+      <input type="number" id="idealMin" min="2" max="15" step="0.5" value="4" />
+    </div>
+
+    <div id="root">
+      <div class="empty">Carregando snapshot…</div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="subModal" aria-hidden="true">
+    <div class="modal-box">
+      <h3>Sugestão de substituição</h3>
+      <div id="subModalBody"></div>
+      <button type="button" class="btn" style="margin-top:16px;width:100%" id="subModalClose">Fechar</button>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var backend = (params.get("backend") || "").replace(/\/$/, "");
+  var gameIdParam = params.get("gameId") || "";
+  var pollMs = parseInt(params.get("poll") || "30000", 10);
+  if (!isFinite(pollMs) || pollMs < 15000) pollMs = 30000;
+
+  var idealMinEl = document.getElementById("idealMin");
+  var pollPill = document.getElementById("pollPill");
+  var root = document.getElementById("root");
+  var subModal = document.getElementById("subModal");
+  var subModalBody = document.getElementById("subModalBody");
+  var subModalClose = document.getElementById("subModalClose");
+
+  try {
+    var lsIdeal = localStorage.getItem("dash_tatico_ideal_min");
+    if (lsIdeal && idealMinEl) idealMinEl.value = lsIdeal;
+  } catch (e) {}
+
+  function getIdealMin() {
+    var v = idealMinEl ? parseFloat(idealMinEl.value, 10) : 4;
+    if (!isFinite(v) || v < 2) v = 4;
+    return v;
+  }
+
+  if (idealMinEl) {
+    idealMinEl.addEventListener("change", function () {
+      try { localStorage.setItem("dash_tatico_ideal_min", String(getIdealMin())); } catch (e) {}
+      if (lastSnap) render(lastSnap);
+    });
+  }
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function msToClock(ms) {
+    ms = Math.max(0, ms | 0);
+    var totalSec = Math.floor(ms / 1000);
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return pad2(m) + ":" + pad2(s);
+  }
+  function matchMsToLabel(ms, halfLenMs) {
+    halfLenMs = halfLenMs || 20 * 60 * 1000;
+    var half = (ms < halfLenMs) ? 1 : 2;
+    var within = (half === 1) ? ms : (ms - halfLenMs);
+    return "T" + half + " " + msToClock(within);
+  }
+
+  var lastSnap = null;
+  var timerId = null;
+  var clockBaseElapsed = 0;
+  var clockBaseAt = 0;
+
+  function apiUrl() {
+    if (!backend) return "";
+    var u = backend + "/games/live";
+    if (gameIdParam) u += "?gameId=" + encodeURIComponent(gameIdParam);
+    return u;
+  }
+
+  function fetchSnapshot() {
+    var url = apiUrl();
+    if (!url) {
+      root.innerHTML = "<div class=\"err\">Parâmetro <code>backend</code> ausente. Abra pelo menu (Jaraguá) ou acrescente <code>?backend=https://seu-servidor</code>.</div>";
+      pollPill.textContent = "Sem backend";
+      return;
+    }
+    fetch(url, { method: "GET", cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.success) {
+          root.innerHTML = "<div class=\"err\">Erro ao ler dados.</div>";
+          return;
+        }
+        if (!data.found || !data.snapshot) {
+          root.innerHTML = "<div class=\"empty\">Nenhum jogo em aberto no Campin. Inicie uma partida no Campin neste dispositivo ou outro com a mesma planilha.</div>";
+          lastSnap = null;
+          return;
+        }
+        lastSnap = data.snapshot;
+        clockBaseElapsed = data.snapshot.elapsedMs || 0;
+        clockBaseAt = Date.now();
+        render(data.snapshot);
+      })
+      .catch(function () {
+        root.innerHTML = "<div class=\"err\">Falha de rede ou servidor indisponível.</div>";
+      });
+  }
+
+  function fatigueLevel(currentStintMs, idealMin) {
+    var im = idealMin * 60 * 1000;
+    if (currentStintMs < im * 0.75) return "low";
+    if (currentStintMs < im * 1.15) return "med";
+    return "high";
+  }
+
+  function perfTagForPlayer(p, snap) {
+    var evs = (p.events || []).filter(function (e) { return e.type === "GAME_EVENT"; });
+    var neg = evs.some(function (e) {
+      var t = (e.eventType || "").toLowerCase();
+      return t.indexOf("contusão") >= 0 || t.indexOf("contusao") >= 0 || t.indexOf("cartão vermelho") >= 0;
+    });
+    var pos = evs.some(function (e) {
+      var t = (e.eventType || "").toLowerCase();
+      return t === "gol" || t.indexOf("assist") >= 0;
+    });
+    if (neg) return { cls: "neg", text: "Atenção" };
+    if (pos) return { cls: "pos", text: "Destaque" };
+    return { cls: "neu", text: "Neutro" };
+  }
+
+  function momentum(snap) {
+    var evs = snap.events || [];
+    var last = evs.slice(-8);
+    var score = 0;
+    last.forEach(function (e) {
+      if (e.type === "GAME_EVENT" && e.eventType) {
+        var t = e.eventType.toLowerCase();
+        if (t === "gol") score += 2;
+        else if (t.indexOf("gol advers") >= 0) score -= 2;
+        else if (t.indexOf("falta cometida") >= 0) score -= 0.5;
+        else if (t.indexOf("falta sofrida") >= 0) score += 0.3;
+      }
+      if (e.type === "IN" || e.type === "OUT") score -= 0.15;
+    });
+    var goals = snap.scores || { us: 0, them: 0 };
+    score += (goals.us - goals.them) * 0.5;
+    var pos = Math.max(0, Math.min(100, 50 + score * 8));
+    var label = "Equilíbrio";
+    if (pos < 38) label = "Pressão do adversário";
+    else if (pos > 62) label = "Domínio do time";
+    return { pos: pos, label: label };
+  }
+
+  function buildAlerts(snap, idealMin, effElapsed, stintExtraMs) {
+    var out = [];
+    var elapsed = effElapsed != null ? effElapsed : (snap.elapsedMs || 0);
+    var posMap = snap.posToPlayer || {};
+    var onField = Object.values(posMap).filter(Boolean);
+    var sx = stintExtraMs || 0;
+
+    onField.forEach(function (pid) {
+      var p = (snap.players || []).find(function (x) { return x.id === pid; });
+      if (!p || !p.onField) return;
+      var cur = (p.currentStintMs != null ? p.currentStintMs : 0) + sx;
+      if (cur > idealMin * 60 * 1000 * 1.35) {
+        out.push({ text: (p.name || pid) + " está acima do tempo ideal em quadra.", crit: true });
+      }
+      if (fatigueLevel(cur, idealMin) === "high") {
+        out.push({ text: "Fadiga alta: " + (p.name || pid) + ".", crit: true });
+      }
+    });
+
+    var evs = snap.events || [];
+    var lastGoalUs = null;
+    for (var i = evs.length - 1; i >= 0; i--) {
+      var e = evs[i];
+      if (e.type === "GAME_EVENT" && (e.eventType || "").toLowerCase() === "gol") {
+        lastGoalUs = e.atMs;
+        break;
+      }
+    }
+    if (lastGoalUs != null && elapsed - lastGoalUs > 10 * 60 * 1000) {
+      out.push({ text: "Há mais de 10 min sem gol próprio.", crit: false });
+    }
+
+    var subs = evs.filter(function (e) { return e.type === "IN" || e.type === "OUT"; }).slice(-6);
+    if (subs.length >= 4) {
+      out.push({ text: "Muitas substituições recentes — observar ritmo do time.", crit: false });
+    }
+
+    return out.slice(0, 3);
+  }
+
+  function timelineItems(snap) {
+    var evs = snap.events || [];
+    var items = [];
+    evs.forEach(function (e) {
+      var label = matchMsToLabel(e.atMs || 0, snap.halfLenMs);
+      if (e.type === "GAME_EVENT") {
+        var et = e.eventType || "Evento";
+        var cls = "tl-item";
+        if ((et + "").toLowerCase().indexOf("contus") >= 0) cls += " inj";
+        else if ((et + "").toLowerCase().indexOf("gol") >= 0) cls += " gol";
+        items.push({ cls: cls, text: label + " — " + et + (e.playerName ? " (" + e.playerName + ")" : "") });
+      } else if (e.type === "IN" || e.type === "OUT") {
+        items.push({ cls: "tl-item sub", text: label + " — " + (e.type === "IN" ? "Entrada" : "Saída") + " " + (e.playerName || "") });
+      }
+    });
+    return items.slice(-24);
+  }
+
+  function avgStintThisGame(snap) {
+    var players = snap.players || [];
+    var stints = [];
+    players.forEach(function (p) {
+      (p.stints || []).forEach(function (s) {
+        var end = s.outMs != null ? s.outMs : (snap.elapsedMs || 0);
+        stints.push(Math.max(0, end - s.inMs));
+      });
+    });
+    if (!stints.length) return 0;
+    var sum = stints.reduce(function (a, b) { return a + b; }, 0);
+    return sum / stints.length / 60000;
+  }
+
+  function render(snap) {
+    var idealMin = getIdealMin();
+    var scores = snap.scores || { us: 0, them: 0, foulsUs: 0 };
+    var team = snap.teamName || "Jaraguá";
+    var running = snap.running;
+    var ended = snap.matchEnded;
+    var elapsed = snap.elapsedMs || 0;
+    var total = snap.totalLenMs || 40 * 60 * 1000;
+    var lastEv = snap.lastEvent;
+    var mom = momentum(snap);
+
+    var lastEvText = "—";
+    if (lastEv) {
+      if (lastEv.type === "GAME_EVENT") {
+        lastEvText = (lastEv.eventType || "Evento") + " aos " + (lastEv.matchTimeLabel || matchMsToLabel(lastEv.atMs || 0, snap.halfLenMs));
+      } else {
+        lastEvText = (lastEv.type === "IN" ? "Entrada" : "Saída") + " — " + (lastEv.matchTimeLabel || matchMsToLabel(lastEv.atMs || 0, snap.halfLenMs));
+      }
+    }
+
+    var posMap = snap.posToPlayer || {};
+    var positions = snap.positions || [];
+    var liveExtraMs = !ended && running ? (Date.now() - clockBaseAt) : 0;
+    var onRows = [];
+    positions.forEach(function (pos) {
+      var pid = posMap[pos.id];
+      if (!pid) return;
+      var p = (snap.players || []).find(function (x) { return x.id === pid; });
+      if (!p) return;
+      var cur = (p.currentStintMs != null ? p.currentStintMs : 0) + liveExtraMs;
+      var fat = fatigueLevel(cur, idealMin);
+      var perf = perfTagForPlayer(p, snap);
+      var fatLabel = fat === "low" ? "Fadiga baixa" : fat === "med" ? "Fadiga média" : "Fadiga alta";
+      onRows.push(
+        "<div class=\"player-row\">" +
+          "<div><div class=\"pname\">" + esc(p.name || "") + " <span class=\"pmeta\">#" + esc(String(p.numero != null ? p.numero : "")) + " · " + esc(pos.label || pos.id) + "</span></div>" +
+          "<div class=\"pmeta\">Nesta entrada: " + msToClock(cur) + " · Tempo do jogo: " + msToClock(Math.min(total, elapsed + liveExtraMs)) + "</div></div>" +
+          "<div class=\"tags\">" +
+            "<span class=\"tag tag-fat " + fat + "\">" + fatLabel + "</span>" +
+            "<span class=\"tag tag-perf " + perf.cls + "\">" + perf.text + "</span>" +
+          "</div>" +
+        "</div>"
+      );
+    });
+
+    var effElapsed = Math.min(total, elapsed + liveExtraMs);
+    var alerts = buildAlerts(snap, idealMin, effElapsed, liveExtraMs);
+    var alertHtml = alerts.map(function (a) {
+      var c = a.crit ? "crit" : "ok";
+      return "<div class=\"alert-item " + c + "\">" + esc(a.text) + "</div>";
+    }).join("");
+
+    var tl = timelineItems(snap);
+    var tlHtml = tl.length
+      ? "<div class=\"timeline\">" + tl.map(function (t) { return "<span class=\"" + esc(t.cls) + "\">" + esc(t.text) + "</span>"; }).join("") + "</div>"
+      : "<p class=\"sub\" style=\"margin:0;color:var(--muted)\">Sem eventos ainda.</p>";
+
+    var avgSt = avgStintThisGame(snap);
+    var refMin = idealMin;
+
+    var statusPill = ended ? "Partida encerrada" : running ? "Ao vivo" : "Pausado";
+    var clockLabel = msToClock(effElapsed);
+
+    root.innerHTML =
+      "<div class=\"grid grid-2\">" +
+        "<div class=\"card\">" +
+          "<h2>Placar e tempo</h2>" +
+          "<div class=\"scoreline\">" + esc(team) + " <span class=\"vs\">" + scores.us + " × " + scores.them + "</span> <span style=\"font-size:1rem;color:var(--muted)\">adv.</span></div>" +
+          "<div style=\"margin-top:10px\"><span class=\"clock\" id=\"liveClock\">" + esc(clockLabel) + "</span> <span style=\"color:var(--muted);font-size:0.9rem\">/ " + msToClock(total) + "</span></div>" +
+          "<p class=\"sub\" style=\"margin:8px 0 0\">Faltas cometidas (aprox.): " + (scores.foulsUs != null ? scores.foulsUs : "—") + " · " + esc(statusPill) + "</p>" +
+          "<p class=\"last-ev\"><span>Último evento:</span> " + esc(lastEvText) + "</p>" +
+        "</div>" +
+        "<div class=\"card\">" +
+          "<h2>Momentum</h2>" +
+          "<div class=\"momentum-label\">" + esc(mom.label) + "</div>" +
+          "<div class=\"momentum-bar\"><div class=\"dot\" style=\"left:" + mom.pos + "%\"></div></div>" +
+          "<p class=\"sub\" style=\"margin-top:10px\">Indicador simples a partir de gols, faltas e substituições recentes.</p>" +
+        "</div>" +
+      "</div>" +
+
+      "<div class=\"card\" style=\"margin-top:12px\">" +
+        "<h2>Em quadra</h2>" +
+        (onRows.length ? onRows.join("") : "<p class=\"sub\">Ninguém em campo no snapshot.</p>") +
+      "</div>" +
+
+      "<div class=\"grid grid-2\" style=\"margin-top:12px\">" +
+        "<div class=\"card\">" +
+          "<h2>Alertas</h2>" +
+          (alertHtml || "<p class=\"sub\">Nenhum alerta prioritário.</p>") +
+        "</div>" +
+        "<div class=\"card\">" +
+          "<h2>Substituição</h2>" +
+          "<p class=\"sub\" style=\"margin:0 0 10px\">Usa tempo em quadra e fadiga vs. referência configurável.</p>" +
+          "<button type=\"button\" class=\"btn\" id=\"btnSuggest\">Sugerir substituição</button>" +
+        "</div>" +
+      "</div>" +
+
+      "<div class=\"card\" style=\"margin-top:12px\">" +
+        "<h2>Linha do tempo (simplificada)</h2>" + tlHtml +
+      "</div>" +
+
+      "<div class=\"card\" style=\"margin-top:12px\">" +
+        "<h2>Tempo médio em quadra (entrada)</h2>" +
+        "<div class=\"compare\">" +
+          "<span class=\"big\">" + (avgSt > 0 ? avgSt.toFixed(1) : "—") + " min</span> <span style=\"color:var(--muted)\">média neste jogo (todas as permanências)</span><br/>" +
+          "<span style=\"color:var(--muted)\">Referência configurada: " + refMin.toFixed(1) + " min (ideal de stint)</span>" +
+        "</div>" +
+      "</div>";
+
+    var btn = document.getElementById("btnSuggest");
+    if (btn) {
+      btn.onclick = function () { openSuggestModal(snap, idealMin, liveExtraMs); };
+    }
+
+    if (timerId) clearInterval(timerId);
+    if (!ended && running) {
+      timerId = setInterval(function () {
+        var el = document.getElementById("liveClock");
+        if (!el || !lastSnap) return;
+        var add = Date.now() - clockBaseAt;
+        var cap = lastSnap.totalLenMs || total;
+        var e = Math.min(cap, clockBaseElapsed + add);
+        el.textContent = msToClock(e);
+      }, 1000);
+    }
+  }
+
+  function openSuggestModal(snap, idealMin, stintExtraMs) {
+    var sx = stintExtraMs || 0;
+    var posMap = snap.posToPlayer || {};
+    var onField = Object.values(posMap).filter(Boolean);
+    var best = null;
+    var bestMs = -1;
+    onField.forEach(function (pid) {
+      var p = (snap.players || []).find(function (x) { return x.id === pid; });
+      if (!p || !p.onField) return;
+      var cur = (p.currentStintMs != null ? p.currentStintMs : 0) + sx;
+      if (cur > bestMs) {
+        bestMs = cur;
+        best = p;
+      }
+    });
+    if (!best) {
+      subModalBody.innerHTML = "<p>Não há jogadores em quadra no snapshot.</p>";
+    } else {
+      var im = idealMin * 60 * 1000;
+      var rec = bestMs >= im * 1.2 ? "<strong>Substituir agora</strong> — stint acima do ideal." : "<strong>Aguardar</strong> — ainda dentro da faixa.";
+      subModalBody.innerHTML =
+        "<p><b>" + esc(best.name || "") + "</b> (#" + esc(String(best.numero != null ? best.numero : "")) + ")</p>" +
+        "<p>Tempo na entrada atual: <b>" + msToClock(bestMs) + "</b></p>" +
+        "<p>Referência: " + idealMin + " min</p>" +
+        "<p>" + rec + "</p>";
+    }
+    subModal.classList.add("on");
+    subModal.setAttribute("aria-hidden", "false");
+  }
+
+  subModalClose.onclick = function () {
+    subModal.classList.remove("on");
+    subModal.setAttribute("aria-hidden", "true");
+  };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (m) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m];
+    });
+  }
+
+  pollPill.textContent = "Poll " + Math.round(pollMs / 1000) + "s";
+  fetchSnapshot();
+  setInterval(fetchSnapshot, pollMs);
+})();
+  </script>
+</body>
+</html>

@@ -1316,6 +1316,7 @@
             <option value="Cartão vermelho">Cartão vermelho</option>
             <option value="Contusão">Contusão</option>
             <option value="Pedido de tempo">Pedido de tempo</option>
+            <option value="Gol adversário">Gol adversário</option>
           </select>
         </div>
         <p id="eventQuickErr" class="eventQuickErr" aria-live="polite"></p>
@@ -1530,7 +1531,10 @@
       players: [],
 
       /** "destro" = Encerrar à esquerda, Iniciar à direita; "canhoto" = inverte */
-      handMode: "destro"
+      handMode: "destro",
+
+      /** ID estável da partida (Sheets live + relatório final) */
+      gameId: null
     };
 
     function createPlayers(){
@@ -2156,10 +2160,13 @@
       if(!p) return;
       const atMs = state.elapsedMs;
       const ev = { type: type, atMs: atMs, posId: posId };
+      ev.minuteLabel = matchMsToLabel(atMs);
+      ev.matchTimeLabel = matchMsToLabel(atMs);
       if (extra && extra.durationMs != null) ev.durationMs = extra.durationMs;
       if (extra && extra.eventType) ev.eventType = String(extra.eventType);
       p.events.push(ev);
       renderLog();
+      if (state.started && !state.matchEnded) scheduleDebouncedLiveSync();
     }
 
     function openQuickEventModal(){
@@ -2242,6 +2249,7 @@
           updateOpenStintPosId(occupant, fromPos);
         }
         renderAll();
+        if (state.started && !state.matchEnded) scheduleDebouncedLiveSync();
         return;
       }
 
@@ -2250,6 +2258,7 @@
         state.posToPlayer[posId] = playerId;
         if (state.started) updateOpenStintPosId(playerId, posId);
         renderAll();
+        if (state.started && !state.matchEnded) scheduleDebouncedLiveSync();
         return;
       }
 
@@ -2273,6 +2282,107 @@
       }
     }
 
+    var liveSyncTimer = null;
+    var LIVE_SYNC_DEBOUNCE_MS = 3000;
+    var lastPeriodicLiveMs = 0;
+
+    function scheduleDebouncedLiveSync(){
+      if (isMagnusMode()) return;
+      clearTimeout(liveSyncTimer);
+      liveSyncTimer = setTimeout(flushLiveSyncToSheets, LIVE_SYNC_DEBOUNCE_MS);
+    }
+
+    function flushLiveSyncImmediate(){
+      clearTimeout(liveSyncTimer);
+      liveSyncTimer = null;
+      flushLiveSyncToSheets();
+    }
+
+    function buildLiveSnapshotInner(){
+      var players = state.players.map(function(p){
+        return {
+          id: p.id,
+          name: p.name,
+          numero: p.numero,
+          totalMs: p.totalMs || 0,
+          onField: !!p.onField,
+          stints: p.stints || [],
+          currentStintMs: currentStintElapsedMs(p),
+          events: p.events || []
+        };
+      });
+      var events = [];
+      for (var pi = 0; pi < state.players.length; pi++) {
+        var pl = state.players[pi];
+        for (var ej = 0; ej < (pl.events || []).length; ej++) {
+          var e = pl.events[ej];
+          events.push({
+            type: e.type,
+            atMs: e.atMs,
+            minuteLabel: matchMsToLabel(e.atMs),
+            matchTimeLabel: matchMsToLabel(e.atMs),
+            playerId: pl.id,
+            playerName: pl.name,
+            number: pl.numero,
+            posId: e.posId,
+            eventType: e.eventType || null,
+            durationMs: e.durationMs
+          });
+        }
+      }
+      events.sort(function(a, b){ return a.atMs - b.atMs; });
+      var lastEvent = events.length ? events[events.length - 1] : null;
+      var goalsUs = 0, goalsThem = 0, foulsUs = 0;
+      for (var k = 0; k < events.length; k++) {
+        var ev = events[k];
+        if (ev.type !== "GAME_EVENT" || !ev.eventType) continue;
+        var et = String(ev.eventType).toLowerCase();
+        if (et === "gol") goalsUs++;
+        if (et === "gol adversário" || et === "gol adversario") goalsThem++;
+        if (et.indexOf("falta cometida") >= 0) foulsUs++;
+      }
+      return {
+        gameId: state.gameId,
+        teamName: state.teamName || "",
+        gameDatetimeISO: state.gameDatetimeISO || "",
+        running: state.running,
+        elapsedMs: state.elapsedMs,
+        totalLenMs: state.totalLenMs,
+        halfLenMs: state.halfLenMs,
+        matchEnded: state.matchEnded,
+        posToPlayer: state.posToPlayer,
+        positions: state.positions,
+        players: players,
+        events: events,
+        lastEvent: lastEvent,
+        scores: { us: goalsUs, them: goalsThem, foulsUs: foulsUs },
+        idealStintMinutes: 4
+      };
+    }
+
+    function buildCampinLivePayload(){
+      return {
+        gameId: state.gameId,
+        updatedAt: new Date().toISOString(),
+        status: state.matchEnded ? "ended" : "open",
+        teamName: state.teamName || "",
+        snapshot: buildLiveSnapshotInner()
+      };
+    }
+
+    function flushLiveSyncToSheets(){
+      var base = getBackendUrl();
+      if (!base || isMagnusMode()) return;
+      if (!state.gameId) return;
+      if (!state.started && !state.matchEnded) return;
+      var payload = buildCampinLivePayload();
+      fetch(base + "/games/live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).catch(function(){});
+    }
+
     var CAMPIN_GAME_KEY = "tutem_campin_game_in_progress";
     var CAMPIN_STATE_KEY = "tutem_campin_saved_state";
     function setGameInProgress(flag){
@@ -2293,7 +2403,8 @@
           note: state.note,
           halfLenMs: state.halfLenMs,
           totalLenMs: state.totalLenMs,
-          handMode: state.handMode === "canhoto" ? "canhoto" : "destro"
+          handMode: state.handMode === "canhoto" ? "canhoto" : "destro",
+          gameId: state.gameId || null
         };
         localStorage.setItem(CAMPIN_STATE_KEY, JSON.stringify(payload));
       } catch(e) {}
@@ -2331,6 +2442,10 @@
         if (state.halfLenMs > 0 && (!payload.totalLenMs || payload.totalLenMs <= 0))
           state.totalLenMs = 2 * state.halfLenMs;
         state.handMode = payload.handMode === "canhoto" ? "canhoto" : "destro";
+        state.gameId = payload.gameId || null;
+        if (state.started && !state.gameId) {
+          state.gameId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now());
+        }
         state.configured = true;
         if (setupOverlay) setupOverlay.style.display = "none";
         var dt = new Date(state.gameDatetimeISO);
@@ -2363,6 +2478,7 @@
         btnStartPauseText.textContent = "Pausar";
         updateFilledUI();
         tick();
+        scheduleDebouncedLiveSync();
       }else{
         // toggle pause
         state.running = !state.running;
@@ -2372,10 +2488,14 @@
         btnStartPauseText.textContent = state.running ? "Pausar" : "Retomar";
         updateFilledUI();
         updateTimersUI();
+        scheduleDebouncedLiveSync();
       }
     }
 
     function resetStintsAtKickoff(){
+      if (!state.gameId) {
+        state.gameId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now());
+      }
       // wipe existing stints/events and start fresh at 0 with whoever is on the field
       for(const p of state.players){
         p.stints = [];
@@ -2422,6 +2542,7 @@
       try { localStorage.removeItem(CAMPIN_STATE_KEY); } catch(e) {}
       updateTimersUI();
       renderLog();
+      flushLiveSyncImmediate();
       showReport();
       saveGameToSheets();
       updateFilledUI();
@@ -2562,12 +2683,19 @@
         if(prevElapsed < state.halfLenMs && state.elapsedMs >= state.halfLenMs){
           state.running = false;
           btnStartPauseText.textContent = "Iniciar 2º tempo";
+          scheduleDebouncedLiveSync();
         }
 
         // end auto
         if(state.elapsedMs >= state.totalLenMs){
           endMatch();
           return;
+        }
+
+        var wall = Date.now();
+        if (wall - lastPeriodicLiveMs >= 60000) {
+          lastPeriodicLiveMs = wall;
+          flushLiveSyncToSheets();
         }
       }
 
@@ -2585,6 +2713,7 @@
         state.lastTick = performance.now();
         btnStartPauseText.textContent = "Pausar";
         updateFilledUI();
+        scheduleDebouncedLiveSync();
         return;
       }
       startOrToggle();
@@ -2798,7 +2927,8 @@
       const base = getBackendUrl();
       if (!base && !isMagnusMode()) return;
 
-      const gameId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now());
+      var gameId = state.gameId || ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now()));
+      if (!state.gameId) state.gameId = gameId;
       const logs = [];
       for (const p of state.players) {
         if (!p.events || !p.events.length) continue;

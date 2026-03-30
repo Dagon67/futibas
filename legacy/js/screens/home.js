@@ -54,6 +54,10 @@ function goHome(){
                     <i data-feather="zap"></i>
                     <div>Insights</div>
                 </button>
+                <button class="home-btn home-btn-secondary" type="button" onclick="abrirDashTaticoComSenha()">
+                    <i data-feather="activity"></i>
+                    <div>Dash tático</div>
+                </button>
                 ` : ``}
                 <button class="home-btn home-btn-secondary" type="button">
                     <i data-feather="settings"></i>
@@ -123,6 +127,21 @@ function abrirInsightsComSenha() {
         });
     } else if (typeof goInsights === 'function') {
         goInsights();
+    }
+}
+
+/** Leitura do jogo em aberto (Campin → Sheets Campin_Live). Abre em nova URL; segundo dispositivo pode usar ao mesmo tempo. */
+function abrirDashTaticoComSenha() {
+    function openDash() {
+        var backend = (typeof window !== "undefined" && window.BACKEND_URL) ? String(window.BACKEND_URL).replace(/\/$/, "") : "";
+        var params = new URLSearchParams();
+        if (backend) params.set("backend", backend);
+        window.location.href = "dash-tatico.html?" + params.toString();
+    }
+    if (typeof window.showLockScreen === "function") {
+        window.showLockScreen(openDash);
+    } else {
+        openDash();
     }
 }
 

@@ -420,8 +420,19 @@ except Exception:
 
 _INSIGHTS_BY_FP = {}  # fingerprint -> {"ts": float, "insights": list}
 _LAST_GLOBAL_INSIGHTS_CALL = 0.0
-INSIGHTS_GLOBAL_COOLDOWN_S = 300  # 5 min entre chamadas ao Gemini (qualquer fingerprint)
+# Entre chamadas reais ao modelo (qualquer fingerprint). Env: GEMINI_INSIGHTS_COOLDOWN_S (default 600 = 10 min)
+try:
+    INSIGHTS_GLOBAL_COOLDOWN_S = max(120, int(os.getenv("GEMINI_INSIGHTS_COOLDOWN_S", "600")))
+except ValueError:
+    INSIGHTS_GLOBAL_COOLDOWN_S = 600
 INSIGHTS_FP_CACHE_TTL_S = 86400  # 24h reutiliza mesma análise se dados iguais
+
+# GET /games/live: cache em memória para não martelar a API do Sheets (vários tablets / dash)
+_GAMES_LIVE_READ_CACHE = {}  # chave -> (expiry_ts, dict)
+try:
+    _GAMES_LIVE_CACHE_TTL = float(os.getenv("GAMES_LIVE_CACHE_SECONDS", "12"))
+except ValueError:
+    _GAMES_LIVE_CACHE_TTL = 12.0
 
 
 def _insights_parse_gemini_json(text):
@@ -496,7 +507,7 @@ def _insights_call_gemini(prompt):
 def post_insights():
     """
     Gera 5 insights em PT-BR a partir de um resumo numérico (JSON) enviado pelo cliente.
-    Proteção de cota: cache 24h por fingerprint; mínimo 5 min entre chamadas reais ao modelo.
+    Proteção de cota: cache 24h por fingerprint; intervalo mínimo entre chamadas ao modelo (env GEMINI_INSIGHTS_COOLDOWN_S, default 600s).
     """
     global _LAST_GLOBAL_INSIGHTS_CALL, _INSIGHTS_BY_FP
     try:
@@ -609,6 +620,48 @@ def post_game():
         if result.get("success"):
             return jsonify(result), 200
         return jsonify(result), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _games_live_cache_key():
+    gid = (request.args.get("gameId") or "").strip()
+    return gid if gid else "__open__"
+
+
+def _games_live_cache_invalidate():
+    """Após escrita no Sheets, leituras seguintes precisam de dados frescos."""
+    _GAMES_LIVE_READ_CACHE.clear()
+
+
+@app.route('/games/live', methods=['POST', 'GET'])
+def games_live():
+    """
+    POST: snapshot ao vivo do Campin → aba Campin_Live (Sheets).
+    GET: ?gameId= opcional — último jogo em aberto (status open) se omitido.
+    """
+    try:
+        if request.method == 'POST':
+            data = request.json
+            if not data or not isinstance(data, dict):
+                return jsonify({"success": False, "error": "JSON inválido"}), 400
+            result = sync_data("upsert_campin_live", data)
+            if result.get("success"):
+                _games_live_cache_invalidate()
+                return jsonify(result), 200
+            return jsonify(result), 500
+        game_id = request.args.get('gameId') or None
+        ck = _games_live_cache_key()
+        now = time.time()
+        hit = _GAMES_LIVE_READ_CACHE.get(ck)
+        if hit and hit[0] > now:
+            body = dict(hit[1])
+            body["cached"] = True
+            return jsonify(body), 200
+        result = sync_data("get_campin_live", game_id)
+        if result.get("success"):
+            _GAMES_LIVE_READ_CACHE[ck] = (now + _GAMES_LIVE_CACHE_TTL, result)
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
