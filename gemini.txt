@@ -1,0 +1,15 @@
+# Configuração Gemini (Insights — Jaraguá)
+#
+# NÃO commite chaves reais. No Render: Web Service → Environment → Add Environment Variable
+#
+# Obrigatório no servidor (API Flask):
+#   GEMINI_API_KEY = sua chave da Google AI Studio / Vertex
+#
+# Opcional:
+#   GEMINI_MODEL = gemini-2.0-flash
+#   (ou outro modelo Flash compatível com generateContent na API v1beta)
+#
+# Se uma chave foi exposta em repositório ou chat, revogue-a no Google Cloud e crie outra.
+#
+# Referência de código: backend/legacy/app.py → POST /insights
+# Cliente: legacy/js/screens/insights.js (limite 5 min + mudança relevante nos dados)

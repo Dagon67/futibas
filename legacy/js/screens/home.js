@@ -50,6 +50,10 @@ function goHome(){
                     <i data-feather="bar-chart-2"></i>
                     <div>Acompanhamento</div>
                 </button>
+                <button class="home-btn home-btn-secondary" type="button" onclick="abrirInsightsComSenha()">
+                    <i data-feather="zap"></i>
+                    <div>Insights</div>
+                </button>
                 ` : ``}
                 <button class="home-btn home-btn-secondary" type="button">
                     <i data-feather="settings"></i>
@@ -109,6 +113,16 @@ function iniciarNovoJogoComSenha() {
         });
     } else if (typeof goGameSetup === 'function') {
         goGameSetup();
+    }
+}
+
+function abrirInsightsComSenha() {
+    if (typeof window.showLockScreen === 'function') {
+        window.showLockScreen(function() {
+            if (typeof goInsights === 'function') goInsights();
+        });
+    } else if (typeof goInsights === 'function') {
+        goInsights();
     }
 }
 

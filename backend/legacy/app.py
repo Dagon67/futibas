@@ -8,12 +8,14 @@ from flask_cors import CORS
 from sheets_sync import sync_data
 import json
 import os
+import time
 import base64
 import urllib.error
 import urllib.request
 from urllib.parse import quote
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from contextlib import nullcontext
 
 # Raiz do repositório (uploads/ e pastas pre|pos ficam na raiz, não em backend/legacy)
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -404,6 +406,156 @@ def get_analytics():
         if result.get("success"):
             return jsonify(result), 200
         return jsonify(result), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# --- Insights (Gemini Flash): cache por fingerprint + intervalo global (protege cota gratuita) ---
+_INSIGHTS_LOCK = None
+try:
+    import threading
+    _INSIGHTS_LOCK = threading.Lock()
+except Exception:
+    _INSIGHTS_LOCK = None
+
+_INSIGHTS_BY_FP = {}  # fingerprint -> {"ts": float, "insights": list}
+_LAST_GLOBAL_INSIGHTS_CALL = 0.0
+INSIGHTS_GLOBAL_COOLDOWN_S = 300  # 5 min entre chamadas ao Gemini (qualquer fingerprint)
+INSIGHTS_FP_CACHE_TTL_S = 86400  # 24h reutiliza mesma análise se dados iguais
+
+
+def _insights_parse_gemini_json(text):
+    """Extrai lista de 5 strings do texto da IA (JSON ou fallback)."""
+    if not text:
+        return []
+    t = text.strip()
+    try:
+        obj = json.loads(t)
+        if isinstance(obj, dict) and "insights" in obj and isinstance(obj["insights"], list):
+            return [str(x).strip() for x in obj["insights"] if str(x).strip()][:5]
+    except Exception:
+        pass
+    lines = [ln.strip().lstrip("0123456789.-) ") for ln in t.splitlines() if ln.strip()]
+    return lines[:5]
+
+
+def _insights_call_gemini(prompt):
+    import requests
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return None, "GEMINI_API_KEY não configurada no servidor (Render → Environment)."
+    model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    base_cfg = {
+        "temperature": 0.35,
+        "maxOutputTokens": 1024,
+    }
+    attempts = [
+        {**base_cfg, "responseMimeType": "application/json"},
+        base_cfg,
+    ]
+    last_err = None
+    for gen_cfg in attempts:
+        body = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": gen_cfg,
+        }
+        r = requests.post(url, params={"key": api_key}, json=body, timeout=60)
+        if r.status_code != 200:
+            try:
+                err = r.json()
+            except Exception:
+                err = {"raw": r.text[:500]}
+            last_err = f"Gemini HTTP {r.status_code}: {err}"
+            continue
+        data = r.json()
+        try:
+            parts = data["candidates"][0]["content"]["parts"]
+            text = "".join(p.get("text", "") for p in parts)
+        except (KeyError, IndexError, TypeError):
+            last_err = "Resposta Gemini inesperada."
+            continue
+        return text, None
+    return None, last_err or "Falha ao chamar Gemini."
+
+
+@app.route('/insights', methods=['POST'])
+def post_insights():
+    """
+    Gera 5 insights em PT-BR a partir de um resumo numérico (JSON) enviado pelo cliente.
+    Proteção de cota: cache 24h por fingerprint; mínimo 5 min entre chamadas reais ao modelo.
+    """
+    global _LAST_GLOBAL_INSIGHTS_CALL, _INSIGHTS_BY_FP
+    try:
+        payload = request.get_json(silent=True) or {}
+        summary = (payload.get("summary") or "").strip()
+        fp = (payload.get("fingerprint") or "").strip()
+        if not summary or len(summary) > 12000:
+            return jsonify({"success": False, "error": "Resumo inválido ou muito longo."}), 400
+        if not fp or len(fp) != 64:
+            return jsonify({"success": False, "error": "fingerprint inválido."}), 400
+
+        lock = _INSIGHTS_LOCK if _INSIGHTS_LOCK else nullcontext()
+        with lock:
+            now = time.time()
+            ent = _INSIGHTS_BY_FP.get(fp)
+            if ent and now - ent.get("ts", 0) <= INSIGHTS_FP_CACHE_TTL_S:
+                cached_insights = ent.get("insights")
+                if cached_insights and len(cached_insights) >= 5:
+                    return jsonify({
+                        "success": True,
+                        "insights": cached_insights[:5],
+                        "fingerprint": fp,
+                        "cached": True,
+                    }), 200
+            elif ent:
+                _INSIGHTS_BY_FP.pop(fp, None)
+
+            if now - _LAST_GLOBAL_INSIGHTS_CALL < INSIGHTS_GLOBAL_COOLDOWN_S:
+                retry_ms = int((INSIGHTS_GLOBAL_COOLDOWN_S - (now - _LAST_GLOBAL_INSIGHTS_CALL)) * 1000)
+                fallback = None
+                if _INSIGHTS_BY_FP:
+                    try:
+                        newest = max(_INSIGHTS_BY_FP.values(), key=lambda x: x.get("ts", 0))
+                        fallback = newest.get("insights")
+                    except Exception:
+                        fallback = None
+                return jsonify({
+                    "success": False,
+                    "error": "rate_limited",
+                    "message": "Limite de frequência: aguarde antes de gerar nova análise (proteção de cota).",
+                    "retryAfterMs": max(0, retry_ms),
+                    "insights": (fallback or [])[:5],
+                }), 429
+
+            prompt = (
+                "Você é analista de desempenho de futsal (Brasil). Com base APENAS no JSON abaixo "
+                "(médias, cargas, ACWR, tendência, bem-estar, zonas de dor), gere exatamente 5 insights curtos em português.\n"
+                "Regras: cada insight uma frase objetiva (máx. 200 caracteres); sem inventar números que não estejam no JSON; "
+                "se faltar dado, fale de forma conservadora.\n"
+                "Responda SOMENTE com JSON válido neste formato exato:\n"
+                '{"insights":["...","...","...","...","..."]}\n\n'
+                "Dados:\n" + summary
+            )
+
+            text, err = _insights_call_gemini(prompt)
+            if err:
+                return jsonify({"success": False, "error": err}), 503
+
+            insights = _insights_parse_gemini_json(text)
+            while len(insights) < 5:
+                insights.append("Dado insuficiente para este ponto — colete mais respostas de pré/pós treino.")
+            insights = insights[:5]
+
+            _LAST_GLOBAL_INSIGHTS_CALL = time.time()
+            _INSIGHTS_BY_FP[fp] = {"ts": _LAST_GLOBAL_INSIGHTS_CALL, "insights": insights}
+
+            return jsonify({
+                "success": True,
+                "insights": insights,
+                "fingerprint": fp,
+                "cached": False,
+            }), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
