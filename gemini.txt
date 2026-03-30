@@ -1,15 +1,18 @@
 # Configuração Gemini (Insights — Jaraguá)
 #
-# NÃO commite chaves reais. No Render: Web Service → Environment → Add Environment Variable
+# NÃO commite chaves reais no Git.
 #
-# Obrigatório no servidor (API Flask):
-#   GEMINI_API_KEY = sua chave da Google AI Studio / Vertex
+# Render (obrigatório para Insights funcionar)
+# 1. Abra o serviço **Web** (Flask / gunicorn) — o mesmo que responde /analytics.
+#    NÃO use só o Static Site: a chave tem de estar no processo Python.
+# 2. Environment → Add Environment Variable:
+#      Name:  GEMINI_API_KEY
+#      Value: (cole a chave do Google AI Studio ou Google Cloud)
+# 3. Save Changes → Manual Deploy (ou aguarde o deploy automático).
 #
 # Opcional:
 #   GEMINI_MODEL = gemini-2.0-flash
-#   (ou outro modelo Flash compatível com generateContent na API v1beta)
 #
-# Se uma chave foi exposta em repositório ou chat, revogue-a no Google Cloud e crie outra.
+# Se uma chave foi exposta, revogue no Google e crie outra.
 #
-# Referência de código: backend/legacy/app.py → POST /insights
-# Cliente: legacy/js/screens/insights.js (limite 5 min + mudança relevante nos dados)
+# Código: backend/legacy/app.py → POST /insights

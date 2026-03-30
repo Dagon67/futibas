@@ -235,6 +235,21 @@ function goInsights() {
                     }
                     return;
                 }
+                if (result.status === 503 && data && data.error) {
+                    if (sub) sub.textContent = "Configuração necessária";
+                    if (content) {
+                        content.innerHTML =
+                            "<p class=\"item-sub\" style=\"padding:1rem;line-height:1.45;\">" +
+                            insightsEscapeHtml(String(data.error)) +
+                            "</p>" +
+                            (data.hint
+                                ? "<p class=\"item-sub\" style=\"padding:0 1rem 1rem;line-height:1.45;opacity:0.95;\">" +
+                                  insightsEscapeHtml(String(data.hint)) +
+                                  "</p>"
+                                : "");
+                    }
+                    return;
+                }
                 throw new Error((data && data.error) || "Falha ao gerar insights");
             }
             var list = data.insights || [];

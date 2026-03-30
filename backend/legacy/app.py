@@ -495,6 +495,13 @@ def post_insights():
         if not fp or len(fp) != 64:
             return jsonify({"success": False, "error": "fingerprint inválido."}), 400
 
+        if not os.getenv("GEMINI_API_KEY", "").strip():
+            return jsonify({
+                "success": False,
+                "error": "GEMINI_API_KEY não configurada no servidor (Render → Environment).",
+                "hint": "Adicione a variável GEMINI_API_KEY no serviço Web (não no Static Site), salve e faça redeploy.",
+            }), 503
+
         lock = _INSIGHTS_LOCK if _INSIGHTS_LOCK else nullcontext()
         with lock:
             now = time.time()
