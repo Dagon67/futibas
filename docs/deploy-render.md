@@ -46,6 +46,14 @@ Fotos enviadas pelo app são gravadas em `uploads/players/` na **raiz do reposit
 
 Desativa só o upload para o GitHub omitindo `GITHUB_TOKEN` ou `GITHUB_REPO`. O commit local opcional (`GIT_AUTO_COMMIT`) continua a funcionar onde existir `.git`.
 
+### Coluna **Foto (URL)** na planilha (última foto do jogador)
+
+- Ao **adicionar** ou **guardar alterações** num jogador no ecrã Jogadores, a app chama automaticamente o envio da lista completa ao Sheets (`/sync/players`). A coluna **Foto (URL)** fica com o mesmo valor que está no `player.photo` (por exemplo `https://raw.githubusercontent.com/...` se o upload ao GitHub tiver sucesso).
+- **Render:** além das credenciais Google (Sheets), para o link ser o do repositório:
+  - `GITHUB_TOKEN` + `GITHUB_REPO` (e opcionalmente `GITHUB_BRANCH`) — ver secção acima.
+- **GitHub:** não há ficheiros a editar no PC; só o **token** com permissão de escrita no repositório (Contents). O repositório pode ser público (recomendado para as imagens `raw.githubusercontent.com` abrirem no browser) ou privado (ver `PLAYER_PHOTO_USE_RENDER_URL` na secção anterior).
+- Se o envio automático ao Sheets falhar (rede, quota), aparece um toast de erro; o jogador continua guardado localmente e podes usar **Atualizar lista de jogadores** de novo.
+
 ## Free tier
 
 Serviços gratuitos hibernam; o primeiro request após dormir pode falhar (502) — normal, tente de novo em ~1–2 minutos.

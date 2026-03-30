@@ -179,6 +179,36 @@ function goPlayers(){
 
 let playerPhotoBase64FromList = null;
 
+/** Envia a lista atual ao Google Sheets (aba Jogadores), para a coluna Foto (URL) ficar com o link certo. */
+function syncPlayersSheetLinkAfterSave() {
+    if (typeof pushPlayersToSheets !== "function") return;
+    pushPlayersToSheets()
+        .then(function (result) {
+            if (result && result.success) {
+                if (typeof showSyncToast === "function") {
+                    showSyncToast(
+                        "Google Sheets: lista de jogadores atualizada (links das fotos na planilha).",
+                        "success"
+                    );
+                }
+            } else if (typeof showSyncToast === "function") {
+                showSyncToast(
+                    "Jogador guardado localmente, mas o Sheets não atualizou: " +
+                        (result && result.error ? result.error : "erro"),
+                    "error"
+                );
+            }
+        })
+        .catch(function (err) {
+            if (typeof showSyncToast === "function") {
+                showSyncToast(
+                    "Sheets: " + (err && err.message ? err.message : "falha de rede"),
+                    "error"
+                );
+            }
+        });
+}
+
 function handlePlayerPhotoChangeFromList(event){
     const file = event.target.files[0];
     if(!file) return;
@@ -332,6 +362,7 @@ async function addPlayerFromList(){
     players.push(newPlayer);
     savePlayers(players);
     if (typeof markPlayersListNeedsSheetsPush === "function") markPlayersListNeedsSheetsPush();
+    syncPlayersSheetLinkAfterSave();
     
     // Limpar campos
     nameInput.value = "";
@@ -463,6 +494,7 @@ async function savePlayerEdit(oldId){
 
         patchPlayerRowInListDOM(oldId, updatedPlayer);
         if (typeof markPlayersListNeedsSheetsPush === "function") markPlayersListNeedsSheetsPush();
+        syncPlayersSheetLinkAfterSave();
     }
     
     nameInput.value = "";
