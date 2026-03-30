@@ -2420,6 +2420,13 @@
         if (!raw) return false;
         var payload = JSON.parse(raw);
         if (!payload || !payload.players || !payload.players.length) return false;
+        if (payload.matchEnded === true) {
+          try {
+            localStorage.removeItem(CAMPIN_GAME_KEY);
+            localStorage.removeItem(CAMPIN_STATE_KEY);
+          } catch (e2) {}
+          return false;
+        }
         state.players = payload.players.map(function(s){
           var num = s.numero != null ? (typeof s.numero === "number" ? s.numero : parseInt(s.numero, 10)) : 0;
           var numOk = isNaN(num) ? 0 : num;
@@ -2483,6 +2490,7 @@
         btnStartPauseText.textContent = "Pausar";
         updateFilledUI();
         tick();
+        saveCampinState();
         scheduleDebouncedLiveSync();
       }else{
         // toggle pause — força envio para o dash refletir pausa

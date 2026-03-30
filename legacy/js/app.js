@@ -17,13 +17,40 @@ window.__IMAGE_VERSION = Date.now();
     } catch (e) {}
 })();
 
-// Se há jogo em andamento no campin, ir direto para o controle de jogo
+// Só neste aparelho: redirecionar ao Campin se existir estado salvo local com partida não encerrada.
+// Outro dispositivo sem esse localStorage não é redirecionado (pode usar o menu / dash tático com dados no Sheets).
+(function sanitizeCampinLocalStorage() {
+    try {
+        var flag = localStorage.getItem("tutem_campin_game_in_progress");
+        var raw = localStorage.getItem("tutem_campin_saved_state");
+        if (flag === "1" && !raw) {
+            localStorage.removeItem("tutem_campin_game_in_progress");
+            return;
+        }
+        if (raw) {
+            var p = JSON.parse(raw);
+            if (!p || p.matchEnded === true || p.started !== true) {
+                localStorage.removeItem("tutem_campin_game_in_progress");
+                localStorage.removeItem("tutem_campin_saved_state");
+            }
+        }
+    } catch (e) {
+        try {
+            localStorage.removeItem("tutem_campin_game_in_progress");
+            localStorage.removeItem("tutem_campin_saved_state");
+        } catch (e2) {}
+    }
+})();
+
 var redirectToCampinIfGameInProgress = (function () {
     try {
-        if (localStorage.getItem("tutem_campin_game_in_progress") === "1") {
-            window.location.replace("campin/campin.html");
-            return true;
-        }
+        if (localStorage.getItem("tutem_campin_game_in_progress") !== "1") return false;
+        var raw = localStorage.getItem("tutem_campin_saved_state");
+        if (!raw) return false;
+        var p = JSON.parse(raw);
+        if (!p || !p.started || p.matchEnded === true) return false;
+        window.location.replace("campin/campin.html");
+        return true;
     } catch (e) {}
     return false;
 })();
