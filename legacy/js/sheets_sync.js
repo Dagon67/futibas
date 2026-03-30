@@ -506,6 +506,25 @@ async function fetchPlayersFromSheets() {
         const result = await response.json();
         if (result.success && Array.isArray(result.players) && typeof savePlayers === "function") {
             var local = typeof loadPlayers === "function" ? loadPlayers() : [];
+            var localById = {};
+            local.forEach(function (p) {
+                if (p && p.id) localById[p.id] = p;
+            });
+            result.players.forEach(function (p) {
+                if (!p || !p.id) return;
+                if (typeof normalizePlayerPhotoUrl === "function" && p.photo) {
+                    p.photo = normalizePlayerPhotoUrl(p.photo);
+                } else if (p.photo && typeof p.photo === "string" && p.photo.indexOf("/") === 0) {
+                    var b = typeof getBackendUrl === "function" ? getBackendUrl() : window.BACKEND_URL || "";
+                    if (b) p.photo = b.replace(/\/$/, "") + p.photo;
+                }
+                if (!p.photo && localById[p.id] && localById[p.id].photo) {
+                    p.photo = localById[p.id].photo;
+                    if (typeof normalizePlayerPhotoUrl === "function") {
+                        p.photo = normalizePlayerPhotoUrl(p.photo);
+                    }
+                }
+            });
             var sheetsIds = {};
             result.players.forEach(function (p) { sheetsIds[p.id] = true; });
             var onlyLocal = local.filter(function (p) { return p && p.id && !sheetsIds[p.id]; });

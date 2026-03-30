@@ -64,6 +64,30 @@ function playerAvatarThumbHTML(player, className){
  * @param {string[]} playerIds
  * @param {number} [maxShow]
  */
+/**
+ * Garante URL absoluta da foto (para outro dispositivo / mesmo backend).
+ * @param {string|null|undefined} url
+ * @returns {string|null}
+ */
+function normalizePlayerPhotoUrl(url){
+    if (url == null || url === "") return null;
+    var s = String(url).trim();
+    if (!s) return null;
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.indexOf("//") === 0) return "https:" + s;
+    if (s.indexOf("/") === 0) {
+        var base =
+            typeof getBackendUrl === "function"
+                ? getBackendUrl()
+                : typeof window !== "undefined" && window.BACKEND_URL
+                  ? window.BACKEND_URL
+                  : "";
+        if (!base) return s;
+        return base.replace(/\/$/, "") + s;
+    }
+    return s;
+}
+
 function trainingPlayerAvatarsStackHTML(playerIds, maxShow){
     maxShow = maxShow == null ? 5 : maxShow;
     var players = typeof loadPlayers === "function" ? loadPlayers() : [];

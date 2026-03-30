@@ -49,10 +49,15 @@ class SheetsSync:
     def sync_players(self, players: List[Dict[str, Any]]):
         """Sincroniza lista de jogadores na aba 'Jogadores'"""
         worksheet = self._get_or_create_worksheet("Jogadores")
-        header = ["ID", "Nome", "Número", "Posição", "Lateralidade", "Idade", "Altura (cm)", "Peso (kg)"]
+        header = [
+            "ID", "Nome", "Número", "Posição", "Lateralidade",
+            "Idade", "Altura (cm)", "Peso (kg)", "Foto (URL)",
+        ]
         rows = [header]
         if players:
             for player in players:
+                photo = player.get("photo")
+                photo_str = self._str(photo).strip() if photo else ""
                 rows.append([
                     self._str(player.get("id")),
                     self._str(player.get("name")),
@@ -62,40 +67,77 @@ class SheetsSync:
                     self._str(player.get("age")),
                     self._str(player.get("height")),
                     self._str(player.get("weight")),
+                    photo_str,
                 ])
         self._update_worksheet_batch(worksheet, rows)
         print(f"✅ {len(players)} jogadores sincronizados")
 
     def get_players(self) -> List[Dict[str, Any]]:
-        """Lê a lista de jogadores da aba 'Jogadores'. Retorna lista de dict com id, name, number, position, lateralidade."""
+        """Lê a lista de jogadores da aba 'Jogadores'. Inclui idade, peso e URL da foto quando existirem colunas."""
         try:
             worksheet = self.spreadsheet.worksheet("Jogadores")
             all_rows = worksheet.get_all_values()
             if not all_rows or len(all_rows) < 2:
                 return []
-            # Cabeçalho: ID, Nome, Número, Posição, Lateralidade, ...
             data_rows = all_rows[1:]
             result = []
             for row in data_rows:
-                if not row or not self._str(row[0]).strip():
-                    continue
-                num_val = None
-                if len(row) > 2 and row[2].strip():
-                    try:
-                        num_val = int(float(str(row[2]).replace(",", ".")))
-                    except (ValueError, TypeError):
-                        num_val = row[2]
-                result.append({
-                    "id": self._str(row[0]).strip() or None,
-                    "name": self._str(row[1]).strip() if len(row) > 1 else "",
-                    "number": num_val if num_val is not None else (row[2] if len(row) > 2 else None),
-                    "position": self._str(row[3]).strip() if len(row) > 3 else "",
-                    "lateralidade": self._str(row[4]).strip() if len(row) > 4 else None,
-                })
+                parsed = self._parse_jogadores_row(row)
+                if parsed:
+                    result.append(parsed)
             return result
         except Exception as e:
             print(f"⚠️ get_players: {e}")
             raise
+
+    def _parse_jogadores_row(self, row: List[Any]) -> Optional[Dict[str, Any]]:
+        if not row or not self._str(row[0]).strip():
+            return None
+        num_val = None
+        if len(row) > 2 and row[2] and str(row[2]).strip():
+            try:
+                num_val = int(float(str(row[2]).replace(",", ".")))
+            except (ValueError, TypeError):
+                num_val = row[2]
+
+        def safe_int(idx: int):
+            if len(row) <= idx or not str(row[idx]).strip():
+                return None
+            try:
+                return int(float(str(row[idx]).replace(",", ".")))
+            except (ValueError, TypeError):
+                return None
+
+        def safe_float(idx: int):
+            if len(row) <= idx or not str(row[idx]).strip():
+                return None
+            try:
+                return float(str(row[idx]).replace(",", "."))
+            except (ValueError, TypeError):
+                return None
+
+        age = safe_int(5) if len(row) > 5 else None
+        height = safe_int(6) if len(row) > 6 else None
+        weight = safe_float(7) if len(row) > 7 else None
+        photo_raw = self._str(row[8]).strip() if len(row) > 8 else ""
+        photo = photo_raw if photo_raw else None
+
+        out: Dict[str, Any] = {
+            "id": self._str(row[0]).strip() or None,
+            "name": self._str(row[1]).strip() if len(row) > 1 else "",
+            "number": num_val if num_val is not None else (row[2] if len(row) > 2 else None),
+            "position": self._str(row[3]).strip() if len(row) > 3 else "",
+            "lateralidade": self._str(row[4]).strip() if len(row) > 4 else None,
+        }
+        if age is not None:
+            out["age"] = age
+        if height is not None:
+            out["height"] = height
+        if weight is not None:
+            out["weight"] = weight
+        if photo:
+            out["photo"] = photo
+        return out
     
     def _str(self, val):
         """Converte valor para string de forma segura (evita erro 500 por tipo inesperado)."""
