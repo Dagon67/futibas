@@ -7,6 +7,11 @@ services:
     envVars:
       - key: PORT
         value: 10000
+      # Fotos: GIT_AUTO_COMMIT vem true por defeito no código (commit local ao gravar upload).
+      # No Render normalmente não existe .git no runtime — o commit só corre onde o servidor
+      # tenha o repositório clonado (ex.: desenvolvimento local).
+      # Push automático (opcional): GIT_AUTO_PUSH=true + credenciais (SSH ou token) no ambiente.
+      # Commit sem user.name local: GIT_COMMITTER_NAME + GIT_COMMITTER_EMAIL
       # Adicione suas variáveis de ambiente aqui
       # - key: GOOGLE_APPLICATION_CREDENTIALS
       #   value: /opt/render/project/src/backend/legacy/service-account.json

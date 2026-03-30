@@ -33,6 +33,92 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _truthy_env(name, default=False):
+    v = os.getenv(name)
+    if v is None:
+        return default
+    return v.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _try_git_commit_player_photo(filepath, filename):
+    """
+    git add + commit do ficheiro (persistência no repositório até migrares p. ex. Storage).
+    Por defeito ativo (GIT_AUTO_COMMIT=true). Desativar: GIT_AUTO_COMMIT=false
+    Push opcional: GIT_AUTO_PUSH=true (requer credenciais no ambiente, ex. gh ou SSH).
+    """
+    if not _truthy_env('GIT_AUTO_COMMIT', default=True):
+        return
+    try:
+        import subprocess
+        repo_root = _REPO_ROOT
+        git_dir = os.path.join(repo_root, '.git')
+        if not os.path.isdir(git_dir):
+            print(
+                "⚠️ Git: pasta .git não encontrada — commit ignorado "
+                "(normal em deploy sem repo; em local, clone com .git)."
+            )
+            return
+
+        rel = os.path.relpath(filepath, repo_root).replace('\\', '/')
+        r = subprocess.run(
+            ['git', 'add', '--', rel],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if r.returncode != 0:
+            print("⚠️ git add:", (r.stderr or r.stdout or '').strip())
+            return
+
+        msg = f'chore(photos): jogador {filename}'
+        name = os.getenv('GIT_COMMITTER_NAME', '').strip()
+        email = os.getenv('GIT_COMMITTER_EMAIL', '').strip()
+        if name and email:
+            commit_cmd = [
+                'git',
+                '-c', f'user.name={name}',
+                '-c', f'user.email={email}',
+                'commit',
+                '-m', msg,
+            ]
+        else:
+            commit_cmd = ['git', 'commit', '-m', msg]
+
+        r2 = subprocess.run(
+            commit_cmd,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        out = (r2.stdout or '') + (r2.stderr or '')
+        if r2.returncode != 0:
+            if 'nothing to commit' in out.lower() or 'no changes added to commit' in out.lower():
+                print("ℹ️ Git: nada de novo a commitar para esta foto.")
+            else:
+                print("⚠️ git commit:", out.strip())
+            return
+
+        print(f"✅ Foto commitada no Git: {filename}")
+
+        if _truthy_env('GIT_AUTO_PUSH', default=False):
+            r3 = subprocess.run(
+                ['git', 'push'],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=90,
+                env={**os.environ, 'GIT_TERMINAL_PROMPT': '0'},
+            )
+            if r3.returncode != 0:
+                print("⚠️ git push:", (r3.stderr or r3.stdout or '').strip())
+            else:
+                print("✅ git push concluído")
+    except Exception as e:
+        print(f"⚠️ Git (commit/push opcional): {e}")
+
+
 @app.route('/', methods=['GET'])
 def root():
     """Endpoint raiz"""
@@ -91,35 +177,8 @@ def upload_player_photo():
         # Salvar arquivo
         with open(filepath, 'wb') as f:
             f.write(image_data)
-        
-        # Tentar fazer commit no Git (opcional - apenas se configurado)
-        # Isso permite que as fotos sejam persistidas no repositório
-        try:
-            import subprocess
-            repo_root = _REPO_ROOT
-            git_enabled = os.getenv('GIT_AUTO_COMMIT', 'false').lower() == 'true'
-            
-            if git_enabled:
-                # Adicionar arquivo ao Git
-                subprocess.run(
-                    ['git', 'add', filepath],
-                    cwd=repo_root,
-                    capture_output=True,
-                    timeout=5
-                )
-                # Fazer commit
-                subprocess.run(
-                    ['git', 'commit', '-m', f'Add player photo: {filename}'],
-                    cwd=repo_root,
-                    capture_output=True,
-                    timeout=5
-                )
-                # Push (requer autenticação configurada)
-                # subprocess.run(['git', 'push'], cwd=repo_root, capture_output=True, timeout=10)
-                print(f"✅ Foto commitada no Git: {filename}")
-        except Exception as e:
-            # Se falhar, continua normalmente (foto foi salva)
-            print(f"⚠️ Não foi possível commitar no Git (opcional): {e}")
+
+        _try_git_commit_player_photo(filepath, filename)
         
         # Retornar URL relativa
         photo_url = f"/uploads/players/{filename}"
