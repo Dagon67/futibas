@@ -58,16 +58,19 @@
       padding-right: 14px;
     }
 
-    /* ===== Encerrar (esq) | Voltar ao menu (centro) | Iniciar/Pausar sempre no canto superior direito ===== */
+    /* ===== Encerrar (esq) | Voltar ao menu (centro) | Iniciar/Pausar (dir). Modo canhoto: inverte esq/dir ===== */
     .mainActions{
-      display: flex;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: 12px;
       padding: 10px 0 6px;
     }
-    .mainActionsLeft{ flex: 0 0 auto; }
-    .mainActionsCenter{ flex: 1; display: flex; justify-content: center; min-width: 0; }
-    .mainActionsRight{ flex: 0 0 auto; margin-left: auto; }
+    .mainActionsLeft{ grid-column: 1; }
+    .mainActionsCenter{ grid-column: 2; display: flex; justify-content: center; min-width: 0; }
+    .mainActionsRight{ grid-column: 3; }
+    .mainActions.mainActions--swapped .mainActionsLeft{ grid-column: 3; }
+    .mainActions.mainActions--swapped .mainActionsRight{ grid-column: 1; }
     .mainActions .btnMain{
       min-height: 48px;
       padding: 10px 18px;
@@ -839,6 +842,65 @@
       color: var(--muted);
       font-variant-numeric: tabular-nums;
     }
+    .playerPickHandMode{
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(96,165,250,.08);
+      border: 1px solid rgba(96,165,250,.22);
+      margin-bottom: 4px;
+    }
+    .playerPickHandLabel{
+      font-size: 12px;
+      font-weight: 650;
+      color: rgba(255,255,255,.88);
+    }
+    .playerPickHandBtns{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .handModeBtn{
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,.25);
+      color: rgba(255,255,255,.85);
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .handModeBtn:hover{ border-color: rgba(96,165,250,.5); }
+    .handModeBtn.handModeBtn--active{
+      border-color: rgba(96,165,250,.75);
+      background: rgba(96,165,250,.2);
+      color: #fff;
+    }
+    .playerPickHandHint{
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .playerPickRow .ppAvatar{
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.14);
+    }
+    .playerPickRow .ppAvatar img{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
     .playerPickActions{
       display: flex;
       gap: 10px;
@@ -911,8 +973,8 @@
 <body>
   <div class="app">
     <!-- Primeira dobra: botões + quadra + reservas (100vh, sem rolagem) -->
-    <div class="firstFold">
-      <div class="mainActions">
+      <div class="firstFold">
+      <div class="mainActions" id="mainActionsBar">
         <div class="mainActionsLeft">
           <button id="btnEnd" class="btnDanger btnMain" disabled>
             <span class="ico" aria-hidden="true">⏹️</span>
@@ -1150,6 +1212,14 @@
       </div>
       <div class="modalBody playerPickBody">
         <p class="playerPickHint">Só os selecionados aparecem na quadra e no banco. Você pode ajustar depois saindo e entrando de novo no controle, se precisar mudar o elenco.</p>
+        <div class="playerPickHandMode" role="group" aria-label="Controles do jogo">
+          <span class="playerPickHandLabel">Controles na barra superior</span>
+          <div class="playerPickHandBtns">
+            <button type="button" id="btnHandDestro" class="handModeBtn handModeBtn--active">Modo destro</button>
+            <button type="button" id="btnHandCanhoto" class="handModeBtn">Modo canhoto</button>
+          </div>
+          <p class="playerPickHandHint">Modo destro: layout padrão. Modo canhoto inverte Encerrar e Iniciar/Pausar (útil para quem segura o tablet com a mão esquerda).</p>
+        </div>
         <div class="playerPickActions">
           <button type="button" id="btnPickAll">Marcar todos</button>
           <button type="button" id="btnPickNone">Desmarcar todos</button>
@@ -1307,6 +1377,19 @@
       return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     }
 
+    function resolvePhotoUrl(photo, numero){
+      const n = typeof numero === "number" && !isNaN(numero) ? numero : parseInt(numero, 10);
+      const num = isNaN(n) ? 1 : n;
+      const fallback = svgAvatarDataUriNumber(num);
+      if (photo == null || typeof photo !== "string") return fallback;
+      const t = photo.trim();
+      if (!t) return fallback;
+      if (t.indexOf("data:") === 0 || t.indexOf("http://") === 0 || t.indexOf("https://") === 0) return t;
+      const base = getBackendUrl();
+      if (!base) return fallback;
+      return t.indexOf("/") === 0 ? base + t : base + "/" + t.replace(/^\//, "");
+    }
+
     /* =========================
        Backend e URL
     ========================== */
@@ -1358,7 +1441,10 @@
       posToPlayer: { gk:null, fix:null, alaL:null, alaR:null, pivo:null },
 
       // players
-      players: []
+      players: [],
+
+      /** "destro" = Encerrar à esquerda, Iniciar à direita; "canhoto" = inverte */
+      handMode: "destro"
     };
 
     function createPlayers(){
@@ -1387,6 +1473,16 @@
         cb.type = "checkbox";
         cb.checked = true;
         cb.dataset.playerId = p.id;
+        const av = document.createElement("span");
+        av.className = "ppAvatar";
+        const img = document.createElement("img");
+        img.alt = p.name || "";
+        img.src = p.photo || svgAvatarDataUriNumber(p.numero);
+        img.onerror = function(){
+          this.onerror = null;
+          this.src = svgAvatarDataUriNumber(p.numero);
+        };
+        av.appendChild(img);
         const span = document.createElement("span");
         span.className = "ppName";
         span.textContent = p.name || ("Jogador " + p.id);
@@ -1394,10 +1490,25 @@
         num.className = "ppNum";
         num.textContent = "#" + p.numero;
         row.appendChild(cb);
+        row.appendChild(av);
         row.appendChild(span);
         row.appendChild(num);
         playerSelectListEl.appendChild(row);
       }
+    }
+
+    function applyMainActionsHandMode(){
+      const bar = document.getElementById("mainActionsBar");
+      if (!bar) return;
+      if (state.handMode === "canhoto") bar.classList.add("mainActions--swapped");
+      else bar.classList.remove("mainActions--swapped");
+    }
+
+    function updateHandModeButtons(){
+      const d = document.getElementById("btnHandDestro");
+      const c = document.getElementById("btnHandCanhoto");
+      if (d) d.classList.toggle("handModeBtn--active", state.handMode === "destro");
+      if (c) c.classList.toggle("handModeBtn--active", state.handMode === "canhoto");
     }
 
     function openPlayerSelectUI(){
@@ -1408,6 +1519,7 @@
         }
       }
       buildPlayerSelectList();
+      updateHandModeButtons();
       if (playerSelectOverlay) playerSelectOverlay.style.display = "flex";
     }
 
@@ -1443,11 +1555,12 @@
           state.players = data.players.map((pl, idx) => {
             const id = (pl.id || ("p" + (idx + 1))).toString();
             const numero = pl.number != null ? (typeof pl.number === "number" ? pl.number : parseInt(pl.number, 10) || idx + 1) : idx + 1;
+            const numOk = isNaN(numero) ? idx + 1 : numero;
             return {
               id,
               name: pl.name || "",
-              numero: isNaN(numero) ? idx + 1 : numero,
-              photo: svgAvatarDataUriNumber(numero),
+              numero: numOk,
+              photo: resolvePhotoUrl(pl.photo, numOk),
               totalMs: 0,
               onField: false,
               stints: [],
@@ -1626,6 +1739,10 @@
       const img = document.createElement("img");
       img.alt = "";
       img.src = player.photo;
+      img.onerror = function(){
+        this.onerror = null;
+        this.src = svgAvatarDataUriNumber(player.numero);
+      };
       av.appendChild(img);
 
       const info = document.createElement("div");
@@ -1655,6 +1772,10 @@
       const img = document.createElement("img");
       img.alt = player.name;
       img.src = player.photo;
+      img.onerror = function(){
+        this.onerror = null;
+        this.src = svgAvatarDataUriNumber(player.numero);
+      };
       av.appendChild(img);
 
       const info = document.createElement("div");
@@ -1988,7 +2109,7 @@
       if (!state.started || state.matchEnded) return;
       try {
         var payload = {
-          players: state.players.map(function(p){ return { id: p.id, name: p.name, numero: p.numero, totalMs: p.totalMs, onField: p.onField, stints: p.stints || [], events: p.events || [] }; }),
+          players: state.players.map(function(p){ return { id: p.id, name: p.name, numero: p.numero, photo: p.photo, totalMs: p.totalMs, onField: p.onField, stints: p.stints || [], events: p.events || [] }; }),
           posToPlayer: state.posToPlayer,
           elapsedMs: state.elapsedMs,
           started: state.started,
@@ -1998,7 +2119,8 @@
           teamName: state.teamName,
           note: state.note,
           halfLenMs: state.halfLenMs,
-          totalLenMs: state.totalLenMs
+          totalLenMs: state.totalLenMs,
+          handMode: state.handMode === "canhoto" ? "canhoto" : "destro"
         };
         localStorage.setItem(CAMPIN_STATE_KEY, JSON.stringify(payload));
       } catch(e) {}
@@ -2011,11 +2133,12 @@
         if (!payload || !payload.players || !payload.players.length) return false;
         state.players = payload.players.map(function(s){
           var num = s.numero != null ? (typeof s.numero === "number" ? s.numero : parseInt(s.numero, 10)) : 0;
+          var numOk = isNaN(num) ? 0 : num;
           return {
             id: s.id,
             name: s.name || "",
-            numero: isNaN(num) ? 0 : num,
-            photo: svgAvatarDataUriNumber(num || 1),
+            numero: numOk,
+            photo: resolvePhotoUrl(s.photo, numOk || 1),
             totalMs: s.totalMs || 0,
             onField: !!s.onField,
             stints: s.stints || [],
@@ -2034,6 +2157,7 @@
         if (payload.totalLenMs > 0) state.totalLenMs = payload.totalLenMs;
         if (state.halfLenMs > 0 && (!payload.totalLenMs || payload.totalLenMs <= 0))
           state.totalLenMs = 2 * state.halfLenMs;
+        state.handMode = payload.handMode === "canhoto" ? "canhoto" : "destro";
         state.configured = true;
         if (setupOverlay) setupOverlay.style.display = "none";
         var dt = new Date(state.gameDatetimeISO);
@@ -2348,6 +2472,19 @@
       playerSelectListEl.querySelectorAll("input[type=checkbox]").forEach(function(i){ i.checked = false; });
     });
 
+    const btnHandDestro = document.getElementById("btnHandDestro");
+    const btnHandCanhoto = document.getElementById("btnHandCanhoto");
+    if (btnHandDestro) btnHandDestro.addEventListener("click", function(){
+      state.handMode = "destro";
+      updateHandModeButtons();
+      applyMainActionsHandMode();
+    });
+    if (btnHandCanhoto) btnHandCanhoto.addEventListener("click", function(){
+      state.handMode = "canhoto";
+      updateHandModeButtons();
+      applyMainActionsHandMode();
+    });
+
     function goToMenu(){
       if (state.started && !state.matchEnded) {
         if (typeof alert === "function") alert("Encerre o jogo antes de sair. Use o botão \"Encerrar\" e confirme.");
@@ -2451,8 +2588,12 @@
         var hadGame = false;
         try { hadGame = localStorage.getItem(CAMPIN_GAME_KEY) === "1"; } catch(e) {}
         if (hadGame && restoreCampinState()) {
+          applyMainActionsHandMode();
+          updateHandModeButtons();
           return;
         }
+        applyMainActionsHandMode();
+        updateHandModeButtons();
         if (state.gameDatetimeISO) {
           openPlayerSelectUI();
         }
