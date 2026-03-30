@@ -129,6 +129,151 @@ function parseTempoMin(s) {
     return parseNum(str);
 }
 
+function parseDateToLocalDate(str) {
+    if (!str) return null;
+    var s = String(str).trim();
+    if (!s) return null;
+    var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    return null;
+}
+
+function dateKeyFromDate(d) {
+    if (!d || isNaN(d.getTime())) return "";
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+}
+
+function dateLabelPtBrFromKey(k) {
+    var m = String(k || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return k || "";
+    return m[3] + "/" + m[2] + "/" + m[1];
+}
+
+function stdDev(values) {
+    var arr = (values || []).filter(function (x) { return x != null && isFinite(x); });
+    if (!arr.length) return 0;
+    var mean = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+    var variance = arr.reduce(function (sum, x) { return sum + Math.pow(x - mean, 2); }, 0) / arr.length;
+    return Math.sqrt(variance) || 0;
+}
+
+function buildTeamLoadMetrics(data) {
+    var posH = (data.pos && data.pos.headers) ? data.pos.headers : [];
+    var posRows = (data.pos && data.pos.rows) ? data.pos.rows : [];
+    var preH = (data.pre && data.pre.headers) ? data.pre.headers : [];
+    var preRows = (data.pre && data.pre.rows) ? data.pre.rows : [];
+
+    var byDate = {};
+    var maxDateObj = null;
+    var sumRpe = 0, countRpe = 0;
+    posRows.forEach(function (row) {
+        var r = parsePosRow(posH, row);
+        var rpe = r.answers.estado;
+        var min = r.answers.tempoMin;
+        var dObj = parseDateToLocalDate(r.date);
+        if (!dObj) return;
+        var dKey = dateKeyFromDate(dObj);
+        if (!dKey) return;
+        if (!byDate[dKey]) byDate[dKey] = { load: 0, rpeVals: [] };
+        if (rpe != null && min != null && rpe >= 0 && min >= 0) {
+            var load = rpe * min;
+            byDate[dKey].load += load;
+            byDate[dKey].rpeVals.push(rpe);
+        }
+        if (rpe != null && rpe >= 0) {
+            sumRpe += rpe;
+            countRpe++;
+        }
+        if (!maxDateObj || dObj > maxDateObj) maxDateObj = dObj;
+    });
+
+    var sumWellness = { fadiga: 0, sono: 0, dor: 0, estresse: 0, humor: 0 };
+    var cntWellness = { fadiga: 0, sono: 0, dor: 0, estresse: 0, humor: 0 };
+    preRows.forEach(function (row) {
+        var pr = parsePreRow(preH, row);
+        var a = pr.answers || {};
+        ["fadiga", "sono", "dor", "estresse", "humor"].forEach(function (k) {
+            if (a[k] != null && isFinite(a[k])) {
+                sumWellness[k] += a[k];
+                cntWellness[k]++;
+            }
+        });
+    });
+    var wellnessAvg = {};
+    ["fadiga", "sono", "dor", "estresse", "humor"].forEach(function (k) {
+        wellnessAvg[k] = cntWellness[k] ? Math.round((sumWellness[k] / cntWellness[k]) * 100) / 100 : null;
+    });
+    var readiness = null;
+    if (wellnessAvg.fadiga != null || wellnessAvg.sono != null || wellnessAvg.dor != null || wellnessAvg.estresse != null || wellnessAvg.humor != null) {
+        var bads = [];
+        if (wellnessAvg.fadiga != null) bads.push(wellnessAvg.fadiga);
+        if (wellnessAvg.dor != null) bads.push(wellnessAvg.dor);
+        if (wellnessAvg.estresse != null) bads.push(wellnessAvg.estresse);
+        var badAvg = bads.length ? (bads.reduce(function (a, b) { return a + b; }, 0) / bads.length) : 3;
+        var sleep = wellnessAvg.sono != null ? wellnessAvg.sono : 3;
+        var humor = wellnessAvg.humor != null ? wellnessAvg.humor : 3;
+        // 0-10: menor é melhor prontidão para escala 1-5 de wellness.
+        readiness = (sleep * 0.3 + humor * 0.2 + (6 - badAvg) * 0.5) * 2;
+        readiness = Math.round(readiness * 100) / 100;
+    }
+
+    if (!maxDateObj) {
+        return {
+            avgRpe: null, acute: null, chronic: null, acwr: null, monotony: null, strain: null,
+            trendPct: null, loadsLast14: [], labelsLast14: [], wellnessAvg: wellnessAvg, readiness: readiness
+        };
+    }
+
+    var dailyLast28 = [];
+    for (var i = 27; i >= 0; i--) {
+        var d = new Date(maxDateObj.getFullYear(), maxDateObj.getMonth(), maxDateObj.getDate() - i);
+        var key = dateKeyFromDate(d);
+        dailyLast28.push((byDate[key] && isFinite(byDate[key].load)) ? byDate[key].load : 0);
+    }
+    var acute = dailyLast28.slice(21).reduce(function (a, b) { return a + b; }, 0);
+    var chronic = dailyLast28.reduce(function (a, b) { return a + b; }, 0) / 4;
+    var acwr = chronic > 0 ? acute / chronic : null;
+
+    var weekLoads = dailyLast28.slice(21);
+    var meanWeek = weekLoads.length ? (weekLoads.reduce(function (a, b) { return a + b; }, 0) / weekLoads.length) : 0;
+    var sdWeek = stdDev(weekLoads);
+    var monotony = sdWeek > 0 ? meanWeek / sdWeek : null;
+    var strain = (monotony != null) ? acute * monotony : null;
+
+    var prevWeek = dailyLast28.slice(14, 21).reduce(function (a, b) { return a + b; }, 0);
+    var trendPct = prevWeek > 0 ? ((acute - prevWeek) / prevWeek) * 100 : null;
+
+    var labelsLast14 = [];
+    var loadsLast14 = [];
+    for (var j = 13; j >= 0; j--) {
+        var d2 = new Date(maxDateObj.getFullYear(), maxDateObj.getMonth(), maxDateObj.getDate() - j);
+        var k2 = dateKeyFromDate(d2);
+        labelsLast14.push(dateLabelPtBrFromKey(k2));
+        loadsLast14.push((byDate[k2] && isFinite(byDate[k2].load)) ? byDate[k2].load : 0);
+    }
+
+    return {
+        avgRpe: countRpe ? Math.round((sumRpe / countRpe) * 100) / 100 : null,
+        acute: Math.round(acute),
+        chronic: Math.round(chronic),
+        acwr: acwr != null ? Math.round(acwr * 100) / 100 : null,
+        monotony: monotony != null ? Math.round(monotony * 100) / 100 : null,
+        strain: strain != null ? Math.round(strain) : null,
+        trendPct: trendPct != null ? Math.round(trendPct * 10) / 10 : null,
+        loadsLast14: loadsLast14,
+        labelsLast14: labelsLast14,
+        wellnessAvg: wellnessAvg,
+        readiness: readiness
+    };
+}
+
 function buildAggregates(data) {
     var preH = (data.pre && data.pre.headers) ? data.pre.headers : [];
     var preRows = (data.pre && data.pre.rows) ? data.pre.rows : [];
@@ -330,6 +475,7 @@ function goAcompanhamentoGeral() {
             return;
         }
         var agg = buildAggregates(res);
+        var load = buildTeamLoadMetrics(res);
         var sub = document.querySelector(".screen-sub");
         if (sub) sub.textContent = agg.totalPre + " respostas pré • " + agg.totalPos + " respostas pós";
 
@@ -338,11 +484,39 @@ function goAcompanhamentoGeral() {
         if (agg.avgDor != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + agg.avgDor + "</div><div class=\"kpi-label\">Dor média (1-5)</div></div>";
         if (agg.avgTempoMin != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + agg.avgTempoMin + " min</div><div class=\"kpi-label\">Tempo médio de treino</div></div>";
         if (agg.avgEstado != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + agg.avgEstado + "</div><div class=\"kpi-label\">Estado pós-treino (0-10)</div></div>";
+        if (load.acute != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + load.acute + "</div><div class=\"kpi-label\">Carga aguda (7d)</div></div>";
+        if (load.chronic != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + load.chronic + "</div><div class=\"kpi-label\">Carga crônica (4 sem)</div></div>";
+        if (load.acwr != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + load.acwr + "</div><div class=\"kpi-label\">ACWR</div></div>";
+        if (load.monotony != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + load.monotony + "</div><div class=\"kpi-label\">Monotonia</div></div>";
+        if (load.strain != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + load.strain + "</div><div class=\"kpi-label\">Strain semanal</div></div>";
+        if (load.readiness != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + load.readiness + "</div><div class=\"kpi-label\">Prontidão (0-10)</div></div>";
         if (agg.totalPre != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + agg.totalPre + "</div><div class=\"kpi-label\">Total respostas pré</div></div>";
         if (agg.totalPos != null) kpiHtml += "<div class=\"kpi-card\"><div class=\"kpi-value\">" + agg.totalPos + "</div><div class=\"kpi-label\">Total respostas pós</div></div>";
         kpiHtml += "</div>";
 
+        var acwrClass = "";
+        var acwrHint = "Sem dados suficientes para ACWR.";
+        if (load.acwr != null) {
+            if (load.acwr > 1.5) { acwrClass = "semaforo-vermelho"; acwrHint = "ACWR alto (>1,5): risco elevado."; }
+            else if (load.acwr < 0.8) { acwrClass = "semaforo-amarelo"; acwrHint = "ACWR baixo (<0,8): possível subcarga."; }
+            else { acwrClass = "semaforo-verde"; acwrHint = "ACWR equilibrado (0,8 a 1,5)."; }
+        }
+        var trendText = load.trendPct == null ? "Sem tendência disponível" : ((load.trendPct >= 0 ? "+" : "") + load.trendPct + "% vs semana anterior");
+        var wellnessText =
+            "Fadiga: " + (load.wellnessAvg.fadiga != null ? load.wellnessAvg.fadiga : "—") +
+            " · Sono: " + (load.wellnessAvg.sono != null ? load.wellnessAvg.sono : "—") +
+            " · Dor: " + (load.wellnessAvg.dor != null ? load.wellnessAvg.dor : "—") +
+            " · Estresse: " + (load.wellnessAvg.estresse != null ? load.wellnessAvg.estresse : "—") +
+            " · Humor: " + (load.wellnessAvg.humor != null ? load.wellnessAvg.humor : "—");
+
         content.innerHTML = kpiHtml +
+            "<div class=\"chart-section\"><h3 class=\"chart-title\">Métricas de Carga (Jaraguá do Sul)</h3>" +
+            "<p class=\"item-sub\">PSE (RPE) central: " + (load.avgRpe != null ? load.avgRpe : "—") + " · Carga = PSE × duração.</p>" +
+            "<p class=\"item-sub " + acwrClass + "\" style=\"padding:.35rem .55rem;border-radius:8px;display:inline-block;\">" + acwrHint + "</p>" +
+            "<p class=\"item-sub\" style=\"margin-top:.35rem;\">Tendência: " + trendText + "</p>" +
+            "<p class=\"item-sub\">Wellness médio (1-5): " + wellnessText + "</p>" +
+            "</div>" +
+            "<div class=\"chart-section\"><h3 class=\"chart-title\">Carga diária (últimos 14 dias)</h3><div class=\"chart-wrap\"><canvas id=\"chartCargaDiaria14\"></canvas></div></div>" +
             "<div class=\"chart-section\"><h3 class=\"chart-title\">Jogadores com mais relatos de dor/lesão</h3><div class=\"chart-wrap\"><canvas id=\"chartTopInjured\"></canvas></div></div>" +
             "<div class=\"chart-section\"><h3 class=\"chart-title\">Zonas de dor mais frequentes</h3><div class=\"chart-wrap\"><canvas id=\"chartZones\"></canvas></div></div>" +
             "<div class=\"chart-section\"><h3 class=\"chart-title\">Médias de bem-estar (pré-treino)</h3><div class=\"chart-wrap\"><canvas id=\"chartWellbeing\"></canvas></div></div>" +
@@ -350,6 +524,21 @@ function goAcompanhamentoGeral() {
             "<div class=\"chart-section\"><h3 class=\"chart-title\">Distribuição tempo de treino (pós)</h3><div class=\"chart-wrap\"><canvas id=\"chartTempo\"></canvas></div></div>";
 
         destroyAcompanhamentoCharts();
+
+        if (window.Chart && load.loadsLast14 && load.loadsLast14.length > 0) {
+            var ctx0 = document.getElementById("chartCargaDiaria14");
+            if (ctx0) ACOMPANHAMENTO_CHARTS.push(new Chart(ctx0.getContext("2d"), {
+                type: "line",
+                data: {
+                    labels: load.labelsLast14,
+                    datasets: [{ label: "Carga diária (PSE × min)", data: load.loadsLast14, borderColor: "#feec02", backgroundColor: "rgba(254,236,2,0.18)", fill: true, tension: 0.25 }]
+                },
+                options: {
+                    ...chartOptions(),
+                    scales: { y: { beginAtZero: true, ticks: { color: "#e0e0e0" } }, x: { ticks: { color: "#e0e0e0", maxRotation: 45 } } }
+                }
+            }));
+        }
 
         if (agg.topInjured.length > 0 && window.Chart) {
             var ctx1 = document.getElementById("chartTopInjured");
