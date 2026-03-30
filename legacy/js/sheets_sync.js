@@ -562,6 +562,9 @@ async function pushPlayersToSheets() {
         const result = await response.json();
         if (result.success) {
             console.log("✅ Lista de jogadores enviada para o Sheets (" + players.length + " jogadores)");
+            if (typeof clearPlayersListNeedsSheetsPush === "function") {
+                clearPlayersListNeedsSheetsPush();
+            }
             await writeFirestoreAfterRosterSync(players, true);
         }
         return result;

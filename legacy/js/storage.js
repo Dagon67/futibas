@@ -7,8 +7,30 @@ const STORAGE_KEYS = {
     QUESTIONS: "treino_questions",
     RESPONSES: "treino_responses",
     TRAININGS: "treino_trainings",
-    RESUME_STATE: "treino_resume_state"
+    RESUME_STATE: "treino_resume_state",
+    /** "1" se a lista local de jogadores mudou e ainda não foi enviada ao Sheets (botão Atualizar lista). */
+    PLAYERS_NEEDS_SHEETS_PUSH: "treino_players_needs_sheets_push"
 };
+
+function markPlayersListNeedsSheetsPush() {
+    try {
+        localStorage.setItem(STORAGE_KEYS.PLAYERS_NEEDS_SHEETS_PUSH, "1");
+    } catch (e) {}
+}
+
+function clearPlayersListNeedsSheetsPush() {
+    try {
+        localStorage.removeItem(STORAGE_KEYS.PLAYERS_NEEDS_SHEETS_PUSH);
+    } catch (e) {}
+}
+
+function playersListNeedsSheetsPush() {
+    try {
+        return localStorage.getItem(STORAGE_KEYS.PLAYERS_NEEDS_SHEETS_PUSH) === "1";
+    } catch (e) {
+        return false;
+    }
+}
 
 // Jogadores padrão da temporada (usados quando não há dados salvos ou ao restaurar padrão)
 const defaultPlayers = [

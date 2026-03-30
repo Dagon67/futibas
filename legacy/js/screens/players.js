@@ -3,11 +3,20 @@
    =========================== */
 
 function sairJogadoresComSenha() {
-    if (typeof window.showLockScreen === 'function') {
-        window.showLockScreen(function() {
-            if (typeof goHome === 'function') goHome();
+    if (typeof playersListNeedsSheetsPush === "function" && playersListNeedsSheetsPush()) {
+        var msg =
+            "As alterações na lista de jogadores ainda não foram enviadas para o Google Sheets.\n\n" +
+            "Outros aparelhos só verão essas mudanças depois que você tocar em \"Atualizar lista de jogadores\".\n\n" +
+            "Tem certeza que deseja sair da tela de jogadores assim mesmo?";
+        if (!confirm(msg)) {
+            return;
+        }
+    }
+    if (typeof window.showLockScreen === "function") {
+        window.showLockScreen(function () {
+            if (typeof goHome === "function") goHome();
         });
-    } else if (typeof goHome === 'function') {
+    } else if (typeof goHome === "function") {
         goHome();
     }
 }
@@ -17,8 +26,13 @@ function buildPlayerListRowHTML(p) {
     const position = p.position || "Não definida";
     const number = p.number ? `#${p.number}` : "";
     const idEsc = String(p.id).replace(/'/g, "\\'");
+    const thumb =
+        typeof playerAvatarThumbHTML === "function"
+            ? playerAvatarThumbHTML(p, "player-avatar-thumb player-avatar-thumb--players-list")
+            : "";
     return `
-            <div class="item-row player-item" data-player-id="${p.id}" onclick="viewPlayerStatus('${idEsc}')" style="cursor:pointer;">
+            <div class="item-row player-item item-row--player" data-player-id="${p.id}" onclick="viewPlayerStatus('${idEsc}')" style="cursor:pointer;">
+                <div class="item-row-avatar player-list-row-avatar">${thumb}</div>
                 <div class="item-main">
                     <div class="item-title">
                         ${p.name} ${number}
@@ -27,7 +41,7 @@ function buildPlayerListRowHTML(p) {
                         Posição: ${position}${p.lateralidade ? ` • ${p.lateralidade}` : ''}${p.age ? ` • Idade: ${p.age}` : ''}${p.height ? ` • Altura: ${p.height}cm` : ''}
                     </div>
                 </div>
-                <div style="display:flex;gap:0.5rem;align-items:center;">
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
                     <button type="button" class="small-solid-btn" onclick="event.stopPropagation();editPlayer('${idEsc}')" style="padding:0.75rem 1rem;">
                         Editar
                     </button>
@@ -317,6 +331,7 @@ async function addPlayerFromList(){
     
     players.push(newPlayer);
     savePlayers(players);
+    if (typeof markPlayersListNeedsSheetsPush === "function") markPlayersListNeedsSheetsPush();
     
     // Limpar campos
     nameInput.value = "";
@@ -342,6 +357,7 @@ function removePlayerFromList(id){
     let players = loadPlayers();
     players = players.filter(p=>p.id!==id);
     savePlayers(players);
+    if (typeof markPlayersListNeedsSheetsPush === "function") markPlayersListNeedsSheetsPush();
     goPlayers();
 }
 
@@ -446,6 +462,7 @@ async function savePlayerEdit(oldId){
         savePlayers(players);
 
         patchPlayerRowInListDOM(oldId, updatedPlayer);
+        if (typeof markPlayersListNeedsSheetsPush === "function") markPlayersListNeedsSheetsPush();
     }
     
     nameInput.value = "";
@@ -516,6 +533,7 @@ async function importPlayersFromSheetsReplaceLocal() {
         }
         var result = await fetchPlayersFromSheets();
         if (result && result.success) {
+            if (typeof clearPlayersListNeedsSheetsPush === "function") clearPlayersListNeedsSheetsPush();
             if (feedback) {
                 feedback.style.display = "block";
                 feedback.style.color = "var(--accent)";
