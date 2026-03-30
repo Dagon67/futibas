@@ -266,6 +266,13 @@ def serve_player_photo(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 
+@app.route('/times/<path:filename>')
+def serve_times_logo(filename):
+    """Serve logos/asset dos tenants (pasta /times na raiz do repo)."""
+    times_dir = os.path.join(_REPO_ROOT, "times")
+    return send_from_directory(times_dir, filename)
+
+
 # Pastas de imagens para perguntas (pre/ e pos/) - relativas à raiz do projeto
 IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'}
 

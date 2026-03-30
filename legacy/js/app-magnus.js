@@ -7,7 +7,10 @@
     function isMagnusMode() {
         try {
             var params = new URLSearchParams(window.location.search || "");
-            return params.get("app") === "magnus";
+            if (params.get("app") === "magnus") return true;
+            if (window.__TUTEM_APP_MODE__ === "magnus") return true;
+            if (window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId === "magnus") return true;
+            return false;
         } catch (e) {
             return false;
         }
@@ -23,28 +26,30 @@
             return;
         }
 
+        // Init do storage (FireStore). Se falhar por rules/latência, ainda assim
+        // tentamos seed local para que a UI mostre jogadores.
         try {
             if (typeof window.initMagnusStorage !== "function") {
                 console.warn("MAGNUS: initMagnusStorage não encontrado.");
             } else {
                 await window.initMagnusStorage();
             }
+        } catch (err) {
+            console.error("MAGNUS: erro ao iniciar storage:", err);
+        }
 
-            // Se não houver roster salvo, inicializar com defaults.
+        // Se não houver roster salvo, inicializar com defaults.
+        try {
             if (typeof window.loadPlayers === "function") {
                 var players = window.loadPlayers() || [];
                 if (players.length === 0) {
-                    // defaultPlayers está no storage-magnus.js no escopo do módulo.
-                    // Para não acoplar, tentamos persistir através da mesma assinatura via global opcional.
                     if (typeof window.__MAGNUS_DEFAULT_PLAYERS__ !== "undefined") {
                         window.savePlayers(window.__MAGNUS_DEFAULT_PLAYERS__);
-                    } else if (typeof window.savePlayers === "function" && typeof window.defaultPlayers !== "undefined") {
-                        window.savePlayers(window.defaultPlayers);
                     }
                 }
             }
         } catch (err) {
-            console.error("MAGNUS: erro ao iniciar storage:", err);
+            console.warn("MAGNUS: seed de defaults falhou:", err);
         }
 
         // Redesenhar Home.

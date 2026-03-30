@@ -104,7 +104,7 @@ function viewTrainingDetails(trainingId){
                     <div style="margin-bottom:1rem;">
                         <button class="small-solid-btn" onclick="finalizeTrainingAndSyncToSheets('${trainingId}')" style="width:100%;">
                             <i data-feather="upload-cloud" style="width:20px;height:20px;margin-right:0.5rem;"></i>
-                            Finalizar treino e sincronizar com Sheets
+                            ${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Finalizar treino" : "Finalizar treino e sincronizar com Sheets"}
                         </button>
                     </div>
                     <div class="item-title" style="margin-bottom:1rem;">Jogadores e Respostas</div>

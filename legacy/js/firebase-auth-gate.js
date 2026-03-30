@@ -67,26 +67,29 @@ function setTenantSelectVisible(visible) {
 
 function getTenantTheme(tenantId) {
   // Ajuste de temas por tenant (cores para legibilidade + logo do time).
+  const backendBase = (typeof window !== "undefined" && window.BACKEND_URL) ? window.BACKEND_URL : "";
   if (tenantId === "magnus") {
+    const magnusLogo = backendBase ? backendBase + "/times/logo-magnus.jpg" : "times/logo-magnus.jpg";
     return {
-      lockLogoSrc: "times/logo-magnus.jpg",
+      lockLogoSrc: magnusLogo,
       lockLogoAlt: "Magnus Futsal",
       lockTitle: "Magnus Futsal",
       lockSubtitle: "Painel de Treino • Digite a senha para continuar",
       cssVars: {
-        "--bg-main": "radial-gradient(circle at 50% 50%, #ff8a00 0%, #ff5f6d 55%, #5b21b6 100%)",
-        "--card-bg": "#07070a",
-        "--card-stroke": "rgba(255,138,0,0.35)",
-        "--accent": "#ff8a00",
-        "--accent-secondary": "#5b21b6",
-        "--accent-soft": "rgba(255,138,0,0.15)",
+        "--white": "#ffffff",
+        "--bg-main": "radial-gradient(circle at 50% 50%, #FA9E06 0%, #EB8839 22%, #EE151B 52%, #100B08 100%)",
+        "--card-bg": "#100B08",
+        "--card-stroke": "rgba(250,158,6,0.35)",
+        "--accent": "#FA9E06",
+        "--accent-secondary": "#EE151B",
+        "--accent-soft": "rgba(250,158,6,0.15)",
         "--text-main": "#ffffff",
-        "--text-dim": "#e5e7eb",
-        "--text-bright": "#ff8a00",
-        "--pre-color": "#5b21b6",
-        "--pre-glow": "rgba(91,33,182,0.35)",
-        "--post-color": "#ff8a00",
-        "--post-glow": "rgba(255,138,0,0.35)"
+        "--text-dim": "#5D4F54",
+        "--text-bright": "#FA9E06",
+        "--pre-color": "#EE151B",
+        "--pre-glow": "rgba(238,21,27,0.35)",
+        "--post-color": "#FA9E06",
+        "--post-glow": "rgba(250,158,6,0.35)"
       }
     };
   }
@@ -132,6 +135,18 @@ function applyTenantTheme(tenantId) {
   if (title) title.textContent = theme.lockTitle || "";
   const subtitle = $("lock-subtitle-text");
   if (subtitle) subtitle.textContent = theme.lockSubtitle || "";
+
+  // Atualizar logos da tela de seleção de tenant (imagens com data-tenant-logo)
+  try {
+    const imgs = document.querySelectorAll('img[data-tenant-logo]');
+    imgs.forEach(function (img) {
+      const t = img.getAttribute("data-tenant-logo");
+      if (!t) return;
+      const tTheme = getTenantTheme(t);
+      const src = tTheme && tTheme.lockLogoSrc ? tTheme.lockLogoSrc : "";
+      if (src) img.src = src;
+    });
+  } catch (e) {}
 }
 
 function mapTenantToAppMode(tenantId) {
@@ -167,6 +182,8 @@ async function activateTenant(tenantId) {
 
   const mode = mapTenantToAppMode(tenantId);
   window.__TUTEM_APP_MODE__ = mode;
+  // UI/funcionalidades: no Magnus não existe Sheets
+  window.__TUTEM_SHEETS_MODE__ = mode === "magnus" ? "none" : "sheets";
 
   if (mode === "magnus") {
     await loadScriptOnce("js/storage-magnus.js");

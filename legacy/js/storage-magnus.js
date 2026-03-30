@@ -139,39 +139,49 @@ async function persistTrainingToFirestore(training) {
 async function loadRosterFromFirestore() {
     const ctx = getTenantFirestoreContext();
     if (!ctx) return [];
-    const firestore = await import(FIRESTORE_SDK);
-    const ref = firestore.doc(ctx.db, "tenants", ctx.tenantId, "roster", "current");
-    const snap = await firestore.getDoc(ref);
-    if (!snap.exists()) return [];
-    const data = snap.data() || {};
-    const players = data.players;
-    return Array.isArray(players) ? players : [];
+    try {
+        const firestore = await import(FIRESTORE_SDK);
+        const ref = firestore.doc(ctx.db, "tenants", ctx.tenantId, "roster", "current");
+        const snap = await firestore.getDoc(ref);
+        if (!snap.exists()) return [];
+        const data = snap.data() || {};
+        const players = data.players;
+        return Array.isArray(players) ? players : [];
+    } catch (e) {
+        console.warn("MAGNUS: falha ao carregar roster/current:", e);
+        return [];
+    }
 }
 
 async function loadActiveTrainingsFromFirestore() {
     const ctx = getTenantFirestoreContext();
     if (!ctx) return [];
-    const firestore = await import(FIRESTORE_SDK);
-    const colRef = firestore.collection(ctx.db, "tenants", ctx.tenantId, "trainingExports");
-    const snap = await firestore.getDocs(colRef);
+    try {
+        const firestore = await import(FIRESTORE_SDK);
+        const colRef = firestore.collection(ctx.db, "tenants", ctx.tenantId, "trainingExports");
+        const snap = await firestore.getDocs(colRef);
 
-    const out = [];
-    snap.forEach(function (docSnap) {
-        const data = docSnap.data() || {};
-        const training = data.training || {};
-        if (!training || typeof training !== "object") return;
-        // compat com o app: "completed" deve ficar fora da lista ativa
-        if (training.status === "completed") return;
-        out.push(training);
-    });
+        const out = [];
+        snap.forEach(function (docSnap) {
+            const data = docSnap.data() || {};
+            const training = data.training || {};
+            if (!training || typeof training !== "object") return;
+            // compat com o app: "completed" deve ficar fora da lista ativa
+            if (training.status === "completed") return;
+            out.push(training);
+        });
 
-    // ordena por datetime (mais recente primeiro) quando existir
-    out.sort(function (a, b) {
-        const ad = a.datetime || a.date || "";
-        const bd = b.datetime || b.date || "";
-        return new Date(bd) - new Date(ad);
-    });
-    return out;
+        // ordena por datetime (mais recente primeiro) quando existir
+        out.sort(function (a, b) {
+            const ad = a.datetime || a.date || "";
+            const bd = b.datetime || b.date || "";
+            return new Date(bd) - new Date(ad);
+        });
+        return out;
+    } catch (e) {
+        console.warn("MAGNUS: falha ao carregar trainingExports:", e);
+        return [];
+    }
 }
 
 async function initMagnusStorage() {

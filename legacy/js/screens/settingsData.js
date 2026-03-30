@@ -4,6 +4,75 @@
 
 function renderSettingsData(){
     const answers = loadResponses();
+    const sheetsMode = (window && window.__TUTEM_SHEETS_MODE__) ? window.__TUTEM_SHEETS_MODE__ : "sheets";
+    if (sheetsMode === "none") {
+        // Magnus: sem qualquer referência a Sheets; dados já são persistidos/carregados do Firestore.
+        return `
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="item-title" style="margin-bottom:.5rem;">Limpar local storage (resetar dispositivo)</div>
+                <div class="item-sub" style="margin-bottom:.5rem;">
+                    Apaga <strong>tudo</strong> que o app guarda neste navegador: lista de treinos/respostas/jogadores neste dispositivo e estado de continuidade.
+                </div>
+                <button class="small-solid-btn" type="button" onclick="confirmClearAllAppStorage()" style="background:rgba(239,68,68,0.25);border-color:rgba(239,68,68,0.6);color:#fca5a5;margin-bottom:1rem;">
+                    Limpar local storage
+                </button>
+
+                <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Exportar CSV</div>
+                <div class="item-sub" style="margin-bottom:.5rem;">
+                    Baixe todas as respostas (pré e pós) em .csv.
+                </div>
+                <div class="inline-form-row" style="align-items:center;">
+                    <div class="item-sub" style="flex:1;min-width:200px;"></div>
+                    <button class="download-btn" onclick="downloadCSV()">
+                        Baixar CSV
+                    </button>
+                </div>
+
+                <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Perguntas (localStorage)</div>
+                <div class="item-sub" style="margin-bottom:.5rem;">
+                    As perguntas ficam no <strong>localStorage</strong> do navegador (este dispositivo).
+                </div>
+                <button class="small-solid-btn" type="button" onclick="copyCurrentQuestionsAsDefault()">
+                    Exportar perguntas (copiar JSON)
+                </button>
+                <div id="copyQuestionsFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
+
+                <div class="item-title" style="margin-bottom:.5rem;margin-top:1rem;">Importar perguntas</div>
+                <div class="item-sub" style="margin-bottom:.5rem;">
+                    Cole o JSON das perguntas (exportado de outro navegador) e clique em Importar.
+                </div>
+                <textarea id="importQuestionsJson" placeholder='Cole aqui o JSON (ex: {"pre":[...],"post":[...]})' style="width:100%;min-height:80px;padding:0.5rem;border-radius:var(--radius-md);border:2px solid rgba(255,255,255,0.2);background:#000;color:var(--text-main);font-size:0.875rem;resize:vertical;"></textarea>
+                <button class="small-solid-btn" type="button" onclick="importQuestionsFromJson()">
+                    Importar perguntas
+                </button>
+                <div id="importQuestionsFeedback" style="font-size:0.875rem;margin-top:0.25rem;display:none;"></div>
+
+                <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Jogadores (localStorage)</div>
+                <div class="item-sub" style="margin-bottom:.5rem;">
+                    A lista de jogadores também pode existir neste navegador (fallback). O Magnus principal vem do Firestore.
+                </div>
+                <button class="small-solid-btn" type="button" onclick="copyCurrentPlayersAsJson()">
+                    Exportar jogadores (copiar JSON)
+                </button>
+                <div id="copyPlayersFeedback" style="font-size:0.875rem;color:var(--text-dim);margin-top:0.25rem;display:none;"></div>
+                <div class="item-title" style="margin-bottom:.5rem;margin-top:1rem;">Importar jogadores</div>
+                <div class="item-sub" style="margin-bottom:.5rem;">
+                    Cole o JSON da lista de jogadores e clique em Importar (substitui a lista local).
+                </div>
+                <textarea id="importPlayersJson" placeholder='Cole aqui o JSON (ex: [{"id":"...","name":"...","number":10,...}])' style="width:100%;min-height:80px;padding:0.5rem;border-radius:var(--radius-md);border:2px solid rgba(255,255,255,0.2);background:#000;color:var(--text-main);font-size:0.875rem;resize:vertical;"></textarea>
+                <button class="small-solid-btn" type="button" onclick="importPlayersFromJson()">
+                    Importar jogadores
+                </button>
+                <div id="importPlayersFeedback" style="font-size:0.875rem;margin-top:0.25rem;display:none;"></div>
+
+                <div>
+                    <div class="item-title" style="margin-bottom:.5rem;">Últimas respostas</div>
+                    <div>${answers.length ? answers.slice().reverse().slice(0, 5).length : 0}</div>
+                </div>
+            </div>
+        `;
+    }
+
     // breve resumo
     let resumoHTML = "";
     if(!answers.length){

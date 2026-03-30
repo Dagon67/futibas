@@ -148,9 +148,11 @@ function goPlayers(){
                         </div>
 
                         <div>
-                            <div class="item-title" style="margin-bottom:.5rem;">Lista no Sheets</div>
-                            <div class="item-sub" style="margin-bottom:.5rem;">Envie a lista atual para o Google Sheets para que outros aparelhos recebam ao entrar com a senha.</div>
-                            <button type="button" class="small-solid-btn" id="btnUpdatePlayersSheets" onclick="updatePlayersListToSheets()">Atualizar lista de jogadores</button>
+                            <div class="item-title" style="margin-bottom:.5rem;">${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Sheets none" : "Lista no Sheets"}</div>
+                            <div class="item-sub" style="margin-bottom:.5rem;">
+                                ${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Magnus carrega e grava jogadores pelo Firestore (sem Sheets)." : "Envie a lista atual para o Google Sheets para que outros aparelhos recebam ao entrar com a senha."}
+                            </div>
+                            <button type="button" class="small-solid-btn" id="btnUpdatePlayersSheets" onclick="updatePlayersListToSheets()" style="display:${(window.__TUTEM_SHEETS_MODE__ === "none") ? "none" : ""};">Atualizar lista de jogadores</button>
                             <div id="playersSyncFeedback" style="margin-top:.5rem;font-size:.875rem;display:none;"></div>
                         </div>
 
@@ -159,7 +161,7 @@ function goPlayers(){
                             <div id="playersRegisteredList">${playersHTML}</div>
                         </div>
 
-                        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.12);">
+                        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.12); display:${(window.__TUTEM_SHEETS_MODE__ === "none") ? "none" : ""};">
                             <div class="item-title" style="margin-bottom:.5rem;">Importar do Google Sheets</div>
                             <div class="item-sub" style="margin-bottom:.75rem;">
                                 Apaga <strong>só</strong> a lista de jogadores guardada neste aparelho e carrega a lista que está na planilha (aba Jogadores). Treinos e respostas locais não são apagados.
