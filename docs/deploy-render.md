@@ -9,8 +9,16 @@ O backend Flask do app monolito (Google Sheets) fica em `backend/legacy/`.
 
 Variáveis úteis:
 
-- `GOOGLE_APPLICATION_CREDENTIALS` — caminho absoluto ao JSON da service account no disco do Render (ex.: `/opt/render/project/src/backend/legacy/seu-arquivo.json`), **ou**
-- monte o JSON via secret e ajuste o código para gravar em `/tmp` e apontar essa variável (veja histórico no Git nos commits antigos com `sheets/`).
+- `GOOGLE_APPLICATION_CREDENTIALS` — caminho absoluto ao JSON da service account no disco do Render (ex.: `/etc/secrets/GOOGLE_APPLICATION_CREDENTIALS` se usares **Secret File**), ou `/opt/render/project/src/backend/legacy/seu-arquivo.json` se o ficheiro estiver no repo (não recomendado).
+
+## Erro: `cd: sheets: No such file or directory`
+
+O código do API está em **`backend/legacy/`**, não numa pasta `sheets`. No painel do Render → serviço Web → **Settings**, confirma:
+
+- **Build Command:** `pip install -r backend/legacy/requirements.txt && pip install gunicorn`
+- **Start Command:** `cd backend/legacy && gunicorn app:app --bind 0.0.0.0:$PORT`
+
+Se estiver `cd sheets && ...`, apaga e cola o comando acima. Grava e faz **Manual Deploy** → **Clear build cache & deploy** (opcional, se algo ficar em cache).
 
 ## Static Site (frontend)
 
