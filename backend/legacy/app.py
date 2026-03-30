@@ -581,10 +581,16 @@ def post_insights():
                 }), 429
 
             prompt = (
-                "Você é analista de desempenho de futsal (Brasil). Com base APENAS no JSON abaixo "
-                "(médias, cargas, ACWR, tendência, bem-estar, zonas de dor), gere exatamente 5 insights curtos em português.\n"
-                "Regras: cada insight uma frase objetiva (máx. 200 caracteres); sem inventar números que não estejam no JSON; "
-                "se faltar dado, fale de forma conservadora.\n"
+                "Você é analista de desempenho de futsal (Jaraguá, Brasil). Use APENAS o JSON abaixo.\n"
+                "Gere exatamente 5 insights em português, linguagem clara para comissão técnica (não técnica demais).\n\n"
+                "Estilo obrigatório:\n"
+                "- Se citar um atleta, use o NOME (campo name/topInjured), nunca só ID.\n"
+                "- Para carga, ACWR, monotonia ou percentuais: diga se está ALTO, MODERADO ou BAIXO em relação ao esperado; "
+                "se usar número, acompanhe interpretação (ex.: 'ACWR 1,2 — faixa equilibrada').\n"
+                "- Para fadiga/dor/estresse (escalas 1–5): prefira 'baixa', 'média' ou 'alta' em vez de só o dígito.\n"
+                "- Tendência: diga se a carga 'subiu', 'caiu' ou 'estável' vs período anterior, sem jargão vazio.\n"
+                "- Se faltar dado, diga com honestidade que o indicador não está disponível.\n\n"
+                "Cada insight: uma frase ou duas curtas (máx. 220 caracteres cada).\n"
                 "Responda SOMENTE com JSON válido neste formato exato:\n"
                 '{"insights":["...","...","...","...","..."]}\n\n'
                 "Dados:\n" + summary

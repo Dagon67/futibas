@@ -283,11 +283,18 @@ function insightsRenderList(items) {
         arr.push("—");
     }
     var html =
-        "<ol style=\"margin:0;padding-left:1.25rem;line-height:1.45;max-width:42rem;\">";
+        '<div class="insights-cards" style="display:flex;flex-direction:column;gap:0.85rem;max-width:46rem;">';
     for (var i = 0; i < 5; i++) {
-        html += "<li style=\"margin-bottom:0.65rem;\">" + insightsEscapeHtml(String(arr[i] || "—")) + "</li>";
+        html +=
+            '<div class="insight-card" style="padding:0.9rem 1rem;border-radius:var(--radius-md,12px);border:1px solid rgba(254,236,2,0.22);background:rgba(0,0,0,0.28);box-shadow:0 2px 12px rgba(0,0,0,0.2);line-height:1.5;">' +
+            '<div style="font-size:0.72rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:rgba(254,236,2,0.75);margin-bottom:0.35rem;">Insight ' +
+            (i + 1) +
+            "</div>" +
+            '<div style="font-size:0.95rem;color:var(--text-main,#f3f4f6);">' +
+            insightsEscapeHtml(String(arr[i] || "—")) +
+            "</div></div>";
     }
-    html += "</ol>";
+    html += "</div>";
     return html;
 }
 

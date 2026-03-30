@@ -62,6 +62,10 @@ function goHome(){
                     <i data-feather="archive"></i>
                     <div>Análise de jogos passados</div>
                 </button>
+                <button class="home-btn home-btn-secondary" type="button" onclick="abrirGameRoomComSenha()">
+                    <i data-feather="monitor"></i>
+                    <div>Game Room</div>
+                </button>
                 ` : ``}
                 <button class="home-btn home-btn-secondary" type="button">
                     <i data-feather="settings"></i>
