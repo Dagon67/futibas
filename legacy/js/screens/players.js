@@ -12,6 +12,32 @@ function sairJogadoresComSenha() {
     }
 }
 
+/** HTML de uma linha da lista (para re-render parcial após editar). */
+function buildPlayerListRowHTML(p) {
+    const position = p.position || "Não definida";
+    const number = p.number ? `#${p.number}` : "";
+    const idEsc = String(p.id).replace(/'/g, "\\'");
+    return `
+            <div class="item-row player-item" data-player-id="${p.id}" onclick="viewPlayerStatus('${idEsc}')" style="cursor:pointer;">
+                <div class="item-main">
+                    <div class="item-title">
+                        ${p.name} ${number}
+                    </div>
+                    <div class="item-sub">
+                        Posição: ${position}${p.lateralidade ? ` • ${p.lateralidade}` : ''}${p.age ? ` • Idade: ${p.age}` : ''}${p.height ? ` • Altura: ${p.height}cm` : ''}
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <button type="button" class="small-solid-btn" onclick="event.stopPropagation();editPlayer('${idEsc}')" style="padding:0.75rem 1rem;">
+                        Editar
+                    </button>
+                    <button type="button" class="danger-btn" onclick="event.stopPropagation();removePlayerFromList('${idEsc}')" style="padding:0.75rem 1rem;">
+                        Remover
+                    </button>
+                </div>
+            </div>`;
+}
+
 function goPlayers(){
     // parar atualização do relógio quando sair do home
     if(window.dateTimeInterval) clearInterval(window.dateTimeInterval);
@@ -22,29 +48,7 @@ function goPlayers(){
     
     const playersHTML = players.length === 0 
         ? `<div class="item-sub" style="text-align:center;padding:2rem;">Nenhum jogador cadastrado ainda.</div>`
-        : players.map(p => {
-            const position = p.position || "Não definida";
-            const number = p.number ? `#${p.number}` : "";
-            return `
-            <div class="item-row player-item" onclick="viewPlayerStatus('${p.id}')" style="cursor:pointer;">
-                <div class="item-main">
-                    <div class="item-title">
-                        ${p.name} ${number}
-                    </div>
-                    <div class="item-sub">
-                        Posição: ${position}${p.lateralidade ? ` • ${p.lateralidade}` : ''}${p.age ? ` • Idade: ${p.age}` : ''}${p.height ? ` • Altura: ${p.height}cm` : ''}
-                    </div>
-                </div>
-                <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <button class="small-solid-btn" onclick="event.stopPropagation();editPlayer('${p.id}')" style="padding:0.75rem 1rem;">
-                        Editar
-                    </button>
-                    <button class="danger-btn" onclick="event.stopPropagation();removePlayerFromList('${p.id}')" style="padding:0.75rem 1rem;">
-                        Remover
-                    </button>
-                </div>
-            </div>`;
-        }).join("");
+        : players.map(p => buildPlayerListRowHTML(p)).join("");
 
     renderScreen(`
         <div class="settings-wrapper">
@@ -125,7 +129,7 @@ function goPlayers(){
                                         <button type="button" class="danger-btn" onclick="clearPlayerPhotoFromList()" style="margin-top:0.5rem;padding:0.5rem 1rem;font-size:0.875rem;">Remover Foto</button>
                                     </div>
                                 </div>
-                                <button class="small-solid-btn" onclick="addPlayerFromList()">Adicionar Jogador</button>
+                                <button type="button" class="small-solid-btn" id="btnAddOrSavePlayer" onclick="addPlayerFromList()">Adicionar Jogador</button>
                             </div>
                         </div>
 
@@ -137,8 +141,17 @@ function goPlayers(){
                         </div>
 
                         <div>
-                            <div class="item-title" style="margin-bottom:.5rem;">Jogadores cadastrados (${players.length})</div>
-                            ${playersHTML}
+                            <div class="item-title" id="playersRegisteredTitle" style="margin-bottom:.5rem;">Jogadores cadastrados (${players.length})</div>
+                            <div id="playersRegisteredList">${playersHTML}</div>
+                        </div>
+
+                        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.12);">
+                            <div class="item-title" style="margin-bottom:.5rem;">Importar do Google Sheets</div>
+                            <div class="item-sub" style="margin-bottom:.75rem;">
+                                Apaga <strong>só</strong> a lista de jogadores guardada neste aparelho e carrega a lista que está na planilha (aba Jogadores). Treinos e respostas locais não são apagados.
+                            </div>
+                            <button type="button" class="small-solid-btn" id="btnImportPlayersSheets" onclick="importPlayersFromSheetsReplaceLocal()">Importar lista do Sheets e limpar jogadores locais</button>
+                            <div id="playersImportFeedback" style="margin-top:.5rem;font-size:.875rem;display:none;"></div>
                         </div>
                     </div>
                 </div>
@@ -350,11 +363,10 @@ function editPlayer(id){
     document.getElementById("newPlayerName").scrollIntoView({ behavior: 'smooth', block: 'center' });
     document.getElementById("newPlayerName").focus();
     
-    // Atualizar botão para "Salvar Alterações"
-    const addBtn = document.querySelector('button[onclick="addPlayerFromList()"]');
-    if(addBtn){
-        addBtn.textContent = "Salvar Alterações";
-        addBtn.onclick = function(){
+    const addBtn = document.getElementById("btnAddOrSavePlayer");
+    if (addBtn) {
+        addBtn.textContent = "Salvar alterações";
+        addBtn.onclick = function () {
             savePlayerEdit(id);
         };
     }
@@ -432,9 +444,10 @@ async function savePlayerEdit(oldId){
         
         players[playerIndex] = updatedPlayer;
         savePlayers(players);
+
+        patchPlayerRowInListDOM(oldId, updatedPlayer);
     }
     
-    // Limpar e recarregar
     nameInput.value = "";
     numberInput.value = "";
     positionInput.value = "";
@@ -442,17 +455,90 @@ async function savePlayerEdit(oldId){
     ageInput.value = "";
     heightInput.value = "";
     weightInput.value = "";
+    clearPlayerPhotoFromList();
     
-    // Restaurar botão
-    const addBtn = document.querySelector('button[onclick*="savePlayerEdit"]');
-    if(addBtn){
+    const addBtn = document.getElementById("btnAddOrSavePlayer");
+    if (addBtn) {
         addBtn.textContent = "Adicionar Jogador";
-        addBtn.onclick = function(){
-            addPlayerFromList();
-        };
+        addBtn.onclick = addPlayerFromList;
     }
-    
-    goPlayers();
+}
+
+/** Atualiza só a linha do jogador na lista, sem recarregar o ecrã inteiro. */
+function patchPlayerRowInListDOM(playerId, playerObj) {
+    const listEl = document.getElementById("playersRegisteredList");
+    const titleEl = document.getElementById("playersRegisteredTitle");
+    if (!listEl) {
+        goPlayers();
+        return;
+    }
+    var row = null;
+    listEl.querySelectorAll(".player-item").forEach(function (el) {
+        if (el.getAttribute("data-player-id") === playerId) row = el;
+    });
+    if (row && typeof buildPlayerListRowHTML === "function") {
+        row.outerHTML = buildPlayerListRowHTML(playerObj);
+    } else {
+        goPlayers();
+        return;
+    }
+    if (titleEl) {
+        const n = typeof loadPlayers === "function" ? loadPlayers().length : 0;
+        titleEl.textContent = "Jogadores cadastrados (" + n + ")";
+    }
+    if (typeof feather !== "undefined" && feather.replace) feather.replace();
+}
+
+async function importPlayersFromSheetsReplaceLocal() {
+    var feedback = document.getElementById("playersImportFeedback");
+    var btn = document.getElementById("btnImportPlayersSheets");
+    if (
+        !confirm(
+            "A lista de jogadores neste aparelho será apagada e substituída pela do Google Sheets (aba Jogadores).\n\nTreinos, respostas e outros dados locais não são apagados.\n\nContinuar?"
+        )
+    ) {
+        return;
+    }
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "A importar…";
+    }
+    if (feedback) {
+        feedback.style.display = "none";
+    }
+    try {
+        try {
+            localStorage.removeItem(typeof STORAGE_KEYS !== "undefined" ? STORAGE_KEYS.PLAYERS : "treino_players");
+        } catch (e) {}
+        if (typeof fetchPlayersFromSheets !== "function") {
+            alert("Sincronização com o Sheets não está disponível.");
+            return;
+        }
+        var result = await fetchPlayersFromSheets();
+        if (result && result.success) {
+            if (feedback) {
+                feedback.style.display = "block";
+                feedback.style.color = "var(--accent)";
+                feedback.textContent =
+                    "Lista importada: " +
+                    (result.players && result.players.length
+                        ? result.players.length + " jogador(es)."
+                        : "0 jogadores.");
+            }
+            goPlayers();
+        } else {
+            alert("Erro ao importar: " + (result && result.error ? result.error : "falha desconhecida"));
+            goPlayers();
+        }
+    } catch (err) {
+        alert("Erro: " + (err && err.message ? err.message : String(err)));
+        goPlayers();
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Importar lista do Sheets e limpar jogadores locais";
+        }
+    }
 }
 
 function updatePlayersListToSheets() {
