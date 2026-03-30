@@ -98,6 +98,47 @@
     #firebase-auth-screen[hidden]{
         display:none !important;
     }
+
+    /* ---------- CARREGANDO (sessão Firebase a restaurar) ---------- */
+    #firebase-auth-loading{
+        position:fixed;
+        top:0;left:0;right:0;bottom:0;
+        z-index:10003;
+        background:var(--bg-main);
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:1.25rem;
+        padding:var(--safe-pad);
+    }
+    #firebase-auth-loading[hidden]{
+        display:none !important;
+    }
+    .firebase-auth-loading-title{
+        font-size:clamp(1.35rem,2.5vw + 0.9rem,2rem);
+        font-weight:700;
+        color:var(--text-main);
+        text-align:center;
+        text-shadow:0 2px 12px rgba(0,0,0,.25);
+    }
+    .firebase-auth-loading-sub{
+        font-size:var(--touch-font-md);
+        font-weight:500;
+        color:var(--text-dim);
+        text-align:center;
+    }
+    .firebase-auth-loading-spinner{
+        width:44px;
+        height:44px;
+        border:4px solid rgba(0,0,0,.2);
+        border-top-color:#000;
+        border-radius:50%;
+        animation:firebaseSpin 0.75s linear infinite;
+    }
+    @keyframes firebaseSpin{
+        to{ transform:rotate(360deg); }
+    }
     .firebase-auth-card{
         width:100%;
         max-width:480px;
@@ -1798,8 +1839,15 @@
 </head>
 <body>
 
+<!-- Enquanto o Firebase restaura a sessão, não mostrar o formulário de login (evita flash) -->
+<div id="firebase-auth-loading" aria-live="polite" aria-busy="true">
+    <div class="firebase-auth-loading-spinner" aria-hidden="true"></div>
+    <div class="firebase-auth-loading-title">Carregando Fire Coach</div>
+    <div class="firebase-auth-loading-sub">A verificar a sua sessão…</div>
+</div>
+
 <!-- LOGIN FIREBASE (sessão persistente; só aparece sem utilizador autenticado) -->
-<div id="firebase-auth-screen">
+<div id="firebase-auth-screen" hidden>
     <div class="firebase-auth-card">
         <h1>Entrar</h1>
         <p class="firebase-sub">Acesso ao painel • utilize o e-mail fornecido pelo administrador</p>

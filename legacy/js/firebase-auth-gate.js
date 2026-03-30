@@ -37,6 +37,14 @@ function setFirebaseScreenVisible(visible) {
   show(wrap, visible);
 }
 
+function setAuthLoadingVisible(visible) {
+  const el = $("firebase-auth-loading");
+  show(el, visible);
+  if (el) {
+    el.setAttribute("aria-busy", visible ? "true" : "false");
+  }
+}
+
 function setAppShellVisible(visible) {
   const shell = $("app-shell");
   if (!shell) return;
@@ -110,6 +118,7 @@ function showFirebaseError(msg) {
 
     if (!user) {
       window.__TUTEM_TENANT__ = null;
+      setAuthLoadingVisible(false);
       setFirebaseScreenVisible(true);
       setLockVisible(false);
       setAppShellVisible(false);
@@ -127,12 +136,14 @@ function showFirebaseError(msg) {
       try {
         await signOut(auth);
       } catch (e) {}
+      setAuthLoadingVisible(false);
       setFirebaseScreenVisible(true);
       setLockVisible(false);
       setAppShellVisible(false);
       return;
     }
 
+    setAuthLoadingVisible(false);
     setFirebaseScreenVisible(false);
     setLockVisible(true);
     setAppShellVisible(false);
