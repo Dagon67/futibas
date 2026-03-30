@@ -92,13 +92,23 @@ function goQuestionnaire(){
         </div>`;
     }).join("");
 
+    const playerAvatar =
+        player && typeof playerAvatarThumbHTML === "function"
+            ? playerAvatarThumbHTML(player, "player-avatar-thumb player-avatar-thumb--header")
+            : "";
+    const playerNameLine = player
+        ? `<div class="screen-sub questionnaire-player-name">${player.name}</div>`
+        : "";
+
     renderScreen(`
         <div class="questionnaire-wrapper">
-            <div class="back-row">
+            <div class="back-row questionnaire-top-row">
+                ${playerAvatar ? `<div class="questionnaire-avatar-wrap">${playerAvatar}</div>` : ""}
                 <div style="flex:1;min-width:0;">
                     <div class="screen-title">
                         ${mode==="pre" ? "Questionário Pré Treino" : "Questionário Pós Treino"}
                     </div>
+                    ${playerNameLine}
                     <div class="screen-sub">
                         Todas as perguntas são obrigatórias. Responda com sinceridade.
                     </div>

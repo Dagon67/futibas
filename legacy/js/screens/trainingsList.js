@@ -40,18 +40,25 @@ function goTrainingsList(){
         const modeLabel = t.mode === "pre" ? "Pré Treino" : "Pós Treino";
         const responseCount = t.responses ? t.responses.length : 0;
         const playerCount = t.playerIds ? t.playerIds.length : 0;
+        const stack =
+            typeof trainingPlayerAvatarsStackHTML === "function"
+                ? trainingPlayerAvatarsStackHTML(t.playerIds, 5)
+                : "";
         return `
         <div class="item-row training-item" onclick="viewTrainingDetails('${t.id}')" style="cursor:pointer;">
-            <div class="item-main">
-                <div class="item-title">
-                    ${t.dateFormatted || t.date} • ${modeLabel}
-                </div>
-                <div class="item-sub">
-                    ${playerCount} ${playerCount === 1 ? 'jogador' : 'jogadores'} • 
-                    ${responseCount} ${responseCount === 1 ? 'resposta' : 'respostas'}
+            <div class="training-item-row-inner">
+                ${stack}
+                <div class="item-main">
+                    <div class="item-title">
+                        ${t.dateFormatted || t.date} • ${modeLabel}
+                    </div>
+                    <div class="item-sub">
+                        ${playerCount} ${playerCount === 1 ? 'jogador' : 'jogadores'} • 
+                        ${responseCount} ${responseCount === 1 ? 'resposta' : 'respostas'}
+                    </div>
                 </div>
             </div>
-            <i data-feather="chevron-right" style="width:24px;height:24px;stroke:var(--accent);"></i>
+            <i data-feather="chevron-right" style="width:24px;height:24px;stroke:var(--accent);flex-shrink:0;"></i>
         </div>`;
     }).join("");
 

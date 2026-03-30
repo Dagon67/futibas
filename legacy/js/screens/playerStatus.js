@@ -35,9 +35,15 @@ function viewPlayerStatus(playerId){
         return new Date(b.timestamp) - new Date(a.timestamp);
     });
 
+    const playerThumb =
+        typeof playerAvatarThumbHTML === "function"
+            ? playerAvatarThumbHTML(player, "player-avatar-thumb player-avatar-thumb--header")
+            : "";
+
     // Informações do jogador
     const playerInfoHTML = `
-        <div class="item-row" style="background:rgba(96,165,250,0.1);border-color:var(--accent);">
+        <div class="item-row item-row--player" style="background:rgba(96,165,250,0.1);border-color:var(--accent);">
+            <div class="item-row-avatar">${playerThumb}</div>
             <div class="item-main">
                 <div class="item-title" style="font-size:var(--touch-font-lg);">${player.name}</div>
                 <div class="item-sub">

@@ -535,6 +535,92 @@
         border:2px solid rgba(255,255,255,0.2);
         flex-shrink:0;
     }
+    /* Miniaturas circulares (treinos, questionário, mapa corporal) */
+    .player-avatar-thumb{
+        width:48px;
+        height:48px;
+        border-radius:50%;
+        object-fit:cover;
+        border:2px solid rgba(255,255,255,0.25);
+        flex-shrink:0;
+        background:rgba(255,255,255,0.08);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:1.25rem;
+        overflow:hidden;
+    }
+    .player-avatar-thumb--placeholder{
+        color:var(--text-dim);
+    }
+    .player-avatar-thumb--header{
+        width:56px;
+        height:56px;
+    }
+    .player-avatar-thumb--row{
+        width:44px;
+        height:44px;
+    }
+    .questionnaire-top-row{
+        align-items:flex-start;
+        gap:0.75rem;
+    }
+    .questionnaire-avatar-wrap{
+        flex-shrink:0;
+        padding-top:2px;
+    }
+    .questionnaire-player-name{
+        font-weight:600;
+        color:var(--text-bright);
+        margin-bottom:0.15rem;
+    }
+    .item-row--player{
+        align-items:center;
+    }
+    .item-row--player .item-row-avatar{
+        flex-shrink:0;
+        align-self:center;
+    }
+    .item-row--player .item-main{
+        flex:1;
+        min-width:0;
+    }
+    .player-avatar-stack{
+        display:flex;
+        align-items:center;
+        flex-shrink:0;
+    }
+    .player-avatar-thumb--stack{
+        width:30px;
+        height:30px;
+        font-size:0.9rem;
+        margin-left:-8px;
+        border-color:var(--card-bg,#000000);
+        position:relative;
+        z-index:1;
+    }
+    .player-avatar-thumb--stack:first-child{
+        margin-left:0;
+        z-index:5;
+    }
+    .player-avatar-thumb--stack:nth-child(2){ z-index:4; }
+    .player-avatar-thumb--stack:nth-child(3){ z-index:3; }
+    .player-avatar-thumb--stack:nth-child(4){ z-index:2; }
+    .player-avatar-thumb--stack:nth-child(5){ z-index:1; }
+    .player-avatar-more{
+        margin-left:6px;
+        font-size:var(--touch-font-md);
+        font-weight:600;
+        color:var(--text-dim);
+        white-space:nowrap;
+    }
+    .training-item-row-inner{
+        display:flex;
+        align-items:center;
+        gap:0.75rem;
+        flex:1;
+        min-width:0;
+    }
     .player-card-content{
         flex:1;
         display:flex;

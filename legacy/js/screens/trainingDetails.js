@@ -43,8 +43,13 @@ function viewTrainingDetails(trainingId){
 
     const playersHTML = Object.values(playerResponses).map(pr => {
         const hasResponse = pr.response !== null;
+        const thumb =
+            typeof playerAvatarThumbHTML === "function"
+                ? playerAvatarThumbHTML(pr.player, "player-avatar-thumb player-avatar-thumb--row")
+                : "";
         return `
-        <div class="item-row">
+        <div class="item-row item-row--player">
+            <div class="item-row-avatar">${thumb}</div>
             <div class="item-main">
                 <div class="item-title">
                     ${pr.player.name}
@@ -215,14 +220,20 @@ function viewPlayerResponse(trainingId, playerId){
         </div>
     `;
 
+    const respAvatar =
+        typeof playerAvatarThumbHTML === "function"
+            ? playerAvatarThumbHTML(player, "player-avatar-thumb player-avatar-thumb--header")
+            : "";
+
     renderScreen(`
         <div class="questionnaire-wrapper">
-            <div class="back-row">
+            <div class="back-row questionnaire-top-row">
                 <button class="back-btn" onclick="viewTrainingDetails('${trainingId}')">
                     <i data-feather="arrow-left"></i>
                     <span>Voltar</span>
                 </button>
-                <div>
+                ${respAvatar ? `<div class="questionnaire-avatar-wrap">${respAvatar}</div>` : ""}
+                <div style="flex:1;min-width:0;">
                     <div class="screen-title">Respostas de ${player.name}</div>
                     <div class="screen-sub">${training.dateFormatted || training.date} • ${training.mode === "pre" ? "Pré Treino" : "Pós Treino"}</div>
                 </div>
