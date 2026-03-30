@@ -27,7 +27,7 @@ function goAcompanhamento() {
             <div class="acompanhamento-options">
                 <button class="home-btn home-btn-primary" onclick="goAcompanhamentoGeral()" style="max-width:320px;">
                     <i data-feather="trending-up"></i>
-                    <div>Geral</div>
+                    <div>Jaraguá Futsal</div>
                     <div class="sub">Gráficos e KPIs do time</div>
                 </button>
                 <button class="home-btn home-btn-secondary" onclick="goAcompanhamentoIndividual()" style="max-width:320px;">
@@ -39,6 +39,11 @@ function goAcompanhamento() {
                     <i data-feather="heart"></i>
                     <div>Bem-Estar Pré</div>
                     <div class="sub">Semáforo, evolução e pontos de dor</div>
+                </button>
+                <button class="home-btn home-btn-secondary" onclick="goAreasDeDor()" style="max-width:320px;">
+                    <i data-feather="map-pin"></i>
+                    <div>Áreas de dor</div>
+                    <div class="sub">Mapa corporal por atleta</div>
                 </button>
                 <button class="home-btn home-btn-secondary" onclick="goInformacaoTatica()" style="max-width:320px;">
                     <i data-feather="activity"></i>
@@ -625,6 +630,332 @@ function goBemEstarPre() {
         }
 
         renderBemEstarPre();
+    });
+}
+
+// ===========================
+// ÁREAS DE DOR (Jaraguá)
+// ===========================
+
+var PAIN_AREAS_SVG_CACHE_TEXT = null;
+var PAIN_AREAS_ANALYTICS = null;
+
+function getKnownBodyMapPartsSet() {
+    try {
+        if (typeof bodyMapPartNamesSet === "function") return bodyMapPartNamesSet();
+    } catch (e) {}
+    return {};
+}
+
+function dedupeArray(arr) {
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+        var x = arr[i];
+        if (x == null) continue;
+        x = String(x).trim();
+        if (!x) continue;
+        if (seen[x]) continue;
+        seen[x] = true;
+        out.push(x);
+    }
+    return out;
+}
+
+// Apenas pontos de dor com NOME (tags do corpo). Ignora qualquer coisa que vire "letras" na lógica antiga.
+function parseNamedMuscularPainParts(str) {
+    var known = getKnownBodyMapPartsSet();
+    if (!known) known = {};
+    if (!str) return [];
+    var t = String(str).trim();
+    if (!t || /^sem dor$/i.test(t) || /^nenhuma$/i.test(t)) return [];
+
+    var parts = [];
+    try {
+        if (typeof parsePontosDorMuscularValue === "function") {
+            parts = parsePontosDorMuscularValue(t);
+        } else {
+            parts = t.split(/[;,]/).map(function (s) { return s.trim(); }).filter(Boolean);
+        }
+    } catch (e) {
+        parts = [];
+    }
+
+    // Garantia: só conta se o token bater com um nome real do mapa corporal.
+    parts = parts.filter(function (p) { return known[p]; });
+    return dedupeArray(parts);
+}
+
+function painPctToStyle(pct) {
+    // pct: 0..1
+    if (!isFinite(pct) || pct <= 0) return { fill: "rgba(34,197,94,0.35)", stroke: "#22c55e", strokeWidth: 1.2 };
+    if (pct <= 0.33) return { fill: "rgba(250,204,21,0.35)", stroke: "#facc15", strokeWidth: 1.2 };
+    if (pct <= 0.66) return { fill: "rgba(249,115,22,0.38)", stroke: "#f97316", strokeWidth: 1.2 };
+    return { fill: "rgba(239,68,68,0.42)", stroke: "#ef4444", strokeWidth: 1.25 };
+}
+
+function buildPartsFrequencyByPart(trainings) {
+    // trainings: [{parts:[...]}] onde parts já vem deduplicado
+    var counts = {};
+    var den = Array.isArray(trainings) ? trainings.length : 0;
+    if (!den) return { den: 0, counts: counts };
+
+    (trainings || []).forEach(function (t) {
+        var parts = t && Array.isArray(t.parts) ? t.parts : [];
+        parts.forEach(function (p) {
+            counts[p] = (counts[p] || 0) + 1; // presença nessa "resposta"
+        });
+    });
+
+    return { den: den, counts: counts };
+}
+
+async function loadPainBodySvgText() {
+    if (PAIN_AREAS_SVG_CACHE_TEXT) return PAIN_AREAS_SVG_CACHE_TEXT;
+    var url = "corpo/body-interactive.svg";
+    var res = await fetch(url);
+    if (!res.ok) throw new Error("Falha ao carregar SVG de corpo");
+    PAIN_AREAS_SVG_CACHE_TEXT = await res.text();
+    return PAIN_AREAS_SVG_CACHE_TEXT;
+}
+
+async function renderPainBodySvgInto(hostEl, frequencyByPart) {
+    if (!hostEl) return;
+    var svgText = await loadPainBodySvgText();
+    hostEl.innerHTML = svgText;
+
+    // Remover interação do mapa.
+    var muscles = hostEl.querySelectorAll("g.muscle[data-part]");
+    for (var i = 0; i < muscles.length; i++) {
+        var g = muscles[i];
+        var part = g.getAttribute("data-part") || "";
+        var pct = 0;
+        if (frequencyByPart && isFinite(frequencyByPart.den) && frequencyByPart.den > 0) {
+            pct = (frequencyByPart.counts && isFinite(frequencyByPart.counts[part]) ? (frequencyByPart.counts[part] / frequencyByPart.den) : 0);
+        }
+        var st = painPctToStyle(pct);
+        var paths = g.querySelectorAll("path");
+        for (var p = 0; p < paths.length; p++) {
+            paths[p].style.fill = st.fill;
+            paths[p].style.stroke = st.stroke;
+            paths[p].style.strokeWidth = String(st.strokeWidth);
+        }
+        g.style.pointerEvents = "none";
+    }
+}
+
+function buildTopPartsBadges(partsCounts, limit) {
+    limit = limit == null ? 3 : limit;
+    var entries = Object.keys(partsCounts || {}).map(function (k) { return { part: k, count: partsCounts[k] || 0 }; });
+    entries.sort(function (a, b) { return b.count - a.count; });
+    entries = entries.slice(0, limit);
+    if (!entries.length) return "dados insuficientes";
+    return entries.map(function (e) { return "<span class=\"pain-badge\" style=\"margin-right:.35rem;\">" + e.part + ": " + e.count + "</span>"; }).join(" ");
+}
+
+function goAreasDeDorPlayer(playerId) {
+    if (!PAIN_AREAS_ANALYTICS || !PAIN_AREAS_ANALYTICS.byPlayer) return;
+    var player = PAIN_AREAS_ANALYTICS.byPlayer[playerId];
+    if (!player) return;
+
+    var detailEl = document.getElementById("pain-areas-detail");
+    if (!detailEl) return;
+
+    var trainingsAll = player.trainings || [];
+    trainingsAll.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+
+    // Períodos
+    var last1 = trainingsAll.length ? [trainingsAll[trainingsAll.length - 1]] : [];
+    var last3 = trainingsAll.length ? trainingsAll.slice(Math.max(0, trainingsAll.length - 3)) : [];
+    var geral = trainingsAll;
+
+    function renderPeriod(title, trainings, sectionId) {
+        var namedTrainingsCount = (trainings || []).filter(function (t) { return t && t.parts && t.parts.length > 0; }).length;
+        var areaMsg = namedTrainingsCount ? "" : "<div class=\"item-sub\" style=\"padding:1.25rem;text-align:center;color:var(--text-dim);\">sem dados suficientes</div>";
+        var den = trainings.length || 0;
+
+        // Container para o SVG (carregamento assíncrono)
+        var html = areaMsg;
+        if (namedTrainingsCount) {
+            html =
+                "<div style=\"display:flex;flex-direction:column;gap:.75rem;\">" +
+                "  <div class=\"item-title\" style=\"margin:0;\">" + title + "</div>" +
+                "  <div class=\"item-sub\">Base: " + den + " resposta(s)</div>" +
+                "  <div id=\"" + sectionId + "\" style=\"background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-md);padding:.75rem;\"></div>" +
+                "  <div class=\"item-sub\" style=\"color:var(--text-dim);font-size:.9rem;\" id=\"" + sectionId + "_legend\"></div>" +
+                "</div>";
+        }
+        return html;
+    }
+
+    detailEl.innerHTML =
+        "<div class=\"settings-wrapper\" style=\"padding:0;\">" +
+        "  <div class=\"back-row\" style=\"margin-bottom:1rem;\">" +
+        "    <button class=\"back-btn\" onclick=\"goAreasDeDor()\"><i data-feather=\"arrow-left\"></i><span>Voltar</span></button>" +
+        "    <div>" +
+        "      <div class=\"screen-title\">Áreas de dor</div>" +
+        "      <div class=\"screen-sub\">" + (player.name || player.id) + "</div>" +
+        "    </div>" +
+        "  </div>" +
+        "  <div style=\"display:flex;flex-direction:column;gap:1rem;\">" +
+        renderPeriod("Último treino", last1, "pain-svg-last1") +
+        renderPeriod("Agregado últimos 3 treinos", last3, "pain-svg-last3") +
+        renderPeriod("Agregado geral", geral, "pain-svg-geral") +
+        "  </div>" +
+        "</div>";
+
+    try { if (window.feather && feather.replace) feather.replace(); } catch (e) {}
+
+    // Render assíncrono dos SVGs
+    (async function () {
+        try {
+            var f1 = buildPartsFrequencyByPart(last1);
+            var host1 = document.getElementById("pain-svg-last1");
+            await renderPainBodySvgInto(host1, f1);
+
+            var f3 = buildPartsFrequencyByPart(last3);
+            var host3 = document.getElementById("pain-svg-last3");
+            await renderPainBodySvgInto(host3, f3);
+
+            var fg = buildPartsFrequencyByPart(geral);
+            var hostG = document.getElementById("pain-svg-geral");
+            await renderPainBodySvgInto(hostG, fg);
+        } catch (e) {
+            // se falhar renderizar, deixa a mensagem de dados insuficientes como fallback
+            console.warn("Áreas de dor: erro ao renderizar SVG:", e);
+        }
+
+        // Legenda fixa (por frequência)
+        function topPartFromFrequency(f) {
+            if (!f || !f.counts) return null;
+            var entries = Object.keys(f.counts).map(function (k) { return { part: k, count: f.counts[k] }; });
+            entries.sort(function (a, b) { return b.count - a.count; });
+            return entries.length ? entries[0] : null;
+        }
+
+        var legend =
+            "<div style=\"display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;\">" +
+            "  <span style=\"display:inline-flex;align-items:center;gap:.35rem;\"><span style=\"width:12px;height:12px;border-radius:3px;background:rgba(34,197,94,0.6);border:1px solid #22c55e;\"></span>0%</span>" +
+            "  <span style=\"display:inline-flex;align-items:center;gap:.35rem;\"><span style=\"width:12px;height:12px;border-radius:3px;background:rgba(250,204,21,0.6);border:1px solid #facc15;\"></span>~até 33%</span>" +
+            "  <span style=\"display:inline-flex;align-items:center;gap:.35rem;\"><span style=\"width:12px;height:12px;border-radius:3px;background:rgba(249,115,22,0.65);border:1px solid #f97316;\"></span>~até 66%</span>" +
+            "  <span style=\"display:inline-flex;align-items:center;gap:.35rem;\"><span style=\"width:12px;height:12px;border-radius:3px;background:rgba(239,68,68,0.65);border:1px solid #ef4444;\"></span>~acima de 66%</span>" +
+            "</div>";
+
+        // “Onde mais machuca”
+        try {
+            var top1 = topPartFromFrequency(buildPartsFrequencyByPart(last1));
+            var top3 = topPartFromFrequency(buildPartsFrequencyByPart(last3));
+            var topG = topPartFromFrequency(buildPartsFrequencyByPart(geral));
+            legend = legend +
+                "<div class=\"item-sub\" style=\"margin-top:.55rem;color:var(--text-dim);\">Onde mais machuca: " + ((topG && topG.part) ? topG.part : "—") + "</div>";
+        } catch (e) {}
+        var l1 = document.getElementById("pain-svg-last1_legend");
+        var l3 = document.getElementById("pain-svg-last3_legend");
+        var lg = document.getElementById("pain-svg-geral_legend");
+        if (l1) l1.innerHTML = legend;
+        if (l3) l3.innerHTML = legend;
+        if (lg) lg.innerHTML = legend;
+    })();
+}
+
+function goAreasDeDor() {
+    state.currentScreen = "areasDeDor";
+    setHeaderModeLabel("Áreas de dor");
+    renderScreen(`
+        <div class="settings-wrapper">
+            <div class="back-row">
+                <button class="back-btn" onclick="goAcompanhamento()"><i data-feather="arrow-left"></i><span>Voltar</span></button>
+                <div>
+                    <div class="screen-title">Áreas de dor</div>
+                    <div class="screen-sub">Mapa corporal e frequência por atleta</div>
+                </div>
+            </div>
+            <div class="settings-panel-area">
+                <div class="settings-panel-scroll" style="gap:1rem;display:flex;flex-direction:column;">
+                    <div class="acompanhamento-player-list" id="pain-areas-players"></div>
+                    <div id="pain-areas-detail" style="margin-top:1rem;"></div>
+                </div>
+            </div>
+        </div>
+    `);
+    feather.replace();
+
+    fetchAnalyticsData().then(function (res) {
+        var playersEl = document.getElementById("pain-areas-players");
+        var detailEl = document.getElementById("pain-areas-detail");
+        if (!res.success || !playersEl || !detailEl) {
+            if (detailEl) detailEl.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;\">Erro: " + (res.error || "desconhecido") + "</div>";
+            return;
+        }
+
+        var preH = (res.pre && res.pre.headers) ? res.pre.headers : [];
+        var preRows = (res.pre && res.pre.rows) ? res.pre.rows : [];
+
+        var known = getKnownBodyMapPartsSet();
+        var anyNamed = false;
+
+        var byPlayer = {};
+        preRows.forEach(function (row) {
+            var r = parsePreRow(preH, row);
+            if (!r || !r.playerId) return;
+            var parts = parseNamedMuscularPainParts(r.answers.pontosDor);
+            if (parts.length) anyNamed = true;
+
+            if (!byPlayer[r.playerId]) byPlayer[r.playerId] = { id: r.playerId, name: r.name || r.playerId, trainings: [] };
+            byPlayer[r.playerId].trainings.push({ date: r.date, parts: parts });
+        });
+
+        if (!anyNamed) {
+            playersEl.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;color:var(--text-dim);\">dados insuficientes</div>";
+            detailEl.innerHTML = "";
+            PAIN_AREAS_ANALYTICS = { byPlayer: byPlayer };
+            return;
+        }
+
+        // ordenar e preparar tiles
+        Object.keys(byPlayer).forEach(function (pid) {
+            byPlayer[pid].trainings.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+        });
+
+        // Top áreas por atleta (geral)
+        var players = Object.keys(byPlayer).map(function (pid) {
+            var tgs = byPlayer[pid].trainings || [];
+            var counts = {};
+            tgs.forEach(function (t) {
+                (t.parts || []).forEach(function (p) {
+                    counts[p] = (counts[p] || 0) + 1;
+                });
+            });
+            return { id: pid, name: byPlayer[pid].name, counts: counts };
+        }).filter(function (p) { return p && p.counts && Object.keys(p.counts).length; });
+
+        players.sort(function (a, b) {
+            // total de ocorrências
+            var ta = Object.keys(a.counts || {}).reduce(function (s, k) { return s + (a.counts[k] || 0); }, 0);
+            var tb = Object.keys(b.counts || {}).reduce(function (s, k) { return s + (b.counts[k] || 0); }, 0);
+            if (tb !== ta) return tb - ta;
+            return (a.name || "").localeCompare(b.name || "");
+        });
+
+        PAIN_AREAS_ANALYTICS = { byPlayer: byPlayer };
+
+        playersEl.innerHTML = players.map(function (p) {
+            var badges = buildTopPartsBadges(p.counts, 3);
+            if (badges === "dados insuficientes") {
+                badges = "<span class=\"item-sub\" style=\"color:var(--text-dim);\">dados insuficientes</span>";
+            }
+            return "<button type=\"button\" class=\"acompanhamento-player-btn\" onclick=\"goAreasDeDorPlayer('" + (p.id || "").replace(/'/g, "\\'") + "')\" style=\"text-align:left;\">" +
+                "<span class=\"player-name\" style=\"display:block;\">( " + (p.name || p.id) + " )</span>" +
+                "<span class=\"player-stats\" style=\"display:block;font-size:.86rem;color:var(--text-dim);white-space:normal;\">" + badges + "</span>" +
+                "</button>";
+        }).join("");
+
+        // Selecionar automaticamente o primeiro atleta com dados
+        if (players.length) {
+            goAreasDeDorPlayer(players[0].id);
+        } else {
+            detailEl.innerHTML = "<div class=\"item-sub\" style=\"padding:2rem;text-align:center;color:var(--text-dim);\">Sem dados suficientes</div>";
+        }
     });
 }
 
