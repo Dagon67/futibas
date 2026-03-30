@@ -30,7 +30,21 @@ O fluxo principal com login é o **`legacy/index.html`**. O `totem.html` é um m
 
 No HTML (`legacy/index.html`, `legacy/totem.html`), mantenha `window.BACKEND_URL` apontando para a URL do Web Service.
 
-Fotos enviadas pelo app são gravadas em `uploads/players/` na **raiz do repositório** (o Flask em `backend/legacy` já resolve esse caminho). Em produção, disco efêmero pode apagar arquivos ao reiniciar — para persistência use commit automático (`GIT_AUTO_COMMIT`), storage externo ou migração futura para Firestore.
+Fotos enviadas pelo app são gravadas em `uploads/players/` na **raiz do repositório** (o Flask em `backend/legacy` já resolve esse caminho). No Render o disco é **efémero**; para gravar no **GitHub** sem depender de `git` no servidor:
+
+### Fotos no repositório GitHub (API)
+
+1. Cria um **Personal Access Token** (classic) ou **fine-grained** com permissão de escrita no repositório (scope *Contents: Read and write* no repo).
+2. No Render → Web Service → **Environment**:
+   - `GITHUB_TOKEN` — o token (marca como **Secret**).
+   - `GITHUB_REPO` — `owner/repo` (ex.: `Dagon67/futibas`).
+   - `GITHUB_BRANCH` — opcional, default `main`.
+3. Cada upload chama a [GitHub Contents API](https://docs.github.com/rest/repos/contents#create-or-update-file-contents) e faz commit em `uploads/players/<ficheiro>`.
+4. A resposta da API devolve ao browser a URL **`https://raw.githubusercontent.com/.../uploads/players/...`** (repositório **público**: a imagem abre em qualquer lado; após redeploy o ficheiro já vem no clone).
+
+**Repositório privado:** o `raw.githubusercontent.com` pode não servir a imagem no `<img>` sem auth. Define `PLAYER_PHOTO_USE_RENDER_URL=true` para a app continuar a usar a URL do próprio Render (`/uploads/...`) — o ficheiro **igual** fica commitado no Git para o próximo deploy, mas enquanto o dyno não reinicia o disco ainda tem a cópia local.
+
+Desativa só o upload para o GitHub omitindo `GITHUB_TOKEN` ou `GITHUB_REPO`. O commit local opcional (`GIT_AUTO_COMMIT`) continua a funcionar onde existir `.git`.
 
 ## Free tier
 

@@ -9,6 +9,9 @@ from sheets_sync import sync_data
 import json
 import os
 import base64
+import urllib.error
+import urllib.request
+from urllib.parse import quote
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
@@ -119,6 +122,64 @@ def _try_git_commit_player_photo(filepath, filename):
         print(f"⚠️ Git (commit/push opcional): {e}")
 
 
+def _try_github_upload_player_photo(image_data: bytes, filename: str):
+    """
+    Grava a imagem no repositório GitHub via Contents API (funciona no Render sem pasta .git).
+    Requer: GITHUB_TOKEN (fine-grained: Contents read/write no repo) e GITHUB_REPO=owner/nome.
+    Opcional: GITHUB_BRANCH (default main).
+
+    Retorna URL absoluta (raw.githubusercontent.com) se o upload tiver sucesso e
+    PLAYER_PHOTO_USE_RENDER_URL não for true; caso contrário None (usa URL do próprio servidor).
+    Repositório privado: raw pode falhar no browser; use PLAYER_PHOTO_USE_RENDER_URL=true.
+    """
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPO", "").strip()
+    if not token or not repo or "/" not in repo:
+        return None
+    branch = (os.getenv("GITHUB_BRANCH") or "main").strip() or "main"
+    path_in_repo = f"uploads/players/{filename}"
+    path_encoded = quote(path_in_repo, safe="/")
+    api_url = f"https://api.github.com/repos/{repo}/contents/{path_encoded}"
+
+    payload = {
+        "message": f"chore(photos): jogador {filename}",
+        "content": base64.b64encode(image_data).decode("ascii"),
+        "branch": branch,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(api_url, data=data, method="PUT")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("X-GitHub-Api-Version", "2022-11-28")
+    req.add_header("User-Agent", "Tutem-Backend-PlayerPhoto")
+    req.add_header("Content-Type", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            if resp.status not in (200, 201):
+                print(f"⚠️ GitHub API: status inesperado {resp.status}")
+                return None
+            resp.read()
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        print(f"⚠️ GitHub API upload falhou ({e.code}): {err_body[:800]}")
+        return None
+    except Exception as e:
+        print(f"⚠️ GitHub API upload: {e}")
+        return None
+
+    if _truthy_env("PLAYER_PHOTO_USE_RENDER_URL", default=False):
+        print(f"✅ Foto enviada ao GitHub (repo); URL de resposta = servidor Render")
+        return None
+
+    owner, repo_name = repo.split("/", 1)
+    raw_url = (
+        f"https://raw.githubusercontent.com/{owner}/{repo_name}/{branch}/{path_in_repo}"
+    )
+    print(f"✅ Foto gravada no GitHub: {path_in_repo}")
+    return raw_url
+
+
 @app.route('/', methods=['GET'])
 def root():
     """Endpoint raiz"""
@@ -179,14 +240,20 @@ def upload_player_photo():
             f.write(image_data)
 
         _try_git_commit_player_photo(filepath, filename)
-        
-        # Retornar URL relativa
-        photo_url = f"/uploads/players/{filename}"
-        
+
+        github_url = _try_github_upload_player_photo(image_data, filename)
+        if github_url:
+            photo_url = github_url
+            stored_github = True
+        else:
+            photo_url = f"/uploads/players/{filename}"
+            stored_github = False
+
         return jsonify({
             "success": True,
             "photoUrl": photo_url,
-            "filename": filename
+            "filename": filename,
+            "storedInGithub": stored_github,
         }), 200
         
     except Exception as e:
