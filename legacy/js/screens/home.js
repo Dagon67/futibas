@@ -42,10 +42,9 @@ function goHome(){
                     <div>Novo Jogo</div>
                     <div class="home-btn-sub-hint home-btn-sub-hint--muted">Mapa com novo jogo (Campin)</div>
                 </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                <button class="home-btn home-btn-secondary" type="button" onclick="goTrainingsList()">
                     <i data-feather="list"></i>
                     <div>Lista de Treinos</div>
-                    ${disSub}
                 </button>
                 <button class="home-btn home-btn-secondary" id="home-btn-jogadores" type="button" onclick="abrirJogadores()">
                     <i data-feather="users"></i>
