@@ -69,7 +69,8 @@ function getTenantTheme(tenantId) {
   // Ajuste de temas por tenant (cores para legibilidade + logo do time).
   const backendBase = (typeof window !== "undefined" && window.BACKEND_URL) ? window.BACKEND_URL : "";
   if (tenantId === "brazil") {
-    const brLogo = backendBase ? backendBase + "/times/brfutsal.png" : "times/brfutsal.png";
+    // Sempre relativo ao HTML (legacy/): o backend Flask usa /times na raiz do repo e pode não ter o ficheiro no deploy.
+    const brLogo = "times/brfutsal.png";
     return {
       lockLogoSrc: brLogo,
       lockLogoAlt: "Seleção Brasileira de Futsal",

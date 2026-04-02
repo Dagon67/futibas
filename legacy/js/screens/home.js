@@ -29,8 +29,10 @@ function goHome(){
     var homeButtonsHtml;
     if (isBrazilTenant()) {
         var disSub = '<div class="home-btn-sub-hint">Desabilitado para esta versão</div>';
+        var brIaNotice = "Análise profunda e Insights por I.A. desabilitados para esta versão";
         homeButtonsHtml = `
             <div class="home-buttons">
+                <p class="home-brazil-notice" role="note">${brIaNotice}</p>
                 <button class="home-btn home-btn-primary" type="button" onclick="iniciarNovoTreinoComSenha()">
                     <i data-feather="play-circle"></i>
                     <div>Iniciar Novo Treino</div>
@@ -45,10 +47,9 @@ function goHome(){
                     <div>Lista de Treinos</div>
                     ${disSub}
                 </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true" id="home-btn-jogadores">
+                <button class="home-btn home-btn-secondary" id="home-btn-jogadores" type="button" onclick="abrirJogadores()">
                     <i data-feather="users"></i>
                     <div>Jogadores</div>
-                    ${disSub}
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="bar-chart-2"></i>
@@ -57,8 +58,7 @@ function goHome(){
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="zap"></i>
-                    <div>Integração com I.A</div>
-                    ${disSub}
+                    <div>Insights</div>
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="activity"></i>
@@ -67,8 +67,7 @@ function goHome(){
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="archive"></i>
-                    <div>Avaliação profunda</div>
-                    ${disSub}
+                    <div>Análise de jogos passados</div>
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="monitor"></i>
