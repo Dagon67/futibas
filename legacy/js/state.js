@@ -25,10 +25,16 @@ function resetPendingForMode(mode){
     state.pendingByMode[mode] = [...state.selectedPlayerIds];
 }
 
-const RESUME_STATE_KEY =
-    (typeof window !== "undefined" && window.__TUTEM_APP_MODE__ === "magnus")
-        ? "magnus_treino_resume_state"
-        : "treino_resume_state";
+function getResumeStateKey() {
+    try {
+        if (typeof window !== "undefined" && window.__TUTEM_APP_MODE__ === "magnus") {
+            var tid = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId ? String(window.__TUTEM_TENANT__.tenantId) : "magnus";
+            if (tid === "brazil") return "brazil_treino_resume_state";
+            return "magnus_treino_resume_state";
+        }
+    } catch (e) {}
+    return "treino_resume_state";
+}
 
 function saveResumeState(){
     try {
@@ -45,18 +51,18 @@ function saveResumeState(){
             tempAnswers: s.tempAnswers ? JSON.parse(JSON.stringify(s.tempAnswers)) : {},
             currentQuestionTexts: s.currentQuestionTexts || null
         };
-        localStorage.setItem(RESUME_STATE_KEY, JSON.stringify(payload));
+        localStorage.setItem(getResumeStateKey(), JSON.stringify(payload));
     } catch (e) { console.warn("saveResumeState:", e); }
 }
 
 function loadResumeState(){
     try {
-        var raw = localStorage.getItem(RESUME_STATE_KEY);
+        var raw = localStorage.getItem(getResumeStateKey());
         if (!raw) return null;
         return JSON.parse(raw);
     } catch (e) { return null; }
 }
 
 function clearResumeState(){
-    try { localStorage.removeItem(RESUME_STATE_KEY); } catch (e) {}
+    try { localStorage.removeItem(getResumeStateKey()); } catch (e) {}
 }

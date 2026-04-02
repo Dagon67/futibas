@@ -41,8 +41,11 @@
             if (typeof window.loadPlayers === "function") {
                 var players = window.loadPlayers() || [];
                 if (players.length === 0) {
-                    if (typeof window.__MAGNUS_DEFAULT_PLAYERS__ !== "undefined") {
-                        window.savePlayers(window.__MAGNUS_DEFAULT_PLAYERS__);
+                    var defs = typeof window.__tutemMagnusDefaultPlayers === "function"
+                        ? window.__tutemMagnusDefaultPlayers()
+                        : window.__MAGNUS_DEFAULT_PLAYERS__;
+                    if (defs && defs.length) {
+                        window.savePlayers(defs);
                     }
                 }
             }

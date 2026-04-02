@@ -128,7 +128,7 @@
     .tenant-select-grid{
         width:100%;
         display:grid;
-        grid-template-columns:1fr 1fr;
+        grid-template-columns:repeat(auto-fit, minmax(148px, 1fr));
         gap:14px;
         margin-top:0.35rem;
     }
@@ -1698,6 +1698,29 @@
     .home-btn:active{
         transform:translateY(-1px) scale(0.98);
     }
+    .home-btn:disabled,
+    .home-btn[disabled]{
+        opacity:0.5;
+        cursor:not-allowed;
+        transform:none !important;
+        box-shadow:0 2px 10px rgba(0,0,0,.28) !important;
+    }
+    .home-btn:disabled:hover,
+    .home-btn[disabled]:hover{
+        transform:none !important;
+        box-shadow:0 2px 10px rgba(0,0,0,.28) !important;
+    }
+    .home-btn-sub-hint{
+        font-size:clamp(0.78rem,1.1vw + 0.5rem,0.92rem);
+        font-weight:500;
+        color:var(--text-dim);
+        margin-top:0.4rem;
+        max-width:95%;
+        line-height:1.25;
+    }
+    .home-btn-sub-hint--muted{
+        opacity:0.85;
+    }
 
     .player-card-selected{
         border-color:rgba(255,255,255,0.35) !important;
@@ -1958,6 +1981,11 @@
                 <button type="button" class="tenant-select-btn" data-tenant="magnus" onclick="chooseTenantFromAdmin('magnus')">
                     <img class="tenant-select-logo" data-tenant-logo="magnus" src="" alt="Magnus Futsal">
                     <div class="tenant-select-btn-text">Magnus</div>
+                </button>
+
+                <button type="button" class="tenant-select-btn" data-tenant="brazil" onclick="chooseTenantFromAdmin('brazil')">
+                    <img class="tenant-select-logo" data-tenant-logo="brazil" src="" alt="Seleção Brasileira de Futsal">
+                    <div class="tenant-select-btn-text">Brasil</div>
                 </button>
             </div>
         </div>

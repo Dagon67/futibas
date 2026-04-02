@@ -2,6 +2,14 @@
    🖥️ TELA: HOME (Tela Inicial)
    =========================== */
 
+function isBrazilTenant() {
+    try {
+        return !!(window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId === "brazil");
+    } catch (e) {
+        return false;
+    }
+}
+
 function goHome(){
     if (typeof clearResumeState === "function") clearResumeState();
     state.currentScreen = "home";
@@ -13,21 +21,69 @@ function goHome(){
 
     var showAcompanhamento = true;
     try {
-        // Magnus não usa Sheets e não deve chamar analytics.
-        showAcompanhamento = !(window.__TUTEM_SHEETS_MODE__ === "none");
+        if (!isBrazilTenant()) {
+            showAcompanhamento = !(window.__TUTEM_SHEETS_MODE__ === "none");
+        }
     } catch (e) {}
 
-    renderScreen(`
-        <div class="center-flex-col">
-            <div class="datetime-display">
-                <div class="date" id="currentDate"></div>
-                <div class="time" id="currentTime"></div>
+    var homeButtonsHtml;
+    if (isBrazilTenant()) {
+        var disSub = '<div class="home-btn-sub-hint">Desabilitado para esta versão</div>';
+        homeButtonsHtml = `
+            <div class="home-buttons">
+                <button class="home-btn home-btn-primary" type="button" onclick="iniciarNovoTreinoComSenha()">
+                    <i data-feather="play-circle"></i>
+                    <div>Iniciar Novo Treino</div>
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" onclick="iniciarNovoJogoComSenha()">
+                    <i data-feather="target"></i>
+                    <div>Novo Jogo</div>
+                    <div class="home-btn-sub-hint home-btn-sub-hint--muted">Mapa com novo jogo (Campin)</div>
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                    <i data-feather="list"></i>
+                    <div>Lista de Treinos</div>
+                    ${disSub}
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true" id="home-btn-jogadores">
+                    <i data-feather="users"></i>
+                    <div>Jogadores</div>
+                    ${disSub}
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                    <i data-feather="bar-chart-2"></i>
+                    <div>Acompanhamento</div>
+                    ${disSub}
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                    <i data-feather="zap"></i>
+                    <div>Integração com I.A</div>
+                    ${disSub}
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                    <i data-feather="activity"></i>
+                    <div>Dash tático</div>
+                    ${disSub}
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                    <i data-feather="archive"></i>
+                    <div>Avaliação profunda</div>
+                    ${disSub}
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                    <i data-feather="monitor"></i>
+                    <div>Game Room</div>
+                    ${disSub}
+                </button>
+                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
+                    <i data-feather="settings"></i>
+                    <div>Configurações</div>
+                    ${disSub}
+                </button>
             </div>
-            <div class="home-spark-below-time" aria-hidden="true">
-                <div class="spark-brand spark-brand--dark" aria-label="SPARK Technologies">
-                    <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
-                </div>
-            </div>
+        `;
+    } else {
+        homeButtonsHtml = `
             <div class="home-buttons">
                 <button class="home-btn home-btn-primary" onclick="iniciarNovoTreinoComSenha()">
                     <i data-feather="play-circle"></i>
@@ -76,6 +132,21 @@ function goHome(){
                     <button type="button" class="small-solid-btn" onclick="openSettingsWithPassword()" style="padding:0.35rem 0.75rem;font-size:0.85rem;">Acessar configurações</button>
                 </div>
             </div>
+        `;
+    }
+
+    renderScreen(`
+        <div class="center-flex-col">
+            <div class="datetime-display">
+                <div class="date" id="currentDate"></div>
+                <div class="time" id="currentTime"></div>
+            </div>
+            <div class="home-spark-below-time" aria-hidden="true">
+                <div class="spark-brand spark-brand--dark" aria-label="SPARK Technologies">
+                    <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
+                </div>
+            </div>
+            ${homeButtonsHtml}
         </div>
     `);
     

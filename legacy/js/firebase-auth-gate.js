@@ -68,6 +68,31 @@ function setTenantSelectVisible(visible) {
 function getTenantTheme(tenantId) {
   // Ajuste de temas por tenant (cores para legibilidade + logo do time).
   const backendBase = (typeof window !== "undefined" && window.BACKEND_URL) ? window.BACKEND_URL : "";
+  if (tenantId === "brazil") {
+    const brLogo = backendBase ? backendBase + "/times/brfutsal.png" : "times/brfutsal.png";
+    return {
+      lockLogoSrc: brLogo,
+      lockLogoAlt: "Seleção Brasileira de Futsal",
+      lockTitle: "Seleção Brasileira de Futsal",
+      lockSubtitle: "Painel de Treino • Digite a senha para continuar",
+      cssVars: {
+        "--white": "#fffefe",
+        "--bg-main": "radial-gradient(circle at 22% 18%, #039c55 0%, #345ca8 42%, #29285b 100%)",
+        "--card-bg": "#141428",
+        "--card-stroke": "rgba(255,210,7,0.42)",
+        "--accent": "#ffd207",
+        "--accent-secondary": "#039c55",
+        "--accent-soft": "rgba(255,210,7,0.18)",
+        "--text-main": "#fffefe",
+        "--text-dim": "rgba(255,254,254,0.72)",
+        "--text-bright": "#ffd207",
+        "--pre-color": "#039c55",
+        "--pre-glow": "rgba(3,156,85,0.35)",
+        "--post-color": "#ffd207",
+        "--post-glow": "rgba(255,210,7,0.35)"
+      }
+    };
+  }
   if (tenantId === "magnus") {
                 const magnusLogo = backendBase ? backendBase + "/times/logo-magnus.png" : "times/logo-magnus.png";
     return {
@@ -150,7 +175,8 @@ function applyTenantTheme(tenantId) {
 }
 
 function mapTenantToAppMode(tenantId) {
-  if (tenantId === "magnus") return "magnus";
+  // Mesmo pipeline do Magnus (Firestore, sem Sheets) para tenants só-Firestore.
+  if (tenantId === "magnus" || tenantId === "brazil") return "magnus";
   return "jaragua";
 }
 

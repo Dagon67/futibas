@@ -60,7 +60,8 @@ function abrirCampin() {
     try {
         if (window.__TUTEM_SHEETS_MODE__ === "none") {
             params.set("app", "magnus");
-            params.set("tenant", "magnus");
+            var tid = (window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId) ? window.__TUTEM_TENANT__.tenantId : "magnus";
+            params.set("tenant", tid);
 
             // Magnus: garantir que o campin pegue o roster/current mais recente do Firestore.
             // O campin só consome localStorage; então aqui sincronizamos localStorage -> roster atual do Magnus.

@@ -1482,9 +1482,21 @@
         const params = new URLSearchParams(window.location.search);
         const app = (params.get("app") || "").toLowerCase();
         const tenant = (params.get("tenant") || "").toLowerCase();
+        // app=magnus: modo sem Sheets (Firestore/local), para qualquer tenant Firestore (ex.: brazil).
         return app === "magnus" || tenant === "magnus";
       } catch (e) {
         return false;
+      }
+    }
+
+    function campinLastGameLsKey(){
+      try {
+        if (!isMagnusMode()) return "tutem_campin_last_game_sheets";
+        const params = new URLSearchParams(window.location.search);
+        const tenant = (params.get("tenant") || "magnus").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+        return "tutem_campin_last_game_" + tenant;
+      } catch (e) {
+        return "tutem_campin_last_game_magnus";
       }
     }
     function parseUrlParams(){
@@ -3006,7 +3018,7 @@
       // Magnus: não salvar no Sheets/backend. Mantém apenas local para não criar vínculo com planilha.
       if (isMagnusMode()) {
         try {
-          localStorage.setItem("tutem_campin_last_game_magnus", JSON.stringify(payload));
+          localStorage.setItem(campinLastGameLsKey(), JSON.stringify(payload));
         } catch (e) {}
         console.log("MAGNUS: jogo salvo localmente (sem Sheets).");
         return;

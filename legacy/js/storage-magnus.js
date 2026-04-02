@@ -52,6 +52,23 @@ const defaultPlayers = [
     { id: "magnus_p22", number: 22, name: "Kauê", position: "Pivô", lateralidade: null }
 ];
 
+const brazilDefaultPlayers = [
+    { id: "br_p1", number: 1, name: "Willian (Norlisk)", position: "Goleiro", lateralidade: null },
+    { id: "br_p2", number: 2, name: "Matheus (JEC)", position: "Goleiro", lateralidade: null },
+    { id: "br_p3", number: 3, name: "Nicolas (Jaraguá)", position: "Goleiro", lateralidade: null },
+    { id: "br_p4", number: 4, name: "Neguinho (Barcelona/Palma)", position: "Fixo", lateralidade: null },
+    { id: "br_p5", number: 5, name: "Marlon (Selangor/ElPozo)", position: "Fixo", lateralidade: null },
+    { id: "br_p6", number: 6, name: "Lucas Gomes (Magnus)", position: "Fixo", lateralidade: null },
+    { id: "br_p7", number: 7, name: "Marcel (El Pozo)", position: "Ala", lateralidade: null },
+    { id: "br_p8", number: 8, name: "Dyego (Al-Ula/Barcelona)", position: "Ala", lateralidade: null },
+    { id: "br_p9", number: 9, name: "Fabinho (Palma)", position: "Ala", lateralidade: null },
+    { id: "br_p10", number: 10, name: "Arthur (Benfica)", position: "Ala", lateralidade: null },
+    { id: "br_p11", number: 11, name: "Felipe Valério (Sporting)", position: "Ala", lateralidade: null },
+    { id: "br_p12", number: 12, name: "Pito (Barcelona)", position: "Pivô", lateralidade: null },
+    { id: "br_p13", number: 13, name: "Rafa Santos (El Pozo)", position: "Pivô", lateralidade: null },
+    { id: "br_p14", number: 14, name: "Rocha (Sporting)", position: "Pivô", lateralidade: null }
+];
+
 const defaultQuestions = {
     pre: [
         { tipo: "nota", texto: "Qualidade Total de Recuperação", opcoes: [], imagem: "pre/recupera.png", notaMin: 1, notaMax: 20 },
@@ -69,10 +86,14 @@ const defaultQuestions = {
     ]
 };
 
-// localStorage só para perguntas (opcional) e compatibilidade mínima
-const LS_KEYS = {
-    QUESTIONS: "magnus_treino_questions"
-};
+// localStorage só para perguntas (opcional). Magnus mantém chave legada; outros tenants Firestore têm chave própria.
+function getQuestionsLsKey() {
+    var tid = (typeof window !== "undefined" && window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId)
+        ? String(window.__TUTEM_TENANT__.tenantId)
+        : "magnus";
+    if (tid === "magnus") return "magnus_treino_questions";
+    return "tutem_firestore_questions_" + tid.replace(/[^a-z0-9_-]/gi, "_");
+}
 
 let cachePlayers = [];
 let cacheTrainings = []; // apenas trainings "ativos" (status !== "completed")
@@ -221,7 +242,7 @@ function savePlayers(players) {
 
 function loadQuestions() {
     try {
-        const raw = localStorage.getItem(LS_KEYS.QUESTIONS);
+        const raw = localStorage.getItem(getQuestionsLsKey());
         if (!raw) return defaultQuestions;
         const parsed = JSON.parse(raw);
         if (!parsed || !parsed.pre || !parsed.post) return defaultQuestions;
@@ -233,7 +254,7 @@ function loadQuestions() {
 
 function saveQuestions(qs) {
     try {
-        localStorage.setItem(LS_KEYS.QUESTIONS, JSON.stringify(qs || defaultQuestions));
+        localStorage.setItem(getQuestionsLsKey(), JSON.stringify(qs || defaultQuestions));
     } catch (e) {}
 }
 
@@ -287,7 +308,7 @@ function clearAllAppStorage() {
     cachePlayers = [];
     cacheTrainings = [];
     try {
-        localStorage.removeItem(LS_KEYS.QUESTIONS);
+        localStorage.removeItem(getQuestionsLsKey());
     } catch (e) {}
     if (typeof initPromise !== "undefined") initPromise = null;
     return true;
@@ -394,10 +415,11 @@ function goCampinForMagnus() {
 
         const params = new URLSearchParams();
         params.set("datetime", nowIso);
-        params.set("team", tenantId === "magnus" ? "Magnus" : tenantId);
+        var teamLabel = tenantId === "magnus" ? "Magnus" : (tenantId === "brazil" ? "Seleção Brasileira de Futsal" : tenantId);
+        params.set("team", teamLabel);
         if (backend) params.set("backend", backend);
         params.set("app", "magnus");
-        params.set("tenant", "magnus");
+        params.set("tenant", tenantId);
 
         window.location.href = "campin/campin.html?" + params.toString();
     }
@@ -418,7 +440,14 @@ window.clearTrainingsAndResponses = clearTrainingsAndResponses;
 // Campin redirect helper (usado após finalizar treino no Magnus)
 window.goCampinForMagnus = goCampinForMagnus;
 
-// Expor defaults para o bootstrap do Magnus (app-magnus.js)
+// Defaults por tenant (bootstrap em app-magnus.js)
+window.__tutemMagnusDefaultPlayers = function () {
+    var tid = (typeof window !== "undefined" && window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId)
+        ? window.__TUTEM_TENANT__.tenantId
+        : null;
+    if (tid === "brazil") return brazilDefaultPlayers;
+    return defaultPlayers;
+};
 window.__MAGNUS_DEFAULT_PLAYERS__ = defaultPlayers;
 window.__MAGNUS_DEFAULT_QUESTIONS__ = defaultQuestions;
 
