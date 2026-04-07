@@ -181,12 +181,12 @@ function goHome(){
                 <div class="date" id="currentDate"></div>
                 <div class="time" id="currentTime"></div>
             </div>
+            ${homeTeamLogoHtml}
             <div class="home-spark-below-time" aria-hidden="true">
                 <div class="spark-brand spark-brand--dark" aria-label="SPARK Technologies">
                     <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
                 </div>
             </div>
-            ${homeTeamLogoHtml}
             ${homeButtonsHtml}
         </div>
     `);
