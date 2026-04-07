@@ -573,3 +573,7 @@ async function pushPlayersToSheets() {
         return { success: false, error: error && error.message ? error.message : String(error) };
     }
 }
+
+if (typeof window !== "undefined") {
+    window.fetchPlayersFromSheets = fetchPlayersFromSheets;
+}

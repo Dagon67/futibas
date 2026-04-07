@@ -468,6 +468,22 @@
     .glass-card .home-spark-below-time .spark{font-family:system-ui,-apple-system,sans-serif;font-weight:800;font-size:clamp(28px,6.5vw,44px);letter-spacing:.08em;color:var(--tx);text-shadow:0 0 8px rgba(255,140,40,.15),0 2px 4px rgba(0,0,0,.15);}
     .glass-card .home-spark-below-time .tech{font-family:system-ui,-apple-system,sans-serif;font-weight:600;font-size:clamp(9px,2vw,14px);letter-spacing:.22em;color:var(--mu);text-transform:uppercase;}
 
+    .home-team-logo-wrap{
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        margin-top:0.35rem;
+        margin-bottom:0.15rem;
+        pointer-events:none;
+    }
+    .home-team-logo{
+        max-height:clamp(56px,12vw,100px);
+        width:auto;
+        max-width:min(92vw,220px);
+        object-fit:contain;
+        filter:drop-shadow(0 2px 8px rgba(0,0,0,.35));
+    }
+
     .center-flex-col{
         display:flex;
         flex-direction:column;
@@ -2252,10 +2268,27 @@
             }
         });
 
-        // Painel inicia bloqueado por senha depois do login Firebase; a app só arranca após senha correta (startTutemApp).
+        // Magnus: painel bloqueado por senha após Firebase; Jaraguá: app + sync sem essa tela (ver firebase-auth-gate.js).
 
-        // Torna a função disponível globalmente: showLockScreen(callback) para pedir senha antes de uma ação
-        window.showLockScreen = lockApp;
+        // Jaraguá: mesma sincronização de jogadores que antes ocorria ao desbloquear senha, sem mostrar o painel.
+        function showLockScreenSyncOrLock(callback) {
+            try {
+                if (window.__TUTEM_APP_MODE__ === 'jaragua') {
+                    if (typeof window.fetchPlayersFromSheets === 'function') {
+                        window.fetchPlayersFromSheets().catch(function () { });
+                    }
+                    if (typeof callback === 'function') {
+                        requestAnimationFrame(function () {
+                            try { callback(); } catch (err) { console.warn(err); }
+                        });
+                    }
+                    return;
+                }
+            } catch (e) {}
+            lockApp(callback);
+        }
+
+        window.showLockScreen = showLockScreenSyncOrLock;
 
         // Animação dos raios do logo SPARK na tela de bloqueio
         (function(){

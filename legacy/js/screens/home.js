@@ -165,6 +165,16 @@ function goHome(){
         `;
     }
 
+    var homeTeamLogoHtml = "";
+    try {
+        if (window.__TUTEM_APP_MODE__ === "jaragua") {
+            homeTeamLogoHtml =
+                '<div class="home-team-logo-wrap" aria-hidden="true">' +
+                '<img class="home-team-logo" src="Associação_Desportiva_Jaraguá.png" alt="Associação Desportiva Jaraguá" />' +
+                "</div>";
+        }
+    } catch (e) {}
+
     renderScreen(`
         <div class="center-flex-col">
             <div class="datetime-display">
@@ -176,6 +186,7 @@ function goHome(){
                     <div class="logo"><span class="spark">SPARK</span><span class="tech">TECHNOLOGIES</span></div>
                 </div>
             </div>
+            ${homeTeamLogoHtml}
             ${homeButtonsHtml}
         </div>
     `);

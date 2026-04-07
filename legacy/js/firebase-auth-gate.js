@@ -1,6 +1,7 @@
 /**
  * Firebase Auth + Firestore (perfil users/{uid}).
- * Ordem: login Firebase → tela de senha do painel → app (startTutemApp).
+ * Jaraguá: após login Firebase → app + sync jogadores (sem tela de senha do painel).
+ * Magnus/outros: login Firebase → tela de senha do painel → app (startTutemApp).
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
@@ -352,8 +353,23 @@ async function activateTenant(tenantId) {
     setTenantSelectVisible(false);
     setAuthLoadingVisible(false);
     setFirebaseScreenVisible(false);
-    setLockVisible(true);
-    setAppShellVisible(false);
+    if (window.__TUTEM_APP_MODE__ === "jaragua") {
+      setLockVisible(false);
+      setAppShellVisible(true);
+      if (typeof window.startTutemApp === "function") {
+        try {
+          window.startTutemApp();
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      if (typeof window.fetchPlayersFromSheets === "function") {
+        window.fetchPlayersFromSheets().catch(function () {});
+      }
+    } else {
+      setLockVisible(true);
+      setAppShellVisible(false);
+    }
   });
 
   if (form) {
@@ -404,9 +420,23 @@ async function activateTenant(tenantId) {
       // Carrega storage/app certo
       await activateTenant(tenantId);
 
-      // Agora sim mostra o lock-screen
-      setLockVisible(true);
-      setAppShellVisible(false);
+      if (window.__TUTEM_APP_MODE__ === "jaragua") {
+        setLockVisible(false);
+        setAppShellVisible(true);
+        if (typeof window.startTutemApp === "function") {
+          try {
+            window.startTutemApp();
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+        if (typeof window.fetchPlayersFromSheets === "function") {
+          window.fetchPlayersFromSheets().catch(function () {});
+        }
+      } else {
+        setLockVisible(true);
+        setAppShellVisible(false);
+      }
       setAuthLoadingVisible(false);
     } catch (e) {
       console.error("chooseTenantFromAdmin falhou:", e);
