@@ -29,7 +29,7 @@ function goHome(){
     var homeButtonsHtml;
     if (isBrazilTenant()) {
         var disSub = '<div class="home-btn-sub-hint">Desabilitado para esta versão</div>';
-        var brIaNotice = "Análise profunda e Insights por I.A. desabilitados para esta versão";
+        var brIaNotice = "Nesta versão, use Blaze Training para treinos e acompanhamento. OnField está desativado.";
         homeButtonsHtml = `
             <div class="home-buttons">
                 <p class="home-brazil-notice" role="note">${brIaNotice}</p>
@@ -40,20 +40,17 @@ function goHome(){
                         <div class="home-onfield-chevron" aria-hidden="true"></div>
                     </button>
                     <div id="homeBlazeSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="Blaze Training">
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoTreinoComSenha()">
                             <i data-feather="play-circle"></i>
                             <div>Iniciar treino</div>
-                            ${disSub}
                         </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goTrainingsList()">
                             <i data-feather="list"></i>
                             <div>Lista de Treinos</div>
-                            ${disSub}
                         </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goAcompanhamento()">
                             <i data-feather="bar-chart-2"></i>
                             <div>Acompanhamento</div>
-                            ${disSub}
                         </button>
                     </div>
                 </div>
@@ -64,10 +61,11 @@ function goHome(){
                         <div class="home-onfield-chevron" aria-hidden="true"></div>
                     </button>
                     <div id="homeOnFieldSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="OnField">
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoJogoComSenha()">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
                             <i data-feather="target"></i>
                             <div>Novo jogo</div>
                             <div class="home-btn-sub-hint home-btn-sub-hint--muted">Campin — mapa e controlo</div>
+                            ${disSub}
                         </button>
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
                             <i data-feather="activity"></i>
