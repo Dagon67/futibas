@@ -46,6 +46,11 @@ function goHome(){
                             ${disSub}
                         </button>
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                            <i data-feather="list"></i>
+                            <div>Lista de Treinos</div>
+                            ${disSub}
+                        </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
                             <i data-feather="bar-chart-2"></i>
                             <div>Acompanhamento</div>
                             ${disSub}
@@ -81,10 +86,6 @@ function goHome(){
                         </button>
                     </div>
                 </div>
-                <button class="home-btn home-btn-secondary" type="button" onclick="goTrainingsList()">
-                    <i data-feather="list"></i>
-                    <div>Lista de Treinos</div>
-                </button>
                 <button class="home-btn home-btn-secondary" id="home-btn-jogadores" type="button" onclick="abrirJogadores()">
                     <i data-feather="users"></i>
                     <div>Jogadores</div>
@@ -109,6 +110,10 @@ function goHome(){
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoTreinoComSenha()">
                             <i data-feather="play-circle"></i>
                             <div>Iniciar treino</div>
+                        </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goTrainingsList()">
+                            <i data-feather="list"></i>
+                            <div>Lista de Treinos</div>
                         </button>
                         ${showAcompanhamento ? `
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goAcompanhamento()">
@@ -146,10 +151,6 @@ function goHome(){
                         ` : ``}
                     </div>
                 </div>
-                <button class="home-btn home-btn-secondary" onclick="goTrainingsList()">
-                    <i data-feather="list"></i>
-                    <div>Lista de Treinos</div>
-                </button>
                 <button class="home-btn home-btn-secondary" id="home-btn-jogadores" type="button" onclick="abrirJogadores()">
                     <i data-feather="users"></i>
                     <div>Jogadores</div>
