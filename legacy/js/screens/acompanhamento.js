@@ -156,6 +156,17 @@ function dateLabelPtBrFromKey(k) {
     return m[3] + "/" + m[2] + "/" + m[1];
 }
 
+/** Ordenação cronológica para strings de data (DD/MM/AAAA ou YYYY-MM-DD). Não usar .sort() direto: em DD/MM/AAAA a ordem lexicográfica não é a temporal (ex.: 01/04/2026 < 31/03/2026). */
+function sortDateStringsChronologically(dateStrings) {
+    function ts(s) {
+        var d = parseDateToLocalDate(s);
+        return d && !isNaN(d.getTime()) ? d.getTime() : 0;
+    }
+    var arr = (dateStrings || []).slice();
+    arr.sort(function (a, b) { return ts(a) - ts(b); });
+    return arr;
+}
+
 function stdDev(values) {
     var arr = (values || []).filter(function (x) { return x != null && isFinite(x); });
     if (!arr.length) return 0;
@@ -384,7 +395,7 @@ function buildBemEstarPreData(data) {
         if (!byDate[d]) byDate[d] = [];
         byDate[d].push(r);
     });
-    var dates = Object.keys(byDate).sort();
+    var dates = sortDateStringsChronologically(Object.keys(byDate));
     var last15Dates = dates.slice(-15);
     var teamAveragesByDate = last15Dates.map(function (d) {
         var rows = byDate[d] || [];
@@ -950,8 +961,7 @@ function goAreasDeDorPlayer(playerId) {
     var detailEl = document.getElementById("pain-areas-detail");
     if (!detailEl) return;
 
-    var trainingsAll = player.trainings || [];
-    trainingsAll.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+    var trainingsAll = sortRowsByDate(player.trainings || [], function (x) { return x.date; });
 
     // Períodos
     var last1 = trainingsAll.length ? [trainingsAll[trainingsAll.length - 1]] : [];
@@ -1101,9 +1111,9 @@ function goAreasDeDor() {
             return;
         }
 
-        // ordenar e preparar tiles
+        // ordenar e preparar tiles (DD/MM/AAAA: não usar new Date(string) nem .sort() lexicográfico)
         Object.keys(byPlayer).forEach(function (pid) {
-            byPlayer[pid].trainings.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+            byPlayer[pid].trainings = sortRowsByDate(byPlayer[pid].trainings, function (x) { return x.date; });
         });
 
         // Top áreas por atleta (geral)
