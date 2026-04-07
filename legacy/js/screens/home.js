@@ -33,10 +33,25 @@ function goHome(){
         homeButtonsHtml = `
             <div class="home-buttons">
                 <p class="home-brazil-notice" role="note">${brIaNotice}</p>
-                <button class="home-btn home-btn-primary" type="button" onclick="iniciarNovoTreinoComSenha()">
-                    <i data-feather="play-circle"></i>
-                    <div>Iniciar Novo Treino</div>
-                </button>
+                <div class="home-onfield-wrap">
+                    <button id="homeBlazeToggle" type="button" class="home-btn home-btn-primary home-onfield-toggle" aria-expanded="false" aria-controls="homeBlazeSub" onclick="toggleHomeBlaze(event)">
+                        <i data-feather="zap"></i>
+                        <div>Blaze Training</div>
+                        <div class="home-onfield-chevron" aria-hidden="true"></div>
+                    </button>
+                    <div id="homeBlazeSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="Blaze Training">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                            <i data-feather="play-circle"></i>
+                            <div>Iniciar treino</div>
+                            ${disSub}
+                        </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                            <i data-feather="bar-chart-2"></i>
+                            <div>Acompanhamento</div>
+                            ${disSub}
+                        </button>
+                    </div>
+                </div>
                 <div class="home-onfield-wrap">
                     <button id="homeOnFieldToggle" type="button" class="home-btn home-btn-secondary home-onfield-toggle" aria-expanded="false" aria-controls="homeOnFieldSub" onclick="toggleHomeOnField(event)">
                         <i data-feather="map"></i>
@@ -59,6 +74,11 @@ function goHome(){
                             <div>Histórico de jogos</div>
                             ${disSub}
                         </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                            <i data-feather="monitor"></i>
+                            <div>Game Room</div>
+                            ${disSub}
+                        </button>
                     </div>
                 </div>
                 <button class="home-btn home-btn-secondary" type="button" onclick="goTrainingsList()">
@@ -70,20 +90,6 @@ function goHome(){
                     <div>Jogadores</div>
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
-                    <i data-feather="bar-chart-2"></i>
-                    <div>Acompanhamento</div>
-                    ${disSub}
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
-                    <i data-feather="zap"></i>
-                    <div>Insights</div>
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
-                    <i data-feather="monitor"></i>
-                    <div>Game Room</div>
-                    ${disSub}
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="settings"></i>
                     <div>Configurações</div>
                     ${disSub}
@@ -93,10 +99,25 @@ function goHome(){
     } else {
         homeButtonsHtml = `
             <div class="home-buttons">
-                <button class="home-btn home-btn-primary" onclick="iniciarNovoTreinoComSenha()">
-                    <i data-feather="play-circle"></i>
-                    <div>Iniciar Novo Treino</div>
-                </button>
+                <div class="home-onfield-wrap">
+                    <button id="homeBlazeToggle" type="button" class="home-btn home-btn-primary home-onfield-toggle" aria-expanded="false" aria-controls="homeBlazeSub" onclick="toggleHomeBlaze(event)">
+                        <i data-feather="zap"></i>
+                        <div>Blaze Training</div>
+                        <div class="home-onfield-chevron" aria-hidden="true"></div>
+                    </button>
+                    <div id="homeBlazeSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="Blaze Training">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoTreinoComSenha()">
+                            <i data-feather="play-circle"></i>
+                            <div>Iniciar treino</div>
+                        </button>
+                        ${showAcompanhamento ? `
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goAcompanhamento()">
+                            <i data-feather="bar-chart-2"></i>
+                            <div>Acompanhamento</div>
+                        </button>
+                        ` : ``}
+                    </div>
+                </div>
                 <div class="home-onfield-wrap">
                     <button id="homeOnFieldToggle" type="button" class="home-btn home-btn-secondary home-onfield-toggle" aria-expanded="false" aria-controls="homeOnFieldSub" onclick="toggleHomeOnField(event)">
                         <i data-feather="map"></i>
@@ -118,6 +139,10 @@ function goHome(){
                             <i data-feather="archive"></i>
                             <div>Histórico de jogos</div>
                         </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="abrirGameRoomComSenha()">
+                            <i data-feather="monitor"></i>
+                            <div>Game Room</div>
+                        </button>
                         ` : ``}
                     </div>
                 </div>
@@ -129,20 +154,6 @@ function goHome(){
                     <i data-feather="users"></i>
                     <div>Jogadores</div>
                 </button>
-                ${showAcompanhamento ? `
-                <button class="home-btn home-btn-secondary" onclick="goAcompanhamento()">
-                    <i data-feather="bar-chart-2"></i>
-                    <div>Acompanhamento</div>
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" onclick="abrirInsightsComSenha()">
-                    <i data-feather="zap"></i>
-                    <div>Insights</div>
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" onclick="abrirGameRoomComSenha()">
-                    <i data-feather="monitor"></i>
-                    <div>Game Room</div>
-                </button>
-                ` : ``}
                 <button class="home-btn home-btn-secondary" type="button">
                     <i data-feather="settings"></i>
                     <div>Configurações</div>
@@ -193,6 +204,26 @@ function toggleHomeOnField(ev) {
         sub.style.display = "flex";
         btn.setAttribute("aria-expanded", "true");
         btn.classList.add("home-onfield--open");
+    }
+    try {
+        if (window.feather && feather.replace) feather.replace();
+    } catch (e) {}
+}
+
+function toggleHomeBlaze(ev) {
+    if (ev) ev.preventDefault();
+    var sub = document.getElementById("homeBlazeSub");
+    var btn = document.getElementById("homeBlazeToggle");
+    if (!sub || !btn) return;
+    var open = btn.classList.contains("home-blaze--open");
+    if (open) {
+        sub.style.display = "none";
+        btn.setAttribute("aria-expanded", "false");
+        btn.classList.remove("home-blaze--open");
+    } else {
+        sub.style.display = "flex";
+        btn.setAttribute("aria-expanded", "true");
+        btn.classList.add("home-blaze--open");
     }
     try {
         if (window.feather && feather.replace) feather.replace();

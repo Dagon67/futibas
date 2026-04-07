@@ -50,6 +50,11 @@ function goAcompanhamento() {
                     <div>Informação Tática</div>
                     <div class="sub">Semáforo TRIMP (carga pós-treino)</div>
                 </button>
+                <button class="home-btn home-btn-secondary" type="button" onclick="abrirInsightsComSenha()" style="max-width:320px;">
+                    <i data-feather="zap"></i>
+                    <div>Insights</div>
+                    <div class="sub">Análise e tendências</div>
+                </button>
             </div>
         </div>
     `);
