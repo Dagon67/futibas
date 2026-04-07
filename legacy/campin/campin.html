@@ -75,7 +75,15 @@
       gap:8px;
       flex-wrap:wrap;
     }
-    .mainActionsRight{ grid-column: 3; }
+    .mainActionsRight{
+      grid-column: 3;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
     .mainActions.mainActions--swapped .mainActionsLeft{ grid-column: 3; }
     .mainActions.mainActions--swapped .mainActionsRight{ grid-column: 1; }
     .mainActions .btnMain{
@@ -98,12 +106,50 @@
       border:1px solid rgba(255,255,255,.18);
     }
     .mainActions #btnStartPause{
-      min-height: 58px;
-      padding: 14px 26px;
-      font-size: 18px;
-      border-radius: 16px;
+      min-height: 74px;
+      padding: 18px 34px;
+      font-size: 20px;
+      border-radius: 18px;
     }
-    .mainActions #btnStartPause .ico{ width: 26px; height: 26px; }
+    .mainActions #btnStartPause .ico{ width: 32px; height: 32px; }
+    .mainActions .btnFullscreen{
+      min-height: 48px;
+      padding: 10px 14px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .mainActions .btnFullscreen .ico{ width: 20px; height: 20px; }
+    @media (max-width: 520px){
+      .mainActions .btnFullscreen .btnFsLabel{ display: none; }
+    }
+
+    .avatarBadgeWrap{
+      position: relative;
+      flex: 0 0 auto;
+      display: inline-block;
+    }
+    .yellowCardBadge{
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      width: 12px;
+      height: 15px;
+      background: linear-gradient(180deg, #fde047, #ca8a04);
+      border-radius: 2px;
+      border: 1px solid rgba(0,0,0,.45);
+      box-shadow: 0 2px 5px rgba(0,0,0,.5);
+      z-index: 4;
+      pointer-events: none;
+    }
+    .reservasStrip .bolinha .avatarBadgeWrap .yellowCardBadge{
+      width: 13px;
+      height: 17px;
+      top: -4px;
+      right: -4px;
+    }
 
     header{
       display:flex;
@@ -1021,6 +1067,10 @@
           </div>
         </div>
         <div class="mainActionsRight">
+          <button type="button" id="btnFullscreen" class="btnSoft btnFullscreen" title="Tela cheia" aria-label="Entrar em tela cheia">
+            <span class="ico" aria-hidden="true">⛶</span>
+            <span class="btnFsLabel">Tela cheia</span>
+          </button>
           <button id="btnStartPause" class="btnPrimary btnMain" disabled>
             <span class="ico" aria-hidden="true">▶️</span>
             <span id="btnStartPauseText">Iniciar jogo</span>
@@ -1881,6 +1931,8 @@
       chip.setAttribute("tabindex", "0");
       chip.setAttribute("aria-label", `${player.name}, no banco: ${benchAccumLabel(player)} (entradas/tempo acumulado). Arraste para a posição desejada.`);
 
+      const wrapAv = document.createElement("div");
+      wrapAv.className = "avatarBadgeWrap bolinhaAvatarWrap";
       const av = document.createElement("div");
       av.className = "bolinhaAvatar";
       const img = document.createElement("img");
@@ -1891,6 +1943,8 @@
         this.src = svgAvatarDataUriNumber(player.numero);
       };
       av.appendChild(img);
+      wrapAv.appendChild(av);
+      appendYellowCardBadgeIfNeeded(wrapAv, player);
 
       const info = document.createElement("div");
       info.className = "bolinhaInfo";
@@ -1904,7 +1958,7 @@
       info.appendChild(name);
       info.appendChild(time);
 
-      chip.appendChild(av);
+      chip.appendChild(wrapAv);
       chip.appendChild(info);
       return chip;
     }
@@ -1914,6 +1968,8 @@
       chip.className = "playerChip" + (context === "field" ? " fieldChip" : "");
       chip.dataset.playerId = player.id;
 
+      const wrapAv = document.createElement("div");
+      wrapAv.className = "avatarBadgeWrap";
       const av = document.createElement("div");
       av.className = "avatar";
       const img = document.createElement("img");
@@ -1924,6 +1980,8 @@
         this.src = svgAvatarDataUriNumber(player.numero);
       };
       av.appendChild(img);
+      wrapAv.appendChild(av);
+      appendYellowCardBadgeIfNeeded(wrapAv, player);
 
       const info = document.createElement("div");
       info.className = "pinfo";
@@ -1941,7 +1999,7 @@
         info.appendChild(time);
       }
 
-      chip.appendChild(av);
+      chip.appendChild(wrapAv);
       chip.appendChild(info);
 
       if(context === "field"){
@@ -2156,6 +2214,22 @@
     ========================== */
     function getPlayer(id){ return state.players.find(p=>p.id===id); }
 
+    function playerHasYellowCard(player){
+      if (!player || !player.events || !player.events.length) return false;
+      return player.events.some(function(e){
+        return e.type === "GAME_EVENT" && e.eventType && String(e.eventType).toLowerCase().indexOf("amarelo") >= 0;
+      });
+    }
+
+    function appendYellowCardBadgeIfNeeded(wrapEl, player){
+      if (!playerHasYellowCard(player)) return;
+      const b = document.createElement("span");
+      b.className = "yellowCardBadge";
+      b.title = "Cartão amarelo";
+      b.setAttribute("aria-label", "Cartão amarelo");
+      wrapEl.appendChild(b);
+    }
+
     function collectEvents(){
       const all = [];
       for(const p of state.players){
@@ -2212,6 +2286,8 @@
       var currentPos = Object.keys(state.posToPlayer).find(function(k){ return state.posToPlayer[k] === playerId; }) || "";
       logEvent("GAME_EVENT", playerId, currentPos, { eventType: eventType });
       closeQuickEventModal();
+      renderPositions();
+      renderBench();
     }
 
     function playerOut(playerId, posId){
@@ -2737,6 +2813,33 @@
       }
       startOrToggle();
     });
+
+    const btnFullscreen = document.getElementById("btnFullscreen");
+    function campinFullscreenActive(){
+      return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+    function updateFullscreenButtonUI(){
+      if (!btnFullscreen) return;
+      const on = campinFullscreenActive();
+      const label = btnFullscreen.querySelector(".btnFsLabel");
+      if (label) label.textContent = on ? "Sair da tela cheia" : "Tela cheia";
+      btnFullscreen.setAttribute("aria-label", on ? "Sair da tela cheia" : "Entrar em tela cheia");
+      btnFullscreen.title = on ? "Sair da tela cheia" : "Tela cheia";
+    }
+    function toggleCampinFullscreen(){
+      if (campinFullscreenActive()) {
+        if (document.exitFullscreen) document.exitFullscreen().catch(function(){});
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } else {
+        const root = document.documentElement;
+        if (root.requestFullscreen) root.requestFullscreen().catch(function(){});
+        else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+      }
+    }
+    if (btnFullscreen) btnFullscreen.addEventListener("click", toggleCampinFullscreen);
+    document.addEventListener("fullscreenchange", updateFullscreenButtonUI);
+    document.addEventListener("webkitfullscreenchange", updateFullscreenButtonUI);
+    updateFullscreenButtonUI();
 
     const confirmEndOverlay = document.getElementById("confirmEndOverlay");
     const btnConfirmEndCancel = document.getElementById("btnConfirmEndCancel");

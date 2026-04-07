@@ -1734,6 +1734,48 @@
         opacity:0.85;
     }
 
+    .home-onfield-wrap{
+        width:100%;
+        display:flex;
+        flex-direction:column;
+        align-items:stretch;
+        gap:0;
+    }
+    .home-onfield-toggle{
+        width:100%;
+    }
+    .home-onfield-chevron{
+        width:0;
+        height:0;
+        border-left:7px solid transparent;
+        border-right:7px solid transparent;
+        border-top:9px solid currentColor;
+        margin-top:0.45rem;
+        opacity:0.75;
+        transition:transform 0.2s ease;
+    }
+    .home-onfield-toggle.home-onfield--open .home-onfield-chevron{
+        transform:rotate(180deg);
+    }
+    .home-onfield-sub{
+        flex-direction:column;
+        align-items:stretch;
+        gap:clamp(14px,2.2vh,22px);
+        width:100%;
+        padding:6px 0 10px 14px;
+        margin:2px 0 0 6px;
+        border-left:2px solid rgba(255,255,255,0.14);
+    }
+    .home-onfield-item.home-btn{
+        min-height:102px;
+        padding:clamp(18px,3vh,32px) clamp(16px,2.5vw,28px);
+    }
+    .home-onfield-item.home-btn i{
+        width:42px;
+        height:42px;
+        margin-bottom:0.55rem;
+    }
+
     .player-card-selected{
         border-color:rgba(255,255,255,0.35) !important;
         background:#000000 !important;

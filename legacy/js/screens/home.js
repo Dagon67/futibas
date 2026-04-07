@@ -37,11 +37,30 @@ function goHome(){
                     <i data-feather="play-circle"></i>
                     <div>Iniciar Novo Treino</div>
                 </button>
-                <button class="home-btn home-btn-secondary" type="button" onclick="iniciarNovoJogoComSenha()">
-                    <i data-feather="target"></i>
-                    <div>Novo Jogo</div>
-                    <div class="home-btn-sub-hint home-btn-sub-hint--muted">Mapa com novo jogo (Campin)</div>
-                </button>
+                <div class="home-onfield-wrap">
+                    <button id="homeOnFieldToggle" type="button" class="home-btn home-btn-secondary home-onfield-toggle" aria-expanded="false" aria-controls="homeOnFieldSub" onclick="toggleHomeOnField(event)">
+                        <i data-feather="map"></i>
+                        <div>OnField</div>
+                        <div class="home-onfield-chevron" aria-hidden="true"></div>
+                    </button>
+                    <div id="homeOnFieldSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="OnField">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoJogoComSenha()">
+                            <i data-feather="target"></i>
+                            <div>Novo jogo</div>
+                            <div class="home-btn-sub-hint home-btn-sub-hint--muted">Campin — mapa e controlo</div>
+                        </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                            <i data-feather="activity"></i>
+                            <div>Dash tático</div>
+                            ${disSub}
+                        </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
+                            <i data-feather="archive"></i>
+                            <div>Histórico de jogos</div>
+                            ${disSub}
+                        </button>
+                    </div>
+                </div>
                 <button class="home-btn home-btn-secondary" type="button" onclick="goTrainingsList()">
                     <i data-feather="list"></i>
                     <div>Lista de Treinos</div>
@@ -58,15 +77,6 @@ function goHome(){
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="zap"></i>
                     <div>Insights</div>
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
-                    <i data-feather="activity"></i>
-                    <div>Dash tático</div>
-                    ${disSub}
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
-                    <i data-feather="archive"></i>
-                    <div>Análise de jogos passados</div>
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
                     <i data-feather="monitor"></i>
@@ -87,10 +97,30 @@ function goHome(){
                     <i data-feather="play-circle"></i>
                     <div>Iniciar Novo Treino</div>
                 </button>
-                <button class="home-btn home-btn-secondary" onclick="iniciarNovoJogoComSenha()">
-                    <i data-feather="target"></i>
-                    <div>Novo Jogo</div>
-                </button>
+                <div class="home-onfield-wrap">
+                    <button id="homeOnFieldToggle" type="button" class="home-btn home-btn-secondary home-onfield-toggle" aria-expanded="false" aria-controls="homeOnFieldSub" onclick="toggleHomeOnField(event)">
+                        <i data-feather="map"></i>
+                        <div>OnField</div>
+                        <div class="home-onfield-chevron" aria-hidden="true"></div>
+                    </button>
+                    <div id="homeOnFieldSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="OnField">
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoJogoComSenha()">
+                            <i data-feather="target"></i>
+                            <div>Novo jogo</div>
+                            <div class="home-btn-sub-hint home-btn-sub-hint--muted">Campin — mapa e controlo</div>
+                        </button>
+                        ${showAcompanhamento ? `
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="abrirDashTaticoComSenha()">
+                            <i data-feather="activity"></i>
+                            <div>Dash tático</div>
+                        </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="abrirAnaliseJogosPassadosComSenha()">
+                            <i data-feather="archive"></i>
+                            <div>Histórico de jogos</div>
+                        </button>
+                        ` : ``}
+                    </div>
+                </div>
                 <button class="home-btn home-btn-secondary" onclick="goTrainingsList()">
                     <i data-feather="list"></i>
                     <div>Lista de Treinos</div>
@@ -107,14 +137,6 @@ function goHome(){
                 <button class="home-btn home-btn-secondary" type="button" onclick="abrirInsightsComSenha()">
                     <i data-feather="zap"></i>
                     <div>Insights</div>
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" onclick="abrirDashTaticoComSenha()">
-                    <i data-feather="activity"></i>
-                    <div>Dash tático</div>
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" onclick="abrirAnaliseJogosPassadosComSenha()">
-                    <i data-feather="archive"></i>
-                    <div>Análise de jogos passados</div>
                 </button>
                 <button class="home-btn home-btn-secondary" type="button" onclick="abrirGameRoomComSenha()">
                     <i data-feather="monitor"></i>
@@ -155,6 +177,26 @@ function goHome(){
     
     // Mostrar botão de configurações no menu (mas agora está na tela home)
     updateSettingsButtonVisibility();
+}
+
+function toggleHomeOnField(ev) {
+    if (ev) ev.preventDefault();
+    var sub = document.getElementById("homeOnFieldSub");
+    var btn = document.getElementById("homeOnFieldToggle");
+    if (!sub || !btn) return;
+    var open = btn.classList.contains("home-onfield--open");
+    if (open) {
+        sub.style.display = "none";
+        btn.setAttribute("aria-expanded", "false");
+        btn.classList.remove("home-onfield--open");
+    } else {
+        sub.style.display = "flex";
+        btn.setAttribute("aria-expanded", "true");
+        btn.classList.add("home-onfield--open");
+    }
+    try {
+        if (window.feather && feather.replace) feather.replace();
+    } catch (e) {}
 }
 
 function updateDateTime(){
