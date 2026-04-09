@@ -52,8 +52,7 @@ function goHome(){
                     <div id="homeOnFieldSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="OnField">
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoJogoComSenha()">
                             <i data-feather="target"></i>
-                            <div>Novo jogo</div>
-                            <div class="home-btn-sub-hint home-btn-sub-hint--muted">Campin — mapa e controlo</div>
+                            <div>Iniciar jogo</div>
                         </button>
                         ${showAcompanhamento ? `
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="abrirDashTaticoComSenha()">
