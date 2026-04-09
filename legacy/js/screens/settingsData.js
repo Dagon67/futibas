@@ -6,7 +6,7 @@ function renderSettingsData(){
     const answers = loadResponses();
     const sheetsMode = (window && window.__TUTEM_SHEETS_MODE__) ? window.__TUTEM_SHEETS_MODE__ : "sheets";
     if (sheetsMode === "none") {
-        // Magnus: sem qualquer referência a Sheets; dados já são persistidos/carregados do Firestore.
+        // Tenant sem Google Sheets: treinos/plantel sincronizam com Firestore.
         return `
             <div style="display:flex;flex-direction:column;gap:1rem;">
                 <div class="item-title" style="margin-bottom:.5rem;">Limpar local storage (resetar dispositivo)</div>
@@ -49,7 +49,7 @@ function renderSettingsData(){
 
                 <div class="item-title" style="margin-bottom:.5rem;margin-top:1.5rem;">Jogadores (localStorage)</div>
                 <div class="item-sub" style="margin-bottom:.5rem;">
-                    A lista de jogadores também pode existir neste navegador (fallback). O Magnus principal vem do Firestore.
+                    A lista de jogadores também pode existir neste navegador (fallback). A fonte principal é o Firestore (nuvem).
                 </div>
                 <button class="small-solid-btn" type="button" onclick="copyCurrentPlayersAsJson()">
                     Exportar jogadores (copiar JSON)

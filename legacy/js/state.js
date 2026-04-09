@@ -27,10 +27,10 @@ function resetPendingForMode(mode){
 
 function getResumeStateKey() {
     try {
-        if (typeof window !== "undefined" && window.__TUTEM_APP_MODE__ === "magnus") {
-            var tid = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId ? String(window.__TUTEM_TENANT__.tenantId) : "magnus";
+        if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
+            var tid = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId ? String(window.__TUTEM_TENANT__.tenantId) : "";
             if (tid === "brazil") return "brazil_treino_resume_state";
-            return "magnus_treino_resume_state";
+            if (tid === "magnus") return "magnus_treino_resume_state";
         }
     } catch (e) {}
     return "treino_resume_state";

@@ -1,6 +1,8 @@
 /* ===========================
-   💾 STORAGE (MAGNUS) - Firestore
-   ===========================
+   💾 STORAGE (MAGNUS) - Firestore — legado
+   O login principal usa `storage-jaragua-firestore.js` + tenant `magnus`.
+   Mantido para referência / possíveis chamadas antigas a `goCampinForMagnus`.
+
    Objetivo: manter o app separado por tenant sem depender de Sheets.
 
    Importante:

@@ -153,8 +153,6 @@ function fetchAnalyticsData() {
             var refresh = Promise.resolve();
             if (typeof window.initJaraguaFirestoreStorage === "function") {
                 refresh = window.initJaraguaFirestoreStorage(true);
-            } else if (typeof window.initMagnusStorage === "function") {
-                refresh = window.initMagnusStorage(true);
             }
             return refresh
                 .then(function () {

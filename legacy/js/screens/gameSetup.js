@@ -56,21 +56,18 @@ function abrirCampin() {
     params.set("datetime", iso);
     if (team) params.set("team", team);
     if (backend) params.set("backend", backend);
-    // Magnus: passar flags para o campin usar Firestore/local e não Sheets/backend.
+    // Sem Google Sheets: flags para o Campin (localStorage + tenant; `app=magnus` = modo sem planilha no campin).
     try {
         if (window.__TUTEM_SHEETS_MODE__ === "none") {
             params.set("app", "magnus");
             var tid = (window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId) ? window.__TUTEM_TENANT__.tenantId : "magnus";
             params.set("tenant", tid);
 
-            // Magnus: garantir que o campin pegue o roster/current mais recente do Firestore.
-            // O campin só consome localStorage; então aqui sincronizamos localStorage -> roster atual do Magnus.
+            // Sem Sheets: hidratar roster do Firestore antes de abrir o Campin (consome localStorage).
             (async function () {
                 try {
                     if (typeof window.initJaraguaFirestoreStorage === "function") {
                         await window.initJaraguaFirestoreStorage(true);
-                    } else if (typeof window.initMagnusStorage === "function") {
-                        await window.initMagnusStorage(true);
                     }
                     if (typeof window.loadPlayers === "function") {
                         var players = window.loadPlayers() || [];

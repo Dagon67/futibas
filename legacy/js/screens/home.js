@@ -12,11 +12,6 @@ function goHome(){
     setHeaderModeLabel("Início");
 
     var showAcompanhamento = true;
-    try {
-        if (window.__TUTEM_APP_MODE__ === "magnus") {
-            showAcompanhamento = false;
-        }
-    } catch (e) {}
 
     var homeButtonsHtml = `
             <div class="home-buttons">
@@ -88,12 +83,19 @@ function goHome(){
     var homeTeamLogoHtml = "";
     try {
         var tid = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId;
+        var backendBase = (typeof window !== "undefined" && window.BACKEND_URL) ? window.BACKEND_URL : "";
         if (tid === "brazil") {
             homeTeamLogoHtml =
                 '<div class="home-team-logo-wrap" aria-hidden="true">' +
                 '<img class="home-team-logo" src="times/brfutsal.png" alt="Seleção Brasileira de Futsal" />' +
                 "</div>";
-        } else if (window.__TUTEM_APP_MODE__ === "jaragua") {
+        } else if (tid === "magnus") {
+            var magnusSrc = backendBase ? backendBase + "/times/logo-magnus.png" : "times/logo-magnus.png";
+            homeTeamLogoHtml =
+                '<div class="home-team-logo-wrap" aria-hidden="true">' +
+                '<img class="home-team-logo" src="' + magnusSrc + '" alt="Magnus Futsal" />' +
+                "</div>";
+        } else if (tid === "jaragua-futsal") {
             homeTeamLogoHtml =
                 '<div class="home-team-logo-wrap" aria-hidden="true">' +
                 '<img class="home-team-logo" src="Associação_Desportiva_Jaraguá.png" alt="Associação Desportiva Jaraguá" />' +

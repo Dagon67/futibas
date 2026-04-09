@@ -5,7 +5,7 @@
    Tenants como `brazil` usam o MESMO bundle que Jaraguá (storage.js + app.js),
    com esta camada por cima: roster/current + trainingExports no Firestore.
 
-   Não carregar este ficheiro para `jaragua-futsal` nem para `magnus`.
+   Não carregar para `jaragua-futsal` (usa Sheets + storage.js). Carregar para `brazil`, `magnus`, etc.
 */
 
 ;(function () {
@@ -35,6 +35,31 @@
         { id: "default_88", number: 88, name: "Marcênio", position: "Fixo", lateralidade: null },
         { id: "default_90", number: 90, name: "Santiago", position: "Ala", lateralidade: "Canhoto" },
         { id: "default_91", number: 91, name: "Menegazzo", position: "Goleiro", lateralidade: null }
+    ];
+
+    const magnusDefaultPlayers = [
+        { id: "magnus_p1", number: 1, name: "André Deko", position: "Goleiro", lateralidade: null },
+        { id: "magnus_p2", number: 2, name: "Gustavo Pagliari", position: "Goleiro", lateralidade: null },
+        { id: "magnus_p3", number: 3, name: "Ian", position: "Goleiro", lateralidade: null },
+        { id: "magnus_p4", number: 4, name: "Leandro", position: "Goleiro", lateralidade: null },
+        { id: "magnus_p5", number: 5, name: "Kaique S.", position: "Goleiro", lateralidade: null },
+        { id: "magnus_p6", number: 6, name: "Rodrigo Capita", position: "Fixo", lateralidade: null },
+        { id: "magnus_p7", number: 7, name: "Lucas Gomes", position: "Fixo", lateralidade: null },
+        { id: "magnus_p8", number: 8, name: "Mancine", position: "Fixo", lateralidade: null },
+        { id: "magnus_p9", number: 9, name: "Kaio Marinho", position: "Fixo", lateralidade: null },
+        { id: "magnus_p10", number: 10, name: "Vagner", position: "Fixo", lateralidade: null },
+        { id: "magnus_p11", number: 11, name: "Leandro Lino", position: "Ala", lateralidade: null },
+        { id: "magnus_p12", number: 12, name: "Alejo Gayraud", position: "Ala", lateralidade: null },
+        { id: "magnus_p13", number: 13, name: "Witamá", position: "Ala", lateralidade: null },
+        { id: "magnus_p14", number: 14, name: "Dieguinho", position: "Ala", lateralidade: null },
+        { id: "magnus_p15", number: 15, name: "Joãozinho", position: "Ala", lateralidade: null },
+        { id: "magnus_p16", number: 16, name: "Pepita", position: "Ala", lateralidade: null },
+        { id: "magnus_p17", number: 17, name: "Luis Antonioli", position: "Ala", lateralidade: null },
+        { id: "magnus_p18", number: 18, name: "Marcelinho", position: "Ala", lateralidade: null },
+        { id: "magnus_p19", number: 19, name: "Genaro", position: "Pivô", lateralidade: null },
+        { id: "magnus_p20", number: 20, name: "Leozin", position: "Pivô", lateralidade: null },
+        { id: "magnus_p21", number: 21, name: "Bruno Andrade (Bruninho)", position: "Pivô", lateralidade: null },
+        { id: "magnus_p22", number: 22, name: "Kauê", position: "Pivô", lateralidade: null }
     ];
 
     const brazilDefaultPlayers = [
@@ -296,6 +321,7 @@
             ? window.__TUTEM_TENANT__.tenantId
             : null;
         if (tid === "brazil") return brazilDefaultPlayers;
+        if (tid === "magnus") return magnusDefaultPlayers;
         return jaraguaTemplateDefaultPlayers;
     };
 

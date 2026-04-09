@@ -525,8 +525,6 @@ async function fetchPlayersFromSheets() {
         if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
             if (typeof window.initJaraguaFirestoreStorage === "function") {
                 await window.initJaraguaFirestoreStorage(true);
-            } else if (typeof window.initMagnusStorage === "function") {
-                await window.initMagnusStorage(true);
             }
             var lp = typeof loadPlayers === "function" ? loadPlayers() : [];
             return { success: true, players: lp };

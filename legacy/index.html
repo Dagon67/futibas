@@ -2111,29 +2111,14 @@
 <!-- Módulos JavaScript -->
 <script>
     (function () {
-        var params = new URLSearchParams(window.location.search || "");
-        window.__TUTEM_APP_MODE__ = params.get("app") === "magnus" ? "magnus" : "jaragua";
+        // Bundle único (mesmo que Brasil/Magnus); Firebase define `__TUTEM_TENANT__` e `__TUTEM_SHEETS_MODE__`.
+        window.__TUTEM_APP_MODE__ = "jaragua";
     })();
 </script>
-<script>
-    (function () {
-        var isMagnus = window.__TUTEM_APP_MODE__ === "magnus";
-        // Importa o storage correto mantendo a ordem de execução.
-        document.write(
-            isMagnus ? '<script src="js/storage-magnus.js"><\/script>' : '<script src="js/storage.js"><\/script>'
-        );
-    })();
-</script>
+<script src="js/storage.js"></script>
 <script src="js/state.js"></script>
 <script src="js/utils.js"></script>
-<script>
-    (function () {
-        if (window.__TUTEM_APP_MODE__ !== "magnus") {
-            // Sheets só existe no Jaraguá.
-            document.write('<script src="js/sheets_sync.js"><\/script>');
-        }
-    })();
-</script>
+<script src="js/sheets_sync.js"></script>
 <script src="js/csv.js"></script>
 <script src="js/bodyMap.js"></script>
 <script src="js/screens/home.js"></script>
@@ -2155,14 +2140,7 @@
 <script src="js/screens/settings.js"></script>
 <script src="js/screens/settingsQuestions.js"></script>
 <script src="js/screens/settingsData.js"></script>
-<script>
-    (function () {
-        var isMagnus = window.__TUTEM_APP_MODE__ === "magnus";
-        document.write(
-            isMagnus ? '<script src="js/app-magnus.js"><\/script>' : '<script src="js/app.js"><\/script>'
-        );
-    })();
-</script>
+<script src="js/app.js"></script>
 <script type="module" src="js/firebase-auth-gate.js"></script>
 <script>
     // Função global para o botão Jogadores: pede senha, depois abre Jogadores e puxa lista do Sheets
@@ -2202,8 +2180,7 @@
             window.pendingActionAfterUnlock = callback || null;
             // Magnus: se houver uma ação pendente (ex.: goPlayers), não redirecionar para Home no unlock.
             try {
-                window.__TUTEM_MAGNUS_SUPPRESS_HOME_RENDER__ =
-                    window.__TUTEM_APP_MODE__ === "magnus" && typeof callback === "function";
+                window.__TUTEM_MAGNUS_SUPPRESS_HOME_RENDER__ = false;
             } catch (e) {}
             lockScreen.setAttribute('data-unlocked', 'false');
             appShell.style.display = 'none';
@@ -2241,8 +2218,7 @@
                     if (typeof window.startTutemApp === 'function') {
                         try { window.startTutemApp(); } catch (err) { console.warn(err); }
                     }
-                    // No Magnus não usamos Sheets.
-                    if (window.__TUTEM_APP_MODE__ !== "magnus" && typeof fetchPlayersFromSheets === 'function') {
+                    if (typeof fetchPlayersFromSheets === 'function') {
                         fetchPlayersFromSheets().catch(function () { });
                     }
                     if (typeof callback === 'function') {
@@ -2268,9 +2244,7 @@
             }
         });
 
-        // Magnus: painel bloqueado por senha após Firebase. Jaraguá legado e Brasil: app direto sem essa tela (ver firebase-auth-gate.js).
-
-        // Jaraguá: mesma sincronização de jogadores que antes ocorria ao desbloquear senha, sem mostrar o painel.
+        // Jaraguá com Sheets (e tenants sem lock): sincronização ao desbloquear senha, sem mostrar o painel.
         function showLockScreenSyncOrLock(callback) {
             try {
                 if (window.__TUTEM_APP_MODE__ === 'jaragua') {

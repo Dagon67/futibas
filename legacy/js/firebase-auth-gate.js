@@ -1,7 +1,7 @@
 /**
  * Firebase Auth + Firestore (perfil users/{uid}).
- * Jaraguá (`jaragua-futsal`) e Brasil (`brazil`): após login Firebase → app direto (sem tela de senha do painel).
- * Magnus: login Firebase → tela de senha do painel → app (startTutemApp).
+ * Após login Firebase → app direto (sem tela de senha do painel), exceto fluxos legados que ainda usem o lock inline.
+ * Tenants sem Google Sheets (ex.: brazil, magnus): mesmo bundle que Jaraguá + Firestore; só `jaragua-futsal` usa Sheets.
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
@@ -17,7 +17,7 @@ import { firebaseConfig } from "./firebase-config.js";
  * POLÍTICA DE TENANTS (regra fixa)
  * - Google Sheets: APENAS o tenant legado Jaraguá (`jaragua-futsal`).
  * - Qualquer outro tenant (ex.: brazil, magnus) NÃO usa Sheets; persistência via Firestore
- *   (roster/current, trainingExports) e/ou fluxo Magnus (app-magnus).
+ *   (roster/current, trainingExports) com o mesmo `app.js` + `storage-jaragua-firestore.js`.
  * - Ao alinhar funcionalidades, use o app Jaraguá (app.js + storage.js) como modelo; desative só Sheets.
  */
 export const TUTEM_LEGACY_GOOGLE_SHEETS_TENANT_ID = "jaragua-futsal";
@@ -194,9 +194,8 @@ function applyTenantTheme(tenantId) {
   } catch (e) {}
 }
 
-function mapTenantToAppMode(tenantId) {
-  if (tenantId === "magnus") return "magnus";
-  // Brasil (e futuros tenants “full app”): mesmo bundle que Jaraguá; Sheets só no legado.
+function mapTenantToAppMode(_tenantId) {
+  // Um único bundle de UI (app.js + screens). Diferença Sheets vs Firestore: `tutemTenantUsesGoogleSheets(tenantId)`.
   return "jaragua";
 }
 
@@ -229,15 +228,6 @@ async function activateTenant(tenantId) {
   const mode = mapTenantToAppMode(tenantId);
   window.__TUTEM_APP_MODE__ = mode;
   window.__TUTEM_SHEETS_MODE__ = tutemTenantUsesGoogleSheets(tenantId) ? "sheets" : "none";
-
-  if (mode === "magnus") {
-    // Render de "Home" só quando necessário (primeiro unlock após ativar/selecionar tenant).
-    // Quando vier de callback do lock-screen (ex.: goPlayers), não navegar para home para evitar o flash.
-    window.__TUTEM_MAGNUS_NEEDS_HOME_RENDER__ = true;
-    await loadScriptOnce("js/storage-magnus.js");
-    await loadScriptOnce("js/app-magnus.js");
-    return;
-  }
 
   await loadScriptOnce("js/storage.js");
   if (!tutemTenantUsesGoogleSheets(tenantId)) {
@@ -396,22 +386,17 @@ async function bootstrapJaraguaAppFirestoreIfNeeded() {
     setTenantSelectVisible(false);
     setAuthLoadingVisible(false);
     setFirebaseScreenVisible(false);
-    if (window.__TUTEM_APP_MODE__ === "jaragua") {
-      setLockVisible(false);
-      setAppShellVisible(true);
-      if (typeof window.startTutemApp === "function") {
-        try {
-          window.startTutemApp();
-        } catch (e) {
-          console.warn(e);
-        }
+    setLockVisible(false);
+    setAppShellVisible(true);
+    if (typeof window.startTutemApp === "function") {
+      try {
+        window.startTutemApp();
+      } catch (e) {
+        console.warn(e);
       }
-      if (typeof window.fetchPlayersFromSheets === "function") {
-        window.fetchPlayersFromSheets().catch(function () {});
-      }
-    } else {
-      setLockVisible(true);
-      setAppShellVisible(false);
+    }
+    if (typeof window.fetchPlayersFromSheets === "function") {
+      window.fetchPlayersFromSheets().catch(function () {});
     }
   });
 
@@ -465,22 +450,17 @@ async function bootstrapJaraguaAppFirestoreIfNeeded() {
 
       await bootstrapJaraguaAppFirestoreIfNeeded();
 
-      if (window.__TUTEM_APP_MODE__ === "jaragua") {
-        setLockVisible(false);
-        setAppShellVisible(true);
-        if (typeof window.startTutemApp === "function") {
-          try {
-            window.startTutemApp();
-          } catch (e) {
-            console.warn(e);
-          }
+      setLockVisible(false);
+      setAppShellVisible(true);
+      if (typeof window.startTutemApp === "function") {
+        try {
+          window.startTutemApp();
+        } catch (e) {
+          console.warn(e);
         }
-        if (typeof window.fetchPlayersFromSheets === "function") {
-          window.fetchPlayersFromSheets().catch(function () {});
-        }
-      } else {
-        setLockVisible(true);
-        setAppShellVisible(false);
+      }
+      if (typeof window.fetchPlayersFromSheets === "function") {
+        window.fetchPlayersFromSheets().catch(function () {});
       }
       setAuthLoadingVisible(false);
     } catch (e) {
