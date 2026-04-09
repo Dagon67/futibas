@@ -19,6 +19,18 @@ function getAcompanhamentoTeamLabel() {
     }
 }
 
+/** Nome atual do menu Jogadores; senão o nome guardado na linha/resposta histórica. */
+function resolvePlayerDisplayName(playerId, nameFromHistoricalRow) {
+    if (playerId == null || playerId === "") return nameFromHistoricalRow || "";
+    var players = typeof loadPlayers === "function" ? loadPlayers() : [];
+    for (var i = 0; i < players.length; i++) {
+        if (players[i].id === playerId) return players[i].name || String(playerId);
+    }
+    return nameFromHistoricalRow != null && String(nameFromHistoricalRow).trim() !== ""
+        ? nameFromHistoricalRow
+        : String(playerId);
+}
+
 /**
  * Replica o formato da aba pre/pos do Sheets a partir dos treinos em memória
  * (compatível com buildAggregates / parsePreRow / parsePosRow).
@@ -199,6 +211,7 @@ function parsePreRow(headers, row) {
     if (humor >= 0 && row[humor] !== undefined) answers.humor = parseNum(row[humor]);
     if (pontosDor >= 0 && row[pontosDor] !== undefined) answers.pontosDor = (row[pontosDor] || "").toString();
     if (pontosArticular >= 0 && row[pontosArticular] !== undefined) answers.pontosArticular = (row[pontosArticular] || "").toString();
+    name = resolvePlayerDisplayName(playerId, name);
     return { playerId: playerId, name: name, date: date, answers: answers };
 }
 
@@ -211,6 +224,7 @@ function parsePosRow(headers, row) {
     var answers = {};
     if (estado >= 0 && row[estado] !== undefined) answers.estado = parseNum(row[estado]);
     if (tempo >= 0 && row[tempo] !== undefined) answers.tempoMin = parseTempoMin(row[tempo]);
+    name = resolvePlayerDisplayName(playerId, name);
     return { playerId: playerId, name: name, date: date, answers: answers };
 }
 
@@ -398,15 +412,13 @@ function buildAggregates(data) {
 
     preRows.forEach(function (row) {
         var r = parsePreRow(preH, row);
-        if (!byPlayer[r.playerId]) byPlayer[r.playerId] = { id: r.playerId, name: r.name, pre: [], pos: [] };
+        if (!byPlayer[r.playerId]) byPlayer[r.playerId] = { id: r.playerId, name: r.name || r.playerId, pre: [], pos: [] };
         byPlayer[r.playerId].pre.push(r);
-        byPlayer[r.playerId].name = r.name || byPlayer[r.playerId].name;
     });
     posRows.forEach(function (row) {
         var r = parsePosRow(posH, row);
-        if (!byPlayer[r.playerId]) byPlayer[r.playerId] = { id: r.playerId, name: r.name, pre: [], pos: [] };
+        if (!byPlayer[r.playerId]) byPlayer[r.playerId] = { id: r.playerId, name: r.name || r.playerId, pre: [], pos: [] };
         byPlayer[r.playerId].pos.push(r);
-        byPlayer[r.playerId].name = r.name || byPlayer[r.playerId].name;
     });
 
     var injuryByPlayer = {};
