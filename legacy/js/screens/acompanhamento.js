@@ -43,8 +43,10 @@ function buildAnalyticsDataFromLocalApp() {
         var trainingId = t.id != null ? String(t.id) : "";
         var trainingDate = t.dateFormatted || t.date || "";
         (t.responses || []).forEach(function (r) {
-            if (!r || !r.mode) return;
-            var mode = r.mode;
+            if (!r) return;
+            // Cada resposta deve ter mode; fallback legado: modo atual do treino
+            var mode = r.mode || t.mode;
+            if (!mode) return;
             var row = [
                 trainingId,
                 trainingDate,

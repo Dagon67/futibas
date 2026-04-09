@@ -37,6 +37,7 @@ function finalizeQuestionnaireAndSave(){
         playerName: player.name,
         playerNumber: player.number != null ? player.number : "",
         timestamp: nowTimestamp(),
+        mode: mode,
         answers: answers
     };
 
@@ -45,7 +46,8 @@ function finalizeQuestionnaireAndSave(){
     const training = trainings.find(t => t.id === trainingId);
     if(training){
         if(!training.responses) training.responses = [];
-        training.responses = training.responses.filter(r => r.playerId !== playerId);
+        // Uma entrada por jogador e fase (pré e pós); substitui só a mesma combinação
+        training.responses = training.responses.filter(r => !(r.playerId === playerId && r.mode === mode));
         training.responses.push(response);
         saveTrainings(JSON.parse(JSON.stringify(trainings)));
     }
