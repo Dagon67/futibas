@@ -357,9 +357,19 @@ function syncToSheets(type, data, questions = null) {
  * Sincroniza todos os dados de uma vez (1 request, backend faz batch por aba = poucas writes na API)
  */
 async function syncAllToSheets() {
+    if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
+        try {
+            const allData = getAllDataForSnapshot();
+            await writeFirestoreAfterFullSync(allData, true);
+            return { success: true };
+        } catch (error) {
+            console.error("❌ Firestore (sync completo):", error);
+            return { success: false, error: error && error.message ? error.message : String(error) };
+        }
+    }
     if (!sheetsSyncEnabled) {
         console.log("📊 Sincronização com Sheets desabilitada");
-        return;
+        return { success: false, error: "Sincronização desabilitada" };
     }
     try {
         const allData = getAllDataForSnapshot();
@@ -416,9 +426,25 @@ async function syncAllToSheets() {
  * Sincroniza apenas as respostas de um treino específico com o Sheets (não envia outros treinos/respostas).
  */
 async function syncSingleTrainingToSheets(trainingId) {
+    if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
+        try {
+            const trainings = typeof loadTrainings === "function" ? loadTrainings() : [];
+            const training = trainings.find(function (t) { return t.id === trainingId; });
+            if (!training) {
+                console.warn("[SYNC] Treino não encontrado:", trainingId);
+                return { success: false, error: "Treino não encontrado" };
+            }
+            const questions = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
+            await writeFirestoreAfterTrainingSync(training, questions, true);
+            return { success: true };
+        } catch (error) {
+            console.error("❌ Firestore (treino):", error);
+            return { success: false, error: error && error.message ? error.message : String(error) };
+        }
+    }
     if (!sheetsSyncEnabled) {
         console.log("📊 Sincronização com Sheets desabilitada");
-        return;
+        return { success: false, error: "Sincronização desabilitada" };
     }
     try {
         const trainings = typeof loadTrainings === "function" ? loadTrainings() : [];
@@ -495,6 +521,19 @@ function setSheetsSyncEnabled(enabled) {
  * Chamado automaticamente ao digitar a senha principal (entrar no app).
  */
 async function fetchPlayersFromSheets() {
+    try {
+        if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
+            if (typeof window.initJaraguaFirestoreStorage === "function") {
+                await window.initJaraguaFirestoreStorage(true);
+            } else if (typeof window.initMagnusStorage === "function") {
+                await window.initMagnusStorage(true);
+            }
+            var lp = typeof loadPlayers === "function" ? loadPlayers() : [];
+            return { success: true, players: lp };
+        }
+    } catch (e) {
+        return { success: false, error: e && e.message ? e.message : String(e) };
+    }
     if (!sheetsSyncEnabled) return { success: false, error: "Sincronização desabilitada" };
     try {
         const response = await fetch(BACKEND_BASE_URL + "/players", { method: "GET" });
@@ -546,6 +585,19 @@ async function fetchPlayersFromSheets() {
  * Use o botão "Atualizar lista de jogadores" nas configurações.
  */
 async function pushPlayersToSheets() {
+    if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
+        try {
+            const players = typeof loadPlayers === "function" ? loadPlayers() : [];
+            if (typeof clearPlayersListNeedsSheetsPush === "function") {
+                clearPlayersListNeedsSheetsPush();
+            }
+            await writeFirestoreAfterRosterSync(players, true);
+            return { success: true };
+        } catch (error) {
+            console.error("❌ Firestore (plantel):", error);
+            return { success: false, error: error && error.message ? error.message : String(error) };
+        }
+    }
     if (!sheetsSyncEnabled) return { success: false, error: "Sincronização desabilitada" };
     try {
         const players = typeof loadPlayers === "function" ? loadPlayers() : [];

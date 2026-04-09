@@ -1,7 +1,7 @@
 /**
  * Firebase Auth + Firestore (perfil users/{uid}).
- * Jaraguá: após login Firebase → app + sync jogadores (sem tela de senha do painel).
- * Magnus/outros: login Firebase → tela de senha do painel → app (startTutemApp).
+ * Jaraguá (`jaragua-futsal`) e Brasil (`brazil`): após login Firebase → app direto (sem tela de senha do painel).
+ * Magnus: login Firebase → tela de senha do painel → app (startTutemApp).
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
@@ -12,6 +12,24 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
+
+/**
+ * POLÍTICA DE TENANTS (regra fixa)
+ * - Google Sheets: APENAS o tenant legado Jaraguá (`jaragua-futsal`).
+ * - Qualquer outro tenant (ex.: brazil, magnus) NÃO usa Sheets; persistência via Firestore
+ *   (roster/current, trainingExports) e/ou fluxo Magnus (app-magnus).
+ * - Ao alinhar funcionalidades, use o app Jaraguá (app.js + storage.js) como modelo; desative só Sheets.
+ */
+export const TUTEM_LEGACY_GOOGLE_SHEETS_TENANT_ID = "jaragua-futsal";
+
+export function tutemTenantUsesGoogleSheets(tenantId) {
+  return String(tenantId || "") === TUTEM_LEGACY_GOOGLE_SHEETS_TENANT_ID;
+}
+
+if (typeof window !== "undefined") {
+  window.__TUTEM_LEGACY_GOOGLE_SHEETS_TENANT_ID__ = TUTEM_LEGACY_GOOGLE_SHEETS_TENANT_ID;
+  window.tutemTenantUsesGoogleSheets = tutemTenantUsesGoogleSheets;
+}
 
 function $(id) {
   return document.getElementById(id);
@@ -177,8 +195,8 @@ function applyTenantTheme(tenantId) {
 }
 
 function mapTenantToAppMode(tenantId) {
-  // Mesmo pipeline do Magnus (Firestore, sem Sheets) para tenants só-Firestore.
-  if (tenantId === "magnus" || tenantId === "brazil") return "magnus";
+  if (tenantId === "magnus") return "magnus";
+  // Brasil (e futuros tenants “full app”): mesmo bundle que Jaraguá; Sheets só no legado.
   return "jaragua";
 }
 
@@ -210,8 +228,7 @@ async function activateTenant(tenantId) {
 
   const mode = mapTenantToAppMode(tenantId);
   window.__TUTEM_APP_MODE__ = mode;
-  // UI/funcionalidades: no Magnus não existe Sheets
-  window.__TUTEM_SHEETS_MODE__ = mode === "magnus" ? "none" : "sheets";
+  window.__TUTEM_SHEETS_MODE__ = tutemTenantUsesGoogleSheets(tenantId) ? "sheets" : "none";
 
   if (mode === "magnus") {
     // Render de "Home" só quando necessário (primeiro unlock após ativar/selecionar tenant).
@@ -222,10 +239,34 @@ async function activateTenant(tenantId) {
     return;
   }
 
-  // Jaraguá: precisa das funções de Sheets
   await loadScriptOnce("js/storage.js");
+  if (!tutemTenantUsesGoogleSheets(tenantId)) {
+    await loadScriptOnce("js/storage-jaragua-firestore.js");
+  }
   await loadScriptOnce("js/app.js");
   await loadScriptOnce("js/sheets_sync.js");
+}
+
+/** Brasil/outros sem Sheets: hidrata cache Firestore antes do startTutemApp (lista de jogadores em vários fluxos). */
+async function bootstrapJaraguaAppFirestoreIfNeeded() {
+  try {
+    if (window.__TUTEM_APP_MODE__ !== "jaragua") return;
+    if (window.__TUTEM_SHEETS_MODE__ !== "none") return;
+    if (typeof window.initJaraguaFirestoreStorage === "function") {
+      await window.initJaraguaFirestoreStorage(true);
+    }
+    if (typeof window.loadPlayers === "function") {
+      var pl = window.loadPlayers() || [];
+      if (pl.length === 0 && typeof window.__tutemFirestoreJaraguaDefaultPlayers === "function") {
+        var defs = window.__tutemFirestoreJaraguaDefaultPlayers();
+        if (defs && defs.length && typeof window.savePlayers === "function") {
+          window.savePlayers(defs);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("bootstrapJaraguaAppFirestoreIfNeeded:", e);
+  }
 }
 
 (function boot() {
@@ -350,6 +391,8 @@ async function activateTenant(tenantId) {
       console.warn("activateTenant falhou (seguimos com tema aplicado):", e);
     }
 
+    await bootstrapJaraguaAppFirestoreIfNeeded();
+
     setTenantSelectVisible(false);
     setAuthLoadingVisible(false);
     setFirebaseScreenVisible(false);
@@ -419,6 +462,8 @@ async function activateTenant(tenantId) {
 
       // Carrega storage/app certo
       await activateTenant(tenantId);
+
+      await bootstrapJaraguaAppFirestoreIfNeeded();
 
       if (window.__TUTEM_APP_MODE__ === "jaragua") {
         setLockVisible(false);

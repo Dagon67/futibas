@@ -67,7 +67,9 @@ function abrirCampin() {
             // O campin só consome localStorage; então aqui sincronizamos localStorage -> roster atual do Magnus.
             (async function () {
                 try {
-                    if (typeof window.initMagnusStorage === "function") {
+                    if (typeof window.initJaraguaFirestoreStorage === "function") {
+                        await window.initJaraguaFirestoreStorage(true);
+                    } else if (typeof window.initMagnusStorage === "function") {
                         await window.initMagnusStorage(true);
                     }
                     if (typeof window.loadPlayers === "function") {

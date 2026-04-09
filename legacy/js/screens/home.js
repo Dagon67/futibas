@@ -2,14 +2,6 @@
    🖥️ TELA: HOME (Tela Inicial)
    =========================== */
 
-function isBrazilTenant() {
-    try {
-        return !!(window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId === "brazil");
-    } catch (e) {
-        return false;
-    }
-}
-
 function goHome(){
     if (typeof clearResumeState === "function") clearResumeState();
     state.currentScreen = "home";
@@ -21,82 +13,12 @@ function goHome(){
 
     var showAcompanhamento = true;
     try {
-        if (!isBrazilTenant()) {
-            showAcompanhamento = !(window.__TUTEM_SHEETS_MODE__ === "none");
+        if (window.__TUTEM_APP_MODE__ === "magnus") {
+            showAcompanhamento = false;
         }
     } catch (e) {}
 
-    var homeButtonsHtml;
-    if (isBrazilTenant()) {
-        var disSub = '<div class="home-btn-sub-hint">Desabilitado para esta versão</div>';
-        var brIaNotice = "Nesta versão, use Blaze Training para treinos e acompanhamento. OnField está desativado.";
-        homeButtonsHtml = `
-            <div class="home-buttons">
-                <p class="home-brazil-notice" role="note">${brIaNotice}</p>
-                <div class="home-onfield-wrap">
-                    <button id="homeBlazeToggle" type="button" class="home-btn home-btn-primary home-onfield-toggle" aria-expanded="false" aria-controls="homeBlazeSub" onclick="toggleHomeBlaze(event)">
-                        <i data-feather="zap"></i>
-                        <div>Blaze Training</div>
-                        <div class="home-onfield-chevron" aria-hidden="true"></div>
-                    </button>
-                    <div id="homeBlazeSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="Blaze Training">
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoTreinoComSenha()">
-                            <i data-feather="play-circle"></i>
-                            <div>Iniciar treino</div>
-                        </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goTrainingsList()">
-                            <i data-feather="list"></i>
-                            <div>Lista de Treinos</div>
-                        </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goAcompanhamento()">
-                            <i data-feather="bar-chart-2"></i>
-                            <div>Acompanhamento</div>
-                        </button>
-                    </div>
-                </div>
-                <div class="home-onfield-wrap">
-                    <button id="homeOnFieldToggle" type="button" class="home-btn home-btn-secondary home-onfield-toggle" aria-expanded="false" aria-controls="homeOnFieldSub" onclick="toggleHomeOnField(event)">
-                        <i data-feather="map"></i>
-                        <div>OnField</div>
-                        <div class="home-onfield-chevron" aria-hidden="true"></div>
-                    </button>
-                    <div id="homeOnFieldSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="OnField">
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
-                            <i data-feather="target"></i>
-                            <div>Novo jogo</div>
-                            <div class="home-btn-sub-hint home-btn-sub-hint--muted">Campin — mapa e controlo</div>
-                            ${disSub}
-                        </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
-                            <i data-feather="activity"></i>
-                            <div>Dash tático</div>
-                            ${disSub}
-                        </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
-                            <i data-feather="archive"></i>
-                            <div>Histórico de jogos</div>
-                            ${disSub}
-                        </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" disabled aria-disabled="true">
-                            <i data-feather="monitor"></i>
-                            <div>Game Room</div>
-                            ${disSub}
-                        </button>
-                    </div>
-                </div>
-                <button class="home-btn home-btn-secondary" id="home-btn-jogadores" type="button" onclick="abrirJogadores()">
-                    <i data-feather="users"></i>
-                    <div>Jogadores</div>
-                </button>
-                <button class="home-btn home-btn-secondary" type="button" disabled aria-disabled="true">
-                    <i data-feather="settings"></i>
-                    <div>Configurações</div>
-                    ${disSub}
-                </button>
-            </div>
-        `;
-    } else {
-        homeButtonsHtml = `
+    var homeButtonsHtml = `
             <div class="home-buttons">
                 <div class="home-onfield-wrap">
                     <button id="homeBlazeToggle" type="button" class="home-btn home-btn-primary home-onfield-toggle" aria-expanded="false" aria-controls="homeBlazeSub" onclick="toggleHomeBlaze(event)">
@@ -163,11 +85,16 @@ function goHome(){
                 </div>
             </div>
         `;
-    }
 
     var homeTeamLogoHtml = "";
     try {
-        if (window.__TUTEM_APP_MODE__ === "jaragua") {
+        var tid = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId;
+        if (tid === "brazil") {
+            homeTeamLogoHtml =
+                '<div class="home-team-logo-wrap" aria-hidden="true">' +
+                '<img class="home-team-logo" src="times/brfutsal.png" alt="Seleção Brasileira de Futsal" />' +
+                "</div>";
+        } else if (window.__TUTEM_APP_MODE__ === "jaragua") {
             homeTeamLogoHtml =
                 '<div class="home-team-logo-wrap" aria-hidden="true">' +
                 '<img class="home-team-logo" src="Associação_Desportiva_Jaraguá.png" alt="Associação Desportiva Jaraguá" />' +

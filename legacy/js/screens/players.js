@@ -4,10 +4,17 @@
 
 function sairJogadoresComSenha() {
     if (typeof playersListNeedsSheetsPush === "function" && playersListNeedsSheetsPush()) {
-        var msg =
-            "As alterações na lista de jogadores ainda não foram enviadas para o Google Sheets.\n\n" +
-            "Outros aparelhos só verão essas mudanças depois que você tocar em \"Atualizar lista de jogadores\".\n\n" +
-            "Tem certeza que deseja sair da tela de jogadores assim mesmo?";
+        var isSheets = true;
+        try {
+            isSheets = window.__TUTEM_SHEETS_MODE__ !== "none";
+        } catch (e) {}
+        var msg = isSheets
+            ? "As alterações na lista de jogadores ainda não foram enviadas para o Google Sheets.\n\n" +
+              "Outros aparelhos só verão essas mudanças depois que você tocar em \"Atualizar lista de jogadores\".\n\n" +
+              "Tem certeza que deseja sair da tela de jogadores assim mesmo?"
+            : "As alterações podem ainda não ter sido enviadas para a nuvem (Firestore).\n\n" +
+              "Use \"Sincronizar plantel na nuvem\" antes de sair se quiser garantir que outros aparelhos vejam a lista atual.\n\n" +
+              "Sair mesmo assim?";
         if (!confirm(msg)) {
             return;
         }
@@ -148,11 +155,13 @@ function goPlayers(){
                         </div>
 
                         <div>
-                            <div class="item-title" style="margin-bottom:.5rem;">${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Sheets none" : "Lista no Sheets"}</div>
+                            <div class="item-title" style="margin-bottom:.5rem;">${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Plantel na nuvem (Firestore)" : "Lista no Google Sheets"}</div>
                             <div class="item-sub" style="margin-bottom:.5rem;">
-                                ${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Magnus carrega e grava jogadores pelo Firestore (sem Sheets)." : "Envie a lista atual para o Google Sheets para que outros aparelhos recebam ao entrar com a senha."}
+                                ${(window.__TUTEM_SHEETS_MODE__ === "none")
+                                    ? "Sem Google Sheets neste tenant: o plantel grava no Firestore. Outros aparelhos atualizam ao abrir o app ou Jogadores."
+                                    : "Envie a lista atual para o Google Sheets para que outros aparelhos recebam ao entrar com a senha."}
                             </div>
-                            <button type="button" class="small-solid-btn" id="btnUpdatePlayersSheets" onclick="updatePlayersListToSheets()" style="display:${(window.__TUTEM_SHEETS_MODE__ === "none") ? "none" : ""};">Atualizar lista de jogadores</button>
+                            <button type="button" class="small-solid-btn" id="btnUpdatePlayersSheets" onclick="updatePlayersListToSheets()">${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Sincronizar plantel na nuvem" : "Atualizar lista de jogadores"}</button>
                             <div id="playersSyncFeedback" style="margin-top:.5rem;font-size:.875rem;display:none;"></div>
                         </div>
 
@@ -161,12 +170,14 @@ function goPlayers(){
                             <div id="playersRegisteredList">${playersHTML}</div>
                         </div>
 
-                        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.12); display:${(window.__TUTEM_SHEETS_MODE__ === "none") ? "none" : ""};">
-                            <div class="item-title" style="margin-bottom:.5rem;">Importar do Google Sheets</div>
+                        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.12);">
+                            <div class="item-title" style="margin-bottom:.5rem;">${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Recarregar da nuvem" : "Importar do Google Sheets"}</div>
                             <div class="item-sub" style="margin-bottom:.75rem;">
-                                Apaga <strong>só</strong> a lista de jogadores guardada neste aparelho e carrega a lista que está na planilha (aba Jogadores). Treinos e respostas locais não são apagados.
+                                ${(window.__TUTEM_SHEETS_MODE__ === "none")
+                                    ? "Substitui a lista neste aparelho pelo plantel atual no Firestore (treinos locais não são apagados)."
+                                    : "Apaga <strong>só</strong> a lista de jogadores guardada neste aparelho e carrega a lista que está na planilha (aba Jogadores). Treinos e respostas locais não são apagados."}
                             </div>
-                            <button type="button" class="small-solid-btn" id="btnImportPlayersSheets" onclick="importPlayersFromSheetsReplaceLocal()">Importar lista do Sheets e limpar jogadores locais</button>
+                            <button type="button" class="small-solid-btn" id="btnImportPlayersSheets" onclick="importPlayersFromSheetsReplaceLocal()">${(window.__TUTEM_SHEETS_MODE__ === "none") ? "Recarregar plantel do Firestore" : "Importar lista do Sheets e limpar jogadores locais"}</button>
                             <div id="playersImportFeedback" style="margin-top:.5rem;font-size:.875rem;display:none;"></div>
                         </div>
                     </div>
@@ -181,23 +192,27 @@ function goPlayers(){
 
 let playerPhotoBase64FromList = null;
 
-/** Envia a lista atual ao Google Sheets (aba Jogadores), para a coluna Foto (URL) ficar com o link certo. */
+/** Após guardar jogador: Sheets (Jaraguá legado) ou Firestore (tenants sem planilha). */
 function syncPlayersSheetLinkAfterSave() {
-    // Magnus: sem Sheets (não mostrar toasts nem chamar export).
-    if (window.__TUTEM_SHEETS_MODE__ === "none") return;
     if (typeof pushPlayersToSheets !== "function") return;
+    var sheetsOff = false;
+    try {
+        sheetsOff = window.__TUTEM_SHEETS_MODE__ === "none";
+    } catch (e) {}
     pushPlayersToSheets()
         .then(function (result) {
             if (result && result.success) {
                 if (typeof showSyncToast === "function") {
                     showSyncToast(
-                        "Google Sheets: lista de jogadores atualizada (links das fotos na planilha).",
+                        sheetsOff
+                            ? "Firestore: plantel atualizado na nuvem."
+                            : "Google Sheets: lista de jogadores atualizada (links das fotos na planilha).",
                         "success"
                     );
                 }
             } else if (typeof showSyncToast === "function") {
                 showSyncToast(
-                    "Jogador guardado localmente, mas o Sheets não atualizou: " +
+                    (sheetsOff ? "Firestore não atualizou: " : "Jogador guardado localmente, mas o Sheets não atualizou: ") +
                         (result && result.error ? result.error : "erro"),
                     "error"
                 );
@@ -206,7 +221,7 @@ function syncPlayersSheetLinkAfterSave() {
         .catch(function (err) {
             if (typeof showSyncToast === "function") {
                 showSyncToast(
-                    "Sheets: " + (err && err.message ? err.message : "falha de rede"),
+                    (sheetsOff ? "Firestore: " : "Sheets: ") + (err && err.message ? err.message : "falha de rede"),
                     "error"
                 );
             }
@@ -543,16 +558,17 @@ function patchPlayerRowInListDOM(playerId, playerObj) {
 }
 
 async function importPlayersFromSheetsReplaceLocal() {
-    // Magnus: não pode usar Sheets/backend.
-    try {
-        if (window.__TUTEM_SHEETS_MODE__ === "none") return;
-    } catch (e) {}
-
     var feedback = document.getElementById("playersImportFeedback");
     var btn = document.getElementById("btnImportPlayersSheets");
+    var sheetsMode = "sheets";
+    try {
+        sheetsMode = window.__TUTEM_SHEETS_MODE__ === "none" ? "none" : "sheets";
+    } catch (e) {}
     if (
         !confirm(
-            "A lista de jogadores neste aparelho será apagada e substituída pela do Google Sheets (aba Jogadores).\n\nTreinos, respostas e outros dados locais não são apagados.\n\nContinuar?"
+            sheetsMode === "none"
+                ? "A lista de jogadores neste aparelho será substituída pelo plantel atual no Firestore.\n\nTreinos, respostas e outros dados locais não são apagados.\n\nContinuar?"
+                : "A lista de jogadores neste aparelho será apagada e substituída pela do Google Sheets (aba Jogadores).\n\nTreinos, respostas e outros dados locais não são apagados.\n\nContinuar?"
         )
     ) {
         return;
@@ -565,11 +581,13 @@ async function importPlayersFromSheetsReplaceLocal() {
         feedback.style.display = "none";
     }
     try {
-        try {
-            localStorage.removeItem(typeof STORAGE_KEYS !== "undefined" ? STORAGE_KEYS.PLAYERS : "treino_players");
-        } catch (e) {}
+        if (sheetsMode !== "none") {
+            try {
+                localStorage.removeItem(typeof STORAGE_KEYS !== "undefined" ? STORAGE_KEYS.PLAYERS : "treino_players");
+            } catch (e) {}
+        }
         if (typeof fetchPlayersFromSheets !== "function") {
-            alert("Sincronização com o Sheets não está disponível.");
+            alert(sheetsMode === "none" ? "Sincronização com a nuvem não está disponível." : "Sincronização com o Sheets não está disponível.");
             return;
         }
         var result = await fetchPlayersFromSheets();
@@ -595,30 +613,33 @@ async function importPlayersFromSheetsReplaceLocal() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = "Importar lista do Sheets e limpar jogadores locais";
+            btn.textContent =
+                sheetsMode === "none" ? "Recarregar plantel do Firestore" : "Importar lista do Sheets e limpar jogadores locais";
         }
     }
 }
 
 function updatePlayersListToSheets() {
-    // Magnus: não pode usar Sheets/backend.
-    try {
-        if (window.__TUTEM_SHEETS_MODE__ === "none") return;
-    } catch (e) {}
-
     var btn = document.getElementById("btnUpdatePlayersSheets");
     var feedback = document.getElementById("playersSyncFeedback");
     if (!btn || !feedback) return;
+    var sheetsOff = false;
+    try {
+        sheetsOff = window.__TUTEM_SHEETS_MODE__ === "none";
+    } catch (e) {}
+    var labelIdle = sheetsOff ? "Sincronizar plantel na nuvem" : "Atualizar lista de jogadores";
     btn.disabled = true;
     btn.textContent = "Enviando...";
     feedback.style.display = "none";
     var run = typeof pushPlayersToSheets === "function" ? pushPlayersToSheets() : Promise.resolve({ success: false, error: "Função não disponível" });
     run.then(function (result) {
         btn.disabled = false;
-        btn.textContent = "Atualizar lista de jogadores";
+        btn.textContent = labelIdle;
         feedback.style.display = "block";
         if (result.success) {
-            feedback.textContent = "Lista enviada para o Sheets. Outros aparelhos receberão ao entrar com a senha.";
+            feedback.textContent = sheetsOff
+                ? "Plantel enviado ao Firestore. Outros aparelhos verão ao atualizar."
+                : "Lista enviada para o Sheets. Outros aparelhos receberão ao entrar com a senha.";
             feedback.style.color = "var(--accent)";
         } else {
             feedback.textContent = "Erro: " + (result.error || "Não foi possível enviar.");
@@ -626,7 +647,7 @@ function updatePlayersListToSheets() {
         }
     }).catch(function (err) {
         btn.disabled = false;
-        btn.textContent = "Atualizar lista de jogadores";
+        btn.textContent = labelIdle;
         feedback.style.display = "block";
         feedback.textContent = "Erro: " + (err && err.message ? err.message : "Falha ao enviar.");
         feedback.style.color = "var(--text-dim)";
