@@ -198,8 +198,7 @@ async function loadActiveTrainingsFromFirestore() {
             const data = docSnap.data() || {};
             const training = data.training || {};
             if (!training || typeof training !== "object") return;
-            // compat com o app: "completed" deve ficar fora da lista ativa
-            if (training.status === "completed") return;
+            // Incluir finalizados (acompanhamento/analytics precisam do histórico); lista de treinos filtra na UI.
             out.push(training);
         });
 

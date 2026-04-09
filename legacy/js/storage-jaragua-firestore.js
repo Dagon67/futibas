@@ -179,7 +179,7 @@
                 const data = docSnap.data() || {};
                 const training = data.training || {};
                 if (!training || typeof training !== "object") return;
-                if (training.status === "completed") return;
+                // Incluir finalizados: respostas ficam no objeto; a lista "Treinos" filtra completed na UI.
                 out.push(training);
             });
 

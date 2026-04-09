@@ -136,7 +136,19 @@ function getBackendUrl() {
 function fetchAnalyticsData() {
     try {
         if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
-            return Promise.resolve(buildAnalyticsDataFromLocalApp());
+            var refresh = Promise.resolve();
+            if (typeof window.initJaraguaFirestoreStorage === "function") {
+                refresh = window.initJaraguaFirestoreStorage(true);
+            } else if (typeof window.initMagnusStorage === "function") {
+                refresh = window.initMagnusStorage(true);
+            }
+            return refresh
+                .then(function () {
+                    return buildAnalyticsDataFromLocalApp();
+                })
+                .catch(function (e) {
+                    return { success: false, error: String(e && e.message ? e.message : e) };
+                });
         }
     } catch (e) {
         return Promise.resolve({ success: false, error: String(e && e.message ? e.message : e) });
