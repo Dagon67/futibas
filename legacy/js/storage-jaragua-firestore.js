@@ -43,7 +43,7 @@
         { id: "br_p3", number: 3, name: "Nicolas (Jaraguá)", position: "Goleiro", lateralidade: null },
         { id: "br_p4", number: 4, name: "Neguinho (Barcelona/Palma)", position: "Fixo", lateralidade: null },
         { id: "br_p5", number: 5, name: "Marlon (Selangor/ElPozo)", position: "Fixo", lateralidade: null },
-        { id: "br_p6", number: 6, name: "Lucas Gomes (Magnus)", position: "Fixo", lateralidade: null },
+        { id: "br_p6", number: 6, name: "Lucas Gomes", position: "Fixo", lateralidade: null },
         { id: "br_p7", number: 7, name: "Marcel (El Pozo)", position: "Ala", lateralidade: null },
         { id: "br_p8", number: 8, name: "Dyego (Al-Ula/Barcelona)", position: "Ala", lateralidade: null },
         { id: "br_p9", number: 9, name: "Fabinho (Palma)", position: "Ala", lateralidade: null },

@@ -4,12 +4,6 @@
    =========================== */
 
 function goGameRoom() {
-    try {
-        if (window.__TUTEM_SHEETS_MODE__ === "none") {
-            alert("Magnus: Game Room desabilitado (sem Sheets).");
-            return;
-        }
-    } catch (e) {}
     if (typeof destroyAcompanhamentoCharts === "function") destroyAcompanhamentoCharts();
     state.currentScreen = "gameRoom";
     setHeaderModeLabel("Game Room");
@@ -32,7 +26,12 @@ function goGameRoom() {
     var content = document.getElementById("gr-content");
     var sub = document.getElementById("gr-sub");
 
-    if (!base) {
+    var sheetsOff = false;
+    try {
+        sheetsOff = window.__TUTEM_SHEETS_MODE__ === "none";
+    } catch (e) {}
+
+    if (!base && !sheetsOff) {
         if (sub) sub.textContent = "Backend não configurado";
         if (content) {
             content.innerHTML =
@@ -41,11 +40,19 @@ function goGameRoom() {
         return;
     }
 
+    var gamesPromise = base
+        ? fetch(base + "/games/reports?limit=12", { method: "GET", cache: "no-store" })
+            .then(function (r) {
+                return r.json();
+            })
+            .catch(function () {
+                return { success: false, games: [] };
+            })
+        : Promise.resolve({ success: false, games: [] });
+
     Promise.all([
         fetchAnalyticsData(),
-        fetch(base + "/games/reports?limit=12", { method: "GET", cache: "no-store" }).then(function (r) {
-            return r.json();
-        }),
+        gamesPromise,
     ])
         .then(function (results) {
             var res = results[0];
@@ -56,7 +63,7 @@ function goGameRoom() {
             var load = buildTeamLoadMetrics(res);
             var games = gamesRes.success && gamesRes.games ? gamesRes.games : [];
 
-            if (!games.length) {
+            if (!games.length || !base) {
                 return { html: gameRoomBuildHtml(res, agg, load, games, null), agg: agg };
             }
             return fetch(base + "/games/reports/detail?gameId=" + encodeURIComponent(games[0].gameId), {
@@ -65,6 +72,9 @@ function goGameRoom() {
             })
                 .then(function (r) {
                     return r.json();
+                })
+                .catch(function () {
+                    return { success: false };
                 })
                 .then(function (det) {
                     var lastDetail = det && det.success ? det : null;

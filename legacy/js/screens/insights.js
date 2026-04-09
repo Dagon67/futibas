@@ -1,11 +1,18 @@
 /* ===========================
-   💡 INSIGHTS (Gemini Flash) — Jaraguá
-   - Só chama a API se os dados mudaram de forma relevante E passou o intervalo mínimo (10 min) desde a última chamada.
-   - Cache local + fingerprint estável (evita ruído e protege cota).
+   💡 INSIGHTS (Gemini) — um cache de análise por tenant (localStorage).
+   - Dados analíticos: GET /analytics (Sheets) ou build local (Firestore / app sem planilha) via fetchAnalyticsData.
+   - Só chama o Gemini se os dados mudaram de forma relevante E passou o intervalo mínimo (10 min).
    =========================== */
 
 var INSIGHTS_MIN_INTERVAL_MS = 10 * 60 * 1000;
-var INSIGHTS_LS_KEY = "jaragua_insights_v1";
+
+function getInsightsTenantStorageKey() {
+    var tid =
+        typeof window !== "undefined" && window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId
+            ? String(window.__TUTEM_TENANT__.tenantId)
+            : "default";
+    return "tutem_insights_gemini_v1_" + tid.replace(/[^a-z0-9_-]/gi, "_");
+}
 
 function insightsSha256Hex(str) {
     return crypto.subtle.digest("SHA-256", new TextEncoder().encode(str))
@@ -68,7 +75,11 @@ function buildInsightsSummaryText(snapshot) {
 
 function insightsLoadLocalState() {
     try {
-        var raw = localStorage.getItem(INSIGHTS_LS_KEY);
+        var key = getInsightsTenantStorageKey();
+        var raw = localStorage.getItem(key);
+        if (!raw && key.indexOf("jaragua-futsal") !== -1) {
+            raw = localStorage.getItem("jaragua_insights_v1");
+        }
         if (!raw) return null;
         return JSON.parse(raw);
     } catch (e) {
@@ -78,12 +89,24 @@ function insightsLoadLocalState() {
 
 function insightsSaveLocalState(obj) {
     try {
-        localStorage.setItem(INSIGHTS_LS_KEY, JSON.stringify(obj));
+        localStorage.setItem(getInsightsTenantStorageKey(), JSON.stringify(obj));
     } catch (e) {}
 }
 
 function getBackendUrlInsights() {
     return (typeof window !== "undefined" && window.BACKEND_URL) ? window.BACKEND_URL : "";
+}
+
+/** Mesma fonte que o acompanhamento: planilha (HTTP) ou dados locais (tenant sem Sheets). */
+function insightsFetchAnalyticsPayload() {
+    if (typeof fetchAnalyticsData === "function") {
+        return fetchAnalyticsData();
+    }
+    var base = getBackendUrlInsights();
+    if (!base) return Promise.resolve({ success: false, error: "Backend não configurado" });
+    return fetch(base + "/analytics", { method: "GET" }).then(function (r) {
+        return r.json();
+    });
 }
 
 /**
@@ -134,20 +157,25 @@ function goInsights() {
     var content = document.getElementById("insights-content");
     var sub = document.getElementById("insights-sub");
     var base = getBackendUrlInsights();
+    var sheetsOff = false;
+    try {
+        sheetsOff = window.__TUTEM_SHEETS_MODE__ === "none";
+    } catch (e) {}
 
     if (!base) {
         if (sub) sub.textContent = "Backend não configurado.";
         if (content) {
             content.innerHTML =
-                "<p class=\"item-sub\" style=\"padding:1rem;\">Configure o servidor (Sheets) para usar Insights com IA.</p>";
+                "<p class=\"item-sub\" style=\"padding:1rem;\">" +
+                (sheetsOff
+                    ? "Defina BACKEND_URL no HTML para a API de insights (Gemini). Os treinos e respostas vêm dos dados deste tenant no app."
+                    : "Configure BACKEND_URL (servidor com /analytics e /insights) para usar Insights com IA.") +
+                "</p>";
         }
         return;
     }
 
-    fetch(base + "/analytics", { method: "GET" })
-        .then(function (r) {
-            return r.json();
-        })
+    insightsFetchAnalyticsPayload()
         .then(function (res) {
             if (!res.success) {
                 throw new Error(res.error || "Falha ao carregar dados");
@@ -309,7 +337,7 @@ function insightsEscapeHtml(s) {
 /** Força tentativa de refresh: só efetiva se servidor permitir (cooldown no backend). */
 function insightsForceRefresh() {
     try {
-        localStorage.removeItem(INSIGHTS_LS_KEY);
+        localStorage.removeItem(getInsightsTenantStorageKey());
     } catch (e) {}
     goInsights();
 }

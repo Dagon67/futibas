@@ -1,17 +1,85 @@
 /* ===========================
    📊 ACOMPANHAMENTO - Dashboard Geral e Individual
-   Dados puxados do Sheets (GET /analytics)
+   Com Google Sheets: GET /analytics (backend lê a planilha).
+   Sem Sheets (Firestore / app local): mesmo formato, montado a partir de treinos e respostas no dispositivo.
    =========================== */
 
 var ACOMPANHAMENTO_CHARTS = [];
 
-function goAcompanhamento() {
+/** Rótulo curto do time para botões (não confundir tenants). */
+function getAcompanhamentoTeamLabel() {
     try {
-        if (window.__TUTEM_SHEETS_MODE__ === "none") {
-            alert("Magnus: Acompanhamento desabilitado (sem Sheets).");
-            return;
-        }
-    } catch (e) {}
+        var tid = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId;
+        if (tid === "brazil") return "Seleção Brasileira";
+        if (tid === "jaragua-futsal") return "Jaraguá Futsal";
+        if (tid === "magnus") return "Magnus Futsal";
+        return tid ? String(tid) : "Time";
+    } catch (e) {
+        return "Time";
+    }
+}
+
+/**
+ * Replica o formato da aba pre/pos do Sheets a partir dos treinos em memória
+ * (compatível com buildAggregates / parsePreRow / parsePosRow).
+ */
+function buildAnalyticsDataFromLocalApp() {
+    var qs = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
+    var pre_questions = (qs.pre || []).map(function (q) {
+        return (q && q.texto) ? String(q.texto) : "";
+    }).filter(Boolean);
+    var post_questions = (qs.post || []).map(function (q) {
+        return (q && q.texto) ? String(q.texto) : "";
+    }).filter(Boolean);
+
+    var header_pre = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"].concat(pre_questions);
+    var header_post = ["ID Treino", "Data Treino", "Modo", "ID Jogador", "Nome Jogador", "Data/Hora", "Comentário"].concat(post_questions);
+
+    var pre_rows = [];
+    var pos_rows = [];
+    var trainings = typeof loadTrainings === "function" ? loadTrainings() : [];
+
+    trainings.forEach(function (t) {
+        var trainingId = t.id != null ? String(t.id) : "";
+        var trainingDate = t.dateFormatted || t.date || "";
+        (t.responses || []).forEach(function (r) {
+            if (!r || !r.mode) return;
+            var mode = r.mode;
+            var row = [
+                trainingId,
+                trainingDate,
+                mode === "pre" ? "Pré" : "Pós",
+                r.playerId != null ? String(r.playerId) : "",
+                r.playerName != null ? String(r.playerName) : "",
+                r.timestamp != null ? String(r.timestamp) : "",
+                r.comment != null ? String(r.comment) : ""
+            ];
+            var qlist = mode === "pre" ? pre_questions : post_questions;
+            qlist.forEach(function (qText) {
+                var v = r.answers && r.answers[qText] != null ? r.answers[qText] : "";
+                if (Array.isArray(v)) {
+                    v = v.join("; ");
+                }
+                row.push(v != null ? String(v) : "");
+            });
+            if (mode === "pre") {
+                pre_rows.push(row);
+            } else if (mode === "post") {
+                pos_rows.push(row);
+            }
+        });
+    });
+
+    var players = typeof loadPlayers === "function" ? loadPlayers() : [];
+    return {
+        success: true,
+        players: Array.isArray(players) ? players : [],
+        pre: { headers: header_pre, rows: pre_rows },
+        pos: { headers: header_post, rows: pos_rows }
+    };
+}
+
+function goAcompanhamento() {
     destroyAcompanhamentoCharts();
     state.currentScreen = "acompanhamento";
     setHeaderModeLabel("Acompanhamento");
@@ -27,7 +95,7 @@ function goAcompanhamento() {
             <div class="acompanhamento-options">
                 <button class="home-btn home-btn-primary" onclick="goAcompanhamentoGeral()" style="max-width:320px;">
                     <i data-feather="trending-up"></i>
-                    <div>Jaraguá Futsal</div>
+                    <div>${getAcompanhamentoTeamLabel()}</div>
                     <div class="sub">Gráficos e KPIs do time</div>
                 </button>
                 <button class="home-btn home-btn-secondary" onclick="goAcompanhamentoIndividual()" style="max-width:320px;">
@@ -66,11 +134,23 @@ function getBackendUrl() {
 }
 
 function fetchAnalyticsData() {
+    try {
+        if (typeof window !== "undefined" && window.__TUTEM_SHEETS_MODE__ === "none") {
+            return Promise.resolve(buildAnalyticsDataFromLocalApp());
+        }
+    } catch (e) {
+        return Promise.resolve({ success: false, error: String(e && e.message ? e.message : e) });
+    }
     var base = getBackendUrl();
     if (!base) return Promise.resolve({ success: false, error: "Backend não configurado" });
     return fetch(base + "/analytics", { method: "GET" })
         .then(function (r) { return r.json(); })
         .catch(function (e) { return { success: false, error: String(e.message || e) }; });
+}
+
+if (typeof window !== "undefined") {
+    window.fetchAnalyticsData = fetchAnalyticsData;
+    window.buildAnalyticsDataFromLocalApp = buildAnalyticsDataFromLocalApp;
 }
 
 // Índices fixos das colunas no Sheets (pre: 0-6 fixos, 7+ perguntas; pos: 0-6 fixos, 7+ perguntas)
