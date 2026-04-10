@@ -38,10 +38,6 @@ function goMenu(){
                     <div class="sub">Como você saiu do treino</div>
                 </button>
             </div>
-            <button type="button" class="home-btn home-btn-secondary home-btn-logout" onclick="tutemFirebaseSignOut()" style="margin-top:1.25rem;">
-                <i data-feather="log-out"></i>
-                <div>Sair</div>
-            </button>
         </div>
     `);
     
