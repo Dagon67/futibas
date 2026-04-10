@@ -54,6 +54,15 @@
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
+    /* Ícones nativos de calendário/relógio (Chrome, Edge, Safari) — verde para contraste */
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        opacity: 1;
+        filter: invert(58%) sepia(65%) saturate(500%) hue-rotate(92deg) brightness(96%) contrast(92%);
+        cursor: pointer;
+    }
+
     body {
         margin:0;
         background:var(--bg-main);

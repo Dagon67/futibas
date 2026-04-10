@@ -763,7 +763,49 @@
       align-items:center;
       margin-bottom:6px;
     }
-    .periodRules .kbd{ font-size:10px; padding:4px 8px; }
+    .periodRules .kbd{ font-size:10px; padding:4px 8px; transition: box-shadow .2s, border-color .2s, color .2s; }
+    .periodRules .kbd.kbd--activeHalf{
+      border-color: rgba(52,211,153,.75);
+      background: rgba(52,211,153,.16);
+      color: #4ade80;
+      font-weight: 800;
+      box-shadow: 0 0 14px rgba(52,211,153,.35);
+    }
+    .syncHalfTabRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin:8px 0 6px;
+    }
+    .syncHalfTab{
+      flex:1;
+      min-width:120px;
+      padding:8px 10px;
+      border-radius:12px;
+      font-size:12px;
+      font-weight:750;
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+    }
+    .syncHalfTab:hover:not(:disabled){ background: rgba(255,255,255,.1); }
+    .syncHalfTab:disabled{
+      opacity:.35;
+      cursor:not-allowed;
+    }
+    .syncHalfTab.syncHalfTab--active{
+      border-color: rgba(52,211,153,.55);
+      background: rgba(52,211,153,.12);
+      color: #4ade80;
+      box-shadow: 0 0 12px rgba(52,211,153,.2);
+    }
+    /* Ícone do seletor de data/hora no setup (verde) */
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator{
+      opacity:1;
+      filter: invert(64%) sepia(55%) saturate(450%) hue-rotate(92deg) brightness(98%) contrast(92%);
+      cursor:pointer;
+    }
     .hint{
       color: var(--muted);
       font-size: 12px;
@@ -1227,7 +1269,12 @@
           <button type="button" class="btnDurationMini" id="btnToggleDurationEdit" aria-expanded="false" aria-controls="durationPop">Tempos</button>
         </div>
         <div class="durationPop" id="durationPop" role="region" aria-label="Sincronizar tempo da partida">
-          <label class="durLab">Igual ao tempo do cronômetro principal (restante)</label>
+          <label class="durLab">Sincronizar pelo tempo em que a partida está</label>
+          <div class="syncHalfTabRow" role="tablist" aria-label="Qual tempo sincronizar">
+            <button type="button" class="syncHalfTab syncHalfTab--active" id="syncHalf1Btn" role="tab" aria-selected="true">1º tempo</button>
+            <button type="button" class="syncHalfTab" id="syncHalf2Btn" role="tab" aria-selected="false">2º tempo</button>
+          </div>
+          <p class="durHint" style="margin-top:0;margin-bottom:6px;" id="syncHalfSubLab">Restante no 1º tempo (até o intervalo)</p>
           <div class="durRowFlex">
             <div class="durField">
               <label class="durLab" for="syncElapsedMinutes" style="margin-bottom:4px;">Minutos</label>
@@ -1239,7 +1286,7 @@
             </div>
           </div>
           <button type="button" class="btnPrimary" id="btnApplySyncElapsed" style="margin-top:8px;padding:8px 12px;font-size:12px;border-radius:12px;">Aplicar sincronização</button>
-          <p class="durHint" id="syncElapsedHint">Minutos (0–40) e segundos (0–60): o valor aplicado é o que aparece no cronômetro grande (tempo restante da partida). Só com a partida iniciada.</p>
+          <p class="durHint" id="syncElapsedHint">Minutos e segundos são o tempo restante só do 1º ou só do 2º tempo (conforme a aba). O 2º tempo só pode ser ajustado depois que o 1º tiver encerrado no relógio. O cronômetro grande continua mostrando o total restante da partida.</p>
         </div>
         <div class="periodRules">
           <span class="kbd" id="kbdHalf1">1º tempo 20:00</span>
@@ -1471,6 +1518,8 @@
        Helpers
     ========================== */
     var campinRosterCategoriaFilter = typeof ROSTER_CATEGORIA_PRO !== "undefined" ? ROSTER_CATEGORIA_PRO : "profissional";
+    /** Aba ativa no pop-up Tempos: 1 = restante no 1º tempo, 2 = restante no 2º tempo */
+    var syncEditingHalf = 1;
 
     const MS = 1000;
     const MIN = 60 * MS;
@@ -2213,12 +2262,19 @@
       el.title = t;
     }
 
+    function syncMaxMinutesOneHalf(){
+      var h = state.halfLenMs || (20 * MIN);
+      return Math.min(40, Math.max(0, Math.floor(h / MIN)));
+    }
+
     function ensureSyncElapsedOptions(){
       if (!syncElapsedMinutesEl) return;
-      if (syncElapsedMinutesEl.options.length === 41) return;
+      var maxM = syncMaxMinutesOneHalf();
+      if (syncElapsedMinutesEl.dataset.maxM === String(maxM) && syncElapsedMinutesEl.options.length === maxM + 1) return;
+      syncElapsedMinutesEl.dataset.maxM = String(maxM);
       syncElapsedMinutesEl.innerHTML = "";
-      for (let i = 0; i <= 40; i++) {
-        const o = document.createElement("option");
+      for (var i = 0; i <= maxM; i++) {
+        var o = document.createElement("option");
         o.value = String(i);
         o.textContent = i + " min";
         syncElapsedMinutesEl.appendChild(o);
@@ -2237,22 +2293,63 @@
       }
     }
 
-    /** Tempo restante exibido no cronômetro grande (MM:SS até o fim da partida). */
-    function matchMainClockRemainingMs(){
+    function remainingMsInFirstHalf(){
+      if (state.elapsedMs >= state.halfLenMs) return 0;
+      return Math.max(0, state.halfLenMs - state.elapsedMs);
+    }
+
+    function remainingMsInSecondHalf(){
+      if (state.elapsedMs < state.halfLenMs) return state.totalLenMs - state.halfLenMs;
       return Math.max(0, state.totalLenMs - state.elapsedMs);
+    }
+
+    function updateSyncHalfSubLabel(){
+      var sub = document.getElementById("syncHalfSubLab");
+      if (!sub) return;
+      if (syncEditingHalf === 1) {
+        sub.textContent = "Restante no 1º tempo (até o intervalo)";
+      } else {
+        sub.textContent = "Restante no 2º tempo (até o apito final)";
+      }
+    }
+
+    function canCampinSyncSecondHalf(){
+      return state.elapsedMs >= state.halfLenMs;
+    }
+
+    function updateSyncHalfTabsUI(){
+      var btn1 = document.getElementById("syncHalf1Btn");
+      var btn2 = document.getElementById("syncHalf2Btn");
+      if (!btn1 || !btn2) return;
+      var inFirst = state.elapsedMs < state.halfLenMs;
+      var ok = state.started && !state.matchEnded;
+      btn1.disabled = !ok || !inFirst;
+      btn2.disabled = !ok || !canCampinSyncSecondHalf();
+      if (syncEditingHalf === 1 && btn1.disabled) syncEditingHalf = 2;
+      if (syncEditingHalf === 2 && btn2.disabled) syncEditingHalf = 1;
+      btn1.classList.toggle("syncHalfTab--active", syncEditingHalf === 1);
+      btn2.classList.toggle("syncHalfTab--active", syncEditingHalf === 2);
+      btn1.setAttribute("aria-selected", syncEditingHalf === 1 ? "true" : "false");
+      btn2.setAttribute("aria-selected", syncEditingHalf === 2 ? "true" : "false");
+      updateSyncHalfSubLabel();
     }
 
     function syncElapsedSelectFromState(){
       ensureSyncElapsedOptions();
       ensureSyncElapsedSecondsOptions();
       if (!syncElapsedMinutesEl) return;
-      const remMs = matchMainClockRemainingMs();
-      const remSec = Math.floor(remMs / 1000);
-      let m = Math.floor(remSec / 60);
-      let s = remSec % 60;
+      var remMs = syncEditingHalf === 1 ? remainingMsInFirstHalf() : remainingMsInSecondHalf();
+      var remSec = Math.floor(remMs / 1000);
+      var maxSec = syncEditingHalf === 1
+        ? Math.floor(state.halfLenMs / 1000)
+        : Math.floor((state.totalLenMs - state.halfLenMs) / 1000);
+      remSec = Math.min(remSec, maxSec);
+      var m = Math.floor(remSec / 60);
+      var s = remSec % 60;
       if (!isFinite(m)) m = 0;
       if (!isFinite(s)) s = 0;
-      m = Math.max(0, Math.min(40, m));
+      var maxM = syncMaxMinutesOneHalf();
+      m = Math.max(0, Math.min(maxM, m));
       s = Math.max(0, Math.min(60, s));
       syncElapsedMinutesEl.value = String(m);
       if (syncElapsedSecondsEl) syncElapsedSecondsEl.value = String(s);
@@ -2269,18 +2366,33 @@
 
     function applySyncElapsedFromSelect(){
       if (!state.started || state.matchEnded || !syncElapsedMinutesEl) return;
-      let minutes = parseInt(syncElapsedMinutesEl.value, 10);
-      let seconds = syncElapsedSecondsEl ? parseInt(syncElapsedSecondsEl.value, 10) : 0;
+      if (syncEditingHalf === 1 && state.elapsedMs >= state.halfLenMs) return;
+      if (syncEditingHalf === 2 && !canCampinSyncSecondHalf()) return;
+      var minutes = parseInt(syncElapsedMinutesEl.value, 10);
+      var seconds = syncElapsedSecondsEl ? parseInt(syncElapsedSecondsEl.value, 10) : 0;
       if (!isFinite(minutes)) return;
       if (!isFinite(seconds)) seconds = 0;
-      minutes = Math.max(0, Math.min(40, minutes));
+      var maxM = syncMaxMinutesOneHalf();
+      minutes = Math.max(0, Math.min(maxM, minutes));
       seconds = Math.max(0, Math.min(60, seconds));
-      let remSec = minutes * 60 + seconds;
-      const maxSec = Math.floor(state.totalLenMs / 1000);
-      remSec = Math.min(remSec, maxSec);
-      state.elapsedMs = state.totalLenMs - remSec * MS;
-      state.elapsedMs = Math.max(0, Math.min(state.totalLenMs, state.elapsedMs));
-      state.awaitingSecondHalfKickoff = false;
+      var remSec = minutes * 60 + seconds;
+      var maxRemSec;
+      if (syncEditingHalf === 1) {
+        maxRemSec = Math.floor(state.halfLenMs / MS);
+        remSec = Math.min(remSec, maxRemSec);
+        state.elapsedMs = state.halfLenMs - remSec * MS;
+        state.elapsedMs = Math.max(0, Math.min(state.halfLenMs, state.elapsedMs));
+        state.awaitingSecondHalfKickoff = false;
+        if (state.elapsedMs >= state.halfLenMs && !state.running) {
+          state.awaitingSecondHalfKickoff = true;
+        }
+      } else {
+        maxRemSec = Math.floor((state.totalLenMs - state.halfLenMs) / MS);
+        remSec = Math.min(remSec, maxRemSec);
+        state.elapsedMs = state.totalLenMs - remSec * MS;
+        state.elapsedMs = Math.max(state.halfLenMs, Math.min(state.totalLenMs, state.elapsedMs));
+        state.awaitingSecondHalfKickoff = false;
+      }
       updateTimersUI();
       updateFilledUI();
       renderLog();
@@ -2304,8 +2416,24 @@
       const within = half === 1 ? state.elapsedMs : (state.elapsedMs - state.halfLenMs);
       const halfRemaining = Math.max(0, state.halfLenMs - within);
       halfLabelEl.textContent = state.started
-        ? `T${half} • faltam ${msToClock(halfRemaining)}`
+        ? `${half === 1 ? "1º tempo" : "2º tempo"} • faltam ${msToClock(halfRemaining)}`
         : "Aguardando";
+
+      var kbdH1 = document.getElementById("kbdHalf1");
+      var kbdH2 = document.getElementById("kbdHalf2");
+      if (kbdH1 && kbdH2) {
+        if (!state.started) {
+          kbdH1.classList.remove("kbd--activeHalf");
+          kbdH2.classList.remove("kbd--activeHalf");
+        } else {
+          var activeFirst = state.elapsedMs < state.halfLenMs;
+          kbdH1.classList.toggle("kbd--activeHalf", activeFirst);
+          kbdH2.classList.toggle("kbd--activeHalf", !activeFirst);
+        }
+      }
+      if (durationPopEl && durationPopEl.classList.contains("is-open")) {
+        updateSyncHalfTabsUI();
+      }
 
       // dot status
       statusDotEl.classList.remove("running","paused","stopped");
@@ -3107,14 +3235,31 @@
         durationPopEl.classList.toggle("is-open", open);
         btnToggleDurationEdit.setAttribute("aria-expanded", open ? "true" : "false");
         if (open) {
+          syncEditingHalf = state.elapsedMs < state.halfLenMs ? 1 : 2;
           ensureSyncElapsedOptions();
           ensureSyncElapsedSecondsOptions();
+          updateSyncHalfTabsUI();
           syncElapsedSelectFromState();
           updateDurationPopSyncEnabled();
         }
       });
     }
     if (btnApplySyncElapsed) btnApplySyncElapsed.addEventListener("click", applySyncElapsedFromSelect);
+
+    var syncHalf1Btn = document.getElementById("syncHalf1Btn");
+    var syncHalf2Btn = document.getElementById("syncHalf2Btn");
+    if (syncHalf1Btn) syncHalf1Btn.addEventListener("click", function(){
+      if (syncHalf1Btn.disabled) return;
+      syncEditingHalf = 1;
+      updateSyncHalfTabsUI();
+      syncElapsedSelectFromState();
+    });
+    if (syncHalf2Btn) syncHalf2Btn.addEventListener("click", function(){
+      if (syncHalf2Btn.disabled) return;
+      syncEditingHalf = 2;
+      updateSyncHalfTabsUI();
+      syncElapsedSelectFromState();
+    });
 
     if (btnPlayerSelectConfirm) btnPlayerSelectConfirm.addEventListener("click", confirmPlayerSelection);
     if (btnPickAll) btnPickAll.addEventListener("click", function(){
