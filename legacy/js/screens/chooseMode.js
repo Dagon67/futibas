@@ -40,17 +40,34 @@ function goChooseMode(){
 function selectMode(mode){
     try {
         state.currentMode = mode;
-        const players = loadPlayers();
-        if (!Array.isArray(players)) {
+        const allPlayers = loadPlayers();
+        if (!Array.isArray(allPlayers)) {
             console.error("loadPlayers não retornou array");
             alert("Erro ao carregar jogadores. Tente novamente.");
             return;
         }
-        if (players.length === 0) {
+        if (allPlayers.length === 0) {
             alert("Cadastre jogadores em Jogadores antes de iniciar um treino.");
             return;
         }
-        state.selectedPlayerIds = [];
+
+        if (!state.rosterCategoriaFilter) state.rosterCategoriaFilter = ROSTER_CATEGORIA_PRO;
+
+        const rosterPlayers = allPlayers.filter(function (p) {
+            return playerMatchesRosterCategoria(p, state.rosterCategoriaFilter);
+        });
+
+        if (rosterPlayers.length === 0) {
+            alert(
+                "Nenhum jogador na categoria escolhida (Profissional ou Sub-20). " +
+                    "Cadastre jogadores com essa categoria em Jogadores ou volte e escolha outra categoria na configuração do treino."
+            );
+            return;
+        }
+
+        state.selectedPlayerIds = rosterPlayers.map(function (p) {
+            return p.id;
+        });
 
         const trainingId = uid();
         const now = luxon.DateTime.now();
@@ -64,7 +81,9 @@ function selectMode(mode){
             datetime: now.toISO(),
             mode: mode,
             period: state.trainingPeriod || null,
-            playerIds: [],
+            playerIds: rosterPlayers.map(function (p) {
+                return p.id;
+            }),
             responses: []
         };
         var trainings = loadTrainings();
@@ -90,7 +109,7 @@ function selectMode(mode){
         delete state.trainingPeriod;
 
         resetPendingForMode(mode);
-        goSelectPlayers();
+        goSelectPlayer(mode);
     } catch (err) {
         console.error("Erro ao criar treino:", err);
         alert("Erro ao criar treino: " + (err.message || err));
