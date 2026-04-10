@@ -1391,8 +1391,8 @@
         </div>
 
         <div class="field">
-          <label for="teamName">Nome do time (opcional)</label>
-          <input type="text" id="teamName" placeholder="Ex.: Jaraguá Futsal" />
+          <label for="teamName">Nome do time adversário / treino</label>
+          <input type="text" id="teamName" placeholder="Ex.: Joinville / Treino interno" required />
         </div>
 
         <div class="field">
@@ -3209,8 +3209,14 @@
 
     btnSetupContinue.addEventListener("click", ()=>{
       const iso = dtGameEl.value ? new Date(dtGameEl.value).toISOString() : new Date().toISOString();
+      const opponentOrTrainingName = (teamNameEl.value || "").trim();
+      if (!opponentOrTrainingName) {
+        alert("Informe o nome do time adversário / treino para iniciar o jogo.");
+        if (teamNameEl) teamNameEl.focus();
+        return;
+      }
       state.gameDatetimeISO = iso;
-      state.teamName = teamNameEl.value.trim();
+      state.teamName = opponentOrTrainingName;
       state.note = noteEl.value.trim();
       let hm = halfRuleEl ? parseInt(halfRuleEl.value, 10) : 20;
       if (!isFinite(hm) || hm < 5) hm = 20;

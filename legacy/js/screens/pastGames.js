@@ -12,6 +12,41 @@ function pastGamesEsc(s) {
     });
 }
 
+function pastGamesFmtMinLabel(v) {
+    var raw = String(v == null ? "" : v).trim();
+    if (!raw) return "0";
+    var n = Number(raw.replace(",", "."));
+    if (!isFinite(n)) return raw;
+    return n.toFixed(1).replace(/\.0$/, "");
+}
+
+function pastGamesParseStints(stintsText) {
+    if (!stintsText) return [];
+    var parts = String(stintsText).split("|");
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+        var item = parts[i].trim();
+        if (item) out.push(item);
+    }
+    return out;
+}
+
+function pastGamesMinutesSeries(playersMinutes) {
+    var rows = [];
+    for (var i = 0; i < (playersMinutes || []).length; i++) {
+        var p = playersMinutes[i] || {};
+        var raw = String(p.minutes == null ? "" : p.minutes).trim();
+        var n = Number(raw.replace(",", "."));
+        if (!isFinite(n)) n = 0;
+        rows.push({
+            name: String(p.name || "Atleta"),
+            minutes: n,
+        });
+    }
+    rows.sort(function (a, b) { return b.minutes - a.minutes; });
+    return rows;
+}
+
 function goPastGames() {
     if (typeof destroyAcompanhamentoCharts === "function") destroyAcompanhamentoCharts();
     state.currentScreen = "pastGames";
@@ -173,6 +208,25 @@ function pastGamesOpenDetail(base, gameId) {
 
             var pm = d.playersMinutes || [];
             if (pm.length) {
+                var minuteRows = pastGamesMinutesSeries(pm);
+                var maxMinutes = 0;
+                for (var pmx = 0; pmx < minuteRows.length; pmx++) {
+                    if (minuteRows[pmx].minutes > maxMinutes) maxMinutes = minuteRows[pmx].minutes;
+                }
+                html += "<h3 class=\"chart-title\" style=\"margin:1rem 0 0.5rem;\">Minutos por atleta</h3>";
+                html += '<p class="item-sub" style="margin-bottom:0.6rem;">Visual rápido do tempo total em quadra.</p>';
+                html += '<div style="display:grid;gap:0.35rem;margin-bottom:0.9rem;">';
+                for (var mb = 0; mb < minuteRows.length; mb++) {
+                    var bar = minuteRows[mb];
+                    var width = maxMinutes > 0 ? Math.max(4, (bar.minutes / maxMinutes) * 100) : 4;
+                    html += '<div style="display:grid;grid-template-columns:minmax(120px,180px) 1fr auto;gap:0.5rem;align-items:center;">';
+                    html += '<div style="font-size:0.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + pastGamesEsc(bar.name) + "</div>";
+                    html += '<div style="height:12px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;"><div style="height:100%;width:' + pastGamesEsc(width.toFixed(1)) + '%;background:linear-gradient(90deg,rgba(254,236,2,.65),rgba(254,236,2,.95));"></div></div>';
+                    html += '<div style="font-size:0.82rem;font-weight:700;min-width:42px;text-align:right;">' + pastGamesEsc(pastGamesFmtMinLabel(bar.minutes)) + "m</div>";
+                    html += "</div>";
+                }
+                html += "</div>";
+
                 html += "<h4 style=\"margin:0.75rem 0 0.35rem;font-size:0.95rem;\">Minutos (aba Jogos)</h4>";
                 html += '<ul style="margin:0;padding-left:1.1rem;font-size:0.88rem;">';
                 for (var j = 0; j < pm.length; j++) {
@@ -181,10 +235,81 @@ function pastGamesOpenDetail(base, gameId) {
                         "<li>" +
                         pastGamesEsc(p.name) +
                         " — " +
-                        pastGamesEsc(p.minutes) +
+                        pastGamesEsc(pastGamesFmtMinLabel(p.minutes)) +
                         " min</li>";
                 }
                 html += "</ul>";
+            }
+
+            var logs = d.logs || [];
+            var gameEventCountByPlayerId = {};
+            for (var lg = 0; lg < logs.length; lg++) {
+                var logItem = logs[lg] || {};
+                var evt = String(logItem.event || "").toLowerCase();
+                if (evt === "entrada" || evt === "saída" || evt === "saida") continue;
+                var pid = String(logItem.playerId || "");
+                if (!pid) continue;
+                gameEventCountByPlayerId[pid] = (gameEventCountByPlayerId[pid] || 0) + 1;
+            }
+
+            if (elenco.length) {
+                html += "<h3 class=\"chart-title\" style=\"margin:1.1rem 0 0.5rem;\">Consulta rápida por atleta</h3>";
+                html += '<p class="item-sub" style="margin-bottom:0.75rem;">Entradas, momento de entrada/saída, eventos e tempo total em quadra.</p>';
+                html += '<div style="display:grid;gap:0.65rem;">';
+                for (var ec = 0; ec < elenco.length; ec++) {
+                    var eCard = elenco[ec] || {};
+                    var stints = pastGamesParseStints(eCard.stintsDetail);
+                    var entryCount = eCard.entryCount || String(stints.length || 0);
+                    var evCount = gameEventCountByPlayerId[String(eCard.playerId || "")] || 0;
+                    html += '<div style="border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:0.7rem 0.8rem;background:rgba(255,255,255,.03);">';
+                    html += '<div style="display:flex;justify-content:space-between;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
+                    html += '<strong style="font-size:0.95rem;">' + pastGamesEsc(eCard.name || "Atleta") + ' <span style="opacity:.7;">#' + pastGamesEsc(eCard.number || "—") + "</span></strong>";
+                    html += '<span style="font-size:0.8rem;opacity:.8;">Tempo total: <strong>' + pastGamesEsc(eCard.totalOnField || "0:00") + "</strong></span>";
+                    html += "</div>";
+                    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.35rem;margin-top:0.5rem;">';
+                    html += '<div style="padding:0.4rem;border-radius:8px;background:rgba(254,236,2,.08);font-size:0.83rem;">Entradas: <strong>' + pastGamesEsc(entryCount) + "</strong></div>";
+                    html += '<div style="padding:0.4rem;border-radius:8px;background:rgba(255,255,255,.06);font-size:0.83rem;">Eventos: <strong>' + pastGamesEsc(evCount) + "</strong></div>";
+                    html += '<div style="padding:0.4rem;border-radius:8px;background:rgba(255,255,255,.06);font-size:0.83rem;">Banco: <strong>' + pastGamesEsc(eCard.bench || "0:00") + "</strong></div>";
+                    html += "</div>";
+                    html += '<div style="margin-top:0.45rem;font-size:0.8rem;opacity:.95;">Posições: ' + pastGamesEsc(eCard.positionBreakdown || "—") + "</div>";
+                    if (stints.length) {
+                        html += '<div style="margin-top:0.45rem;font-size:0.82rem;"><strong>Quando entrou/saiu:</strong><ul style="margin:0.35rem 0 0;padding-left:1rem;">';
+                        for (var si = 0; si < stints.length; si++) {
+                            html += "<li>" + pastGamesEsc(stints[si]) + "</li>";
+                        }
+                        html += "</ul></div>";
+                    } else {
+                        html += '<div style="margin-top:0.45rem;font-size:0.82rem;opacity:.8;">Sem permanências registradas.</div>';
+                    }
+                    html += "</div>";
+                }
+                html += "</div>";
+            }
+
+            if (logs.length) {
+                html += "<h3 class=\"chart-title\" style=\"margin:1.1rem 0 0.5rem;\">Linha do tempo de eventos</h3>";
+                html += '<p class="item-sub" style="margin-bottom:0.75rem;">Todas as entradas, saídas e eventos do jogo.</p>';
+                html += '<div style="max-height:340px;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:12px;">';
+                html += '<table class="past-table" style="width:100%;border-collapse:collapse;font-size:0.84rem;">';
+                html += "<thead><tr>";
+                html += '<th style="text-align:left;padding:0.45rem;border-bottom:1px solid rgba(255,255,255,.15)">Momento</th>';
+                html += '<th style="text-align:left;padding:0.45rem;border-bottom:1px solid rgba(255,255,255,.15)">Atleta</th>';
+                html += '<th style="text-align:left;padding:0.45rem;border-bottom:1px solid rgba(255,255,255,.15)">Ação</th>';
+                html += '<th style="text-align:left;padding:0.45rem;border-bottom:1px solid rgba(255,255,255,.15)">Posição</th>';
+                html += "</tr></thead><tbody>";
+                for (var li = 0; li < logs.length; li++) {
+                    var row = logs[li] || {};
+                    var playerLabel = (row.playerName || "—") + (row.number ? " #" + row.number : "");
+                    var actionLabel = row.event || "—";
+                    if (row.durationOut) actionLabel += " (" + row.durationOut + ")";
+                    html += "<tr>";
+                    html += '<td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap;">' + pastGamesEsc(row.minuteLabel || "—") + "</td>";
+                    html += '<td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,.08);">' + pastGamesEsc(playerLabel) + "</td>";
+                    html += '<td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,.08);">' + pastGamesEsc(actionLabel) + "</td>";
+                    html += '<td style="padding:0.4rem;border-bottom:1px solid rgba(255,255,255,.08);">' + pastGamesEsc(row.position || "—") + "</td>";
+                    html += "</tr>";
+                }
+                html += "</tbody></table></div>";
             }
 
             html +=
