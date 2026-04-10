@@ -30,6 +30,10 @@ function goHome(){
                             <i data-feather="list"></i>
                             <div>Lista de Treinos</div>
                         </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="openTrainingReportsExport()">
+                            <i data-feather="download"></i>
+                            <div>Exportar relatórios</div>
+                        </button>
                         ${showAcompanhamento ? `
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goAcompanhamento()">
                             <i data-feather="bar-chart-2"></i>
@@ -48,6 +52,10 @@ function goHome(){
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoJogoComSenha()">
                             <i data-feather="target"></i>
                             <div>Iniciar jogo</div>
+                        </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="openGameReportsExport()">
+                            <i data-feather="download-cloud"></i>
+                            <div>Exportar relatórios</div>
                         </button>
                         ${showAcompanhamento ? `
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="abrirDashTaticoComSenha()">
