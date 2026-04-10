@@ -1227,7 +1227,7 @@
           <button type="button" class="btnDurationMini" id="btnToggleDurationEdit" aria-expanded="false" aria-controls="durationPop">Tempos</button>
         </div>
         <div class="durationPop" id="durationPop" role="region" aria-label="Sincronizar tempo da partida">
-          <label class="durLab">Tempo já decorrido no jogo (sincronizar)</label>
+          <label class="durLab">Igual ao tempo do cronômetro principal (restante)</label>
           <div class="durRowFlex">
             <div class="durField">
               <label class="durLab" for="syncElapsedMinutes" style="margin-bottom:4px;">Minutos</label>
@@ -1239,7 +1239,7 @@
             </div>
           </div>
           <button type="button" class="btnPrimary" id="btnApplySyncElapsed" style="margin-top:8px;padding:8px 12px;font-size:12px;border-radius:12px;">Aplicar sincronização</button>
-          <p class="durHint" id="syncElapsedHint">Minutos (0–40) e segundos (0–59) para alinhar ao relógio do jogo. Disponível com a partida iniciada.</p>
+          <p class="durHint" id="syncElapsedHint">Minutos (0–40) e segundos (0–60): o valor aplicado é o que aparece no cronômetro grande (tempo restante da partida). Só com a partida iniciada.</p>
         </div>
         <div class="periodRules">
           <span class="kbd" id="kbdHalf1">1º tempo 20:00</span>
@@ -1661,6 +1661,8 @@
       matchEnded: false,
       elapsedMs: 0,      // 0..totalLenMs
       lastTick: 0,
+      /** true após fim do 1º tempo automático, até clicar "Iniciar 2º tempo" */
+      awaitingSecondHalfKickoff: false,
 
       selectedBenchPlayerId: null,
       draggingPlayerId: null,
@@ -2212,7 +2214,9 @@
     }
 
     function ensureSyncElapsedOptions(){
-      if (!syncElapsedMinutesEl || syncElapsedMinutesEl.options.length) return;
+      if (!syncElapsedMinutesEl) return;
+      if (syncElapsedMinutesEl.options.length === 41) return;
+      syncElapsedMinutesEl.innerHTML = "";
       for (let i = 0; i <= 40; i++) {
         const o = document.createElement("option");
         o.value = String(i);
@@ -2222,8 +2226,10 @@
     }
 
     function ensureSyncElapsedSecondsOptions(){
-      if (!syncElapsedSecondsEl || syncElapsedSecondsEl.options.length) return;
-      for (let i = 0; i <= 59; i++) {
+      if (!syncElapsedSecondsEl) return;
+      if (syncElapsedSecondsEl.options.length === 61) return;
+      syncElapsedSecondsEl.innerHTML = "";
+      for (let i = 0; i <= 60; i++) {
         const o = document.createElement("option");
         o.value = String(i);
         o.textContent = (i < 10 ? "0" : "") + i + " s";
@@ -2231,18 +2237,25 @@
       }
     }
 
+    /** Tempo restante exibido no cronômetro grande (MM:SS até o fim da partida). */
+    function matchMainClockRemainingMs(){
+      return Math.max(0, state.totalLenMs - state.elapsedMs);
+    }
+
     function syncElapsedSelectFromState(){
       ensureSyncElapsedOptions();
       ensureSyncElapsedSecondsOptions();
       if (!syncElapsedMinutesEl) return;
-      const totalSec = Math.floor(Math.max(0, state.elapsedMs) / 1000);
-      let m = Math.floor(totalSec / 60);
-      let s = totalSec % 60;
+      const remMs = matchMainClockRemainingMs();
+      const remSec = Math.floor(remMs / 1000);
+      let m = Math.floor(remSec / 60);
+      let s = remSec % 60;
       if (!isFinite(m)) m = 0;
       if (!isFinite(s)) s = 0;
       m = Math.max(0, Math.min(40, m));
+      s = Math.max(0, Math.min(60, s));
       syncElapsedMinutesEl.value = String(m);
-      if (syncElapsedSecondsEl) syncElapsedSecondsEl.value = String(Math.max(0, Math.min(59, s)));
+      if (syncElapsedSecondsEl) syncElapsedSecondsEl.value = String(s);
     }
 
     function updateDurationPopSyncEnabled(){
@@ -2261,13 +2274,17 @@
       if (!isFinite(minutes)) return;
       if (!isFinite(seconds)) seconds = 0;
       minutes = Math.max(0, Math.min(40, minutes));
-      seconds = Math.max(0, Math.min(59, seconds));
-      let elapsed = minutes * MIN + seconds * MS;
-      state.elapsedMs = Math.min(elapsed, state.totalLenMs);
+      seconds = Math.max(0, Math.min(60, seconds));
+      let remSec = minutes * 60 + seconds;
+      const maxSec = Math.floor(state.totalLenMs / 1000);
+      remSec = Math.min(remSec, maxSec);
+      state.elapsedMs = state.totalLenMs - remSec * MS;
+      state.elapsedMs = Math.max(0, Math.min(state.totalLenMs, state.elapsedMs));
+      state.awaitingSecondHalfKickoff = false;
       updateTimersUI();
       updateFilledUI();
       renderLog();
-      if (state.running && !state.matchEnded) saveCampinState();
+      if (state.started && !state.matchEnded) saveCampinState();
       scheduleDebouncedLiveSync(true);
       if (durationPopEl) durationPopEl.classList.remove("is-open");
       if (btnToggleDurationEdit) btnToggleDurationEdit.setAttribute("aria-expanded", "false");
@@ -2335,6 +2352,8 @@
 
       if(!state.started){
         btnStartPauseText.textContent = "Iniciar jogo";
+      }else if (state.awaitingSecondHalfKickoff){
+        btnStartPauseText.textContent = "Iniciar 2º tempo";
       }else{
         btnStartPauseText.textContent = state.running ? "Pausar" : "Retomar";
       }
@@ -2464,6 +2483,37 @@
       }
       p.onField = false;
       logEvent("OUT", playerId, posId, dur != null ? { durationMs: dur } : {});
+    }
+
+    /** Intervalo: esvazia a quadra (todos ao banco), depois o técnico remonta o 5 para o 2º tempo. */
+    function clearFieldAllPlayersToBench(){
+      const keys = Object.keys(state.posToPlayer);
+      for (let i = 0; i < keys.length; i++) {
+        const posId = keys[i];
+        const pid = state.posToPlayer[posId];
+        if (pid) {
+          playerOut(pid, posId);
+          state.posToPlayer[posId] = null;
+        }
+      }
+      setSelectedBench(null);
+    }
+
+    function beginSecondHalfAndResume(){
+      if (!state.started || state.matchEnded || !state.awaitingSecondHalfKickoff) return;
+      clearFieldAllPlayersToBench();
+      state.elapsedMs = Math.min(state.elapsedMs, state.totalLenMs);
+      if (state.elapsedMs < state.halfLenMs) state.elapsedMs = state.halfLenMs;
+      state.awaitingSecondHalfKickoff = false;
+      state.running = true;
+      state.lastTick = performance.now();
+      renderPositions();
+      renderBench();
+      renderLog();
+      updateFilledUI();
+      updateTimersUI();
+      scheduleDebouncedLiveSync(true);
+      saveCampinState();
     }
 
     function playerIn(playerId, posId){
@@ -2659,7 +2709,8 @@
           halfLenMs: state.halfLenMs,
           totalLenMs: state.totalLenMs,
           handMode: state.handMode === "canhoto" ? "canhoto" : "destro",
-          gameId: state.gameId || null
+          gameId: state.gameId || null,
+          awaitingSecondHalfKickoff: !!state.awaitingSecondHalfKickoff
         };
         localStorage.setItem(CAMPIN_STATE_KEY, JSON.stringify(payload));
       } catch(e) {}
@@ -2705,6 +2756,7 @@
           state.totalLenMs = 2 * state.halfLenMs;
         state.handMode = payload.handMode === "canhoto" ? "canhoto" : "destro";
         state.gameId = payload.gameId || null;
+        state.awaitingSecondHalfKickoff = !!payload.awaitingSecondHalfKickoff;
         if (state.started && !state.gameId) {
           state.gameId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now());
         }
@@ -2729,6 +2781,7 @@
         state.running = true;
         state.elapsedMs = 0;
         state.lastTick = performance.now();
+        state.awaitingSecondHalfKickoff = false;
 
         // register initial IN events (already handled if you placed players)
         // But we only want events from substitutions after start?
@@ -2800,6 +2853,7 @@
       }
 
       state.matchEnded = true;
+      state.awaitingSecondHalfKickoff = false;
       setGameInProgress(false);
       try { localStorage.removeItem(CAMPIN_STATE_KEY); } catch(e) {}
       updateTimersUI();
@@ -2941,11 +2995,11 @@
           }
         }
 
-        // halftime auto-pause exactly at 20:00 elapsed
+        // halftime auto-pause no fim do 1º tempo
         if(prevElapsed < state.halfLenMs && state.elapsedMs >= state.halfLenMs){
           state.running = false;
-          btnStartPauseText.textContent = "Iniciar 2º tempo";
-          updateStartPauseLabelStyle();
+          state.awaitingSecondHalfKickoff = true;
+          updateFilledUI();
           scheduleDebouncedLiveSync(true);
         }
 
@@ -2964,13 +3018,8 @@
        Events: Setup + Buttons
     ========================== */
     btnStartPause.addEventListener("click", ()=>{
-      // If match started and currently paused at halftime, pressing should resume 2nd half
-      if(state.started && !state.running && state.elapsedMs >= state.halfLenMs && state.elapsedMs < state.totalLenMs){
-        state.running = true;
-        state.lastTick = performance.now();
-        btnStartPauseText.textContent = "Pausar";
-        updateFilledUI();
-        scheduleDebouncedLiveSync();
+      if (state.started && state.awaitingSecondHalfKickoff) {
+        beginSecondHalfAndResume();
         return;
       }
       startOrToggle();
