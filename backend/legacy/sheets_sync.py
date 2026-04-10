@@ -51,7 +51,7 @@ class SheetsSync:
         worksheet = self._get_or_create_worksheet("Jogadores")
         header = [
             "ID", "Nome", "Número", "Posição", "Lateralidade",
-            "Idade", "Altura (cm)", "Peso (kg)", "Foto (URL)",
+            "Idade", "Altura (cm)", "Peso (kg)", "Categoria", "Foto (URL)",
         ]
         rows = [header]
         if players:
@@ -67,6 +67,7 @@ class SheetsSync:
                     self._str(player.get("age")),
                     self._str(player.get("height")),
                     self._str(player.get("weight")),
+                    self._str(player.get("categoria")),
                     photo_str,
                 ])
         self._update_worksheet_batch(worksheet, rows)
@@ -119,7 +120,15 @@ class SheetsSync:
         age = safe_int(5) if len(row) > 5 else None
         height = safe_int(6) if len(row) > 6 else None
         weight = safe_float(7) if len(row) > 7 else None
-        photo_raw = self._str(row[8]).strip() if len(row) > 8 else ""
+
+        categoria_raw = ""
+        photo_raw = ""
+        if len(row) > 9:
+            categoria_raw = self._str(row[8]).strip()
+            photo_raw = self._str(row[9]).strip() if len(row) > 9 else ""
+        elif len(row) > 8:
+            photo_raw = self._str(row[8]).strip()
+
         photo = photo_raw if photo_raw else None
 
         out: Dict[str, Any] = {
@@ -135,6 +144,8 @@ class SheetsSync:
             out["height"] = height
         if weight is not None:
             out["weight"] = weight
+        if categoria_raw:
+            out["categoria"] = categoria_raw
         if photo:
             out["photo"] = photo
         return out

@@ -2,13 +2,36 @@
    🖥️ TELA: SELECIONAR JOGADORES PARA O TREINO
    =========================== */
 
+function setRosterCategoriaFilter(cat) {
+    if (cat !== ROSTER_CATEGORIA_PRO && cat !== ROSTER_CATEGORIA_SUB20) return;
+    state.rosterCategoriaFilter = cat;
+    const visibleIds = new Set(
+        loadPlayers()
+            .filter(function (p) {
+                return playerMatchesRosterCategoria(p, cat);
+            })
+            .map(function (p) {
+                return p.id;
+            })
+    );
+    state.selectedPlayerIds = (state.selectedPlayerIds || []).filter(function (id) {
+        return visibleIds.has(id);
+    });
+    goSelectPlayers();
+}
+
 function goSelectPlayers(){
     state.currentScreen = "selectPlayers";
     setHeaderModeLabel(state.currentMode==="pre"?"Pré Treino":"Pós Treino");
 
-    const players = loadPlayers();
+    if (!state.rosterCategoriaFilter) state.rosterCategoriaFilter = ROSTER_CATEGORIA_PRO;
+
+    const allPlayers = loadPlayers();
+    const players = allPlayers.filter(function (p) {
+        return playerMatchesRosterCategoria(p, state.rosterCategoriaFilter);
+    });
     
-    if(players.length === 0){
+    if(allPlayers.length === 0){
         renderScreen(`
             <div class="center-flex-col">
                 <div class="back-row" style="width:100%;justify-content:flex-start;">
@@ -29,6 +52,30 @@ function goSelectPlayers(){
             </div>
         `);
         updateSettingsButtonVisibility();
+        return;
+    }
+
+    if (players.length === 0) {
+        renderScreen(`
+            <div class="player-list-wrapper">
+                <div class="back-row">
+                    <button class="back-btn" onclick="goChooseMode()">
+                        <i data-feather="arrow-left"></i>
+                        <span>Voltar</span>
+                    </button>
+                    <div>
+                        <div class="screen-title">Selecionar Jogadores</div>
+                        <div class="screen-sub">Nenhum jogador nesta categoria. Troque para Profissional ou Sub-20.</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:1rem 0;">
+                    <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_PRO ? "selected" : ""}" onclick="setRosterCategoriaFilter(ROSTER_CATEGORIA_PRO)">Profissional</button>
+                    <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_SUB20 ? "selected" : ""}" onclick="setRosterCategoriaFilter(ROSTER_CATEGORIA_SUB20)">Sub-20</button>
+                </div>
+            </div>
+        `);
+        updateSettingsButtonVisibility();
+        try { feather.replace(); } catch (e) {}
         return;
     }
 
@@ -71,6 +118,12 @@ function goSelectPlayers(){
                 </div>
             </div>
 
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.75rem;align-items:center;">
+                <span style="font-size:0.9rem;color:var(--text-dim);width:100%;">Categoria do plantel</span>
+                <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_PRO ? "selected" : ""}" onclick="setRosterCategoriaFilter(ROSTER_CATEGORIA_PRO)">Profissional</button>
+                <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_SUB20 ? "selected" : ""}" onclick="setRosterCategoriaFilter(ROSTER_CATEGORIA_SUB20)">Sub-20</button>
+            </div>
+
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
                 <button class="small-solid-btn" onclick="selectAllPlayers()">
                     ${allSelected ? 'Desselecionar Todos' : 'Selecionar Todos'}
@@ -90,6 +143,7 @@ function goSelectPlayers(){
     `);
     
     updateSettingsButtonVisibility();
+    try { feather.replace(); } catch (e) {}
 }
 
 function togglePlayer(playerId){
@@ -103,14 +157,14 @@ function togglePlayer(playerId){
 }
 
 function selectAllPlayers(){
-    const players = loadPlayers();
-    const allSelected = state.selectedPlayerIds.length === players.length;
+    const players = loadPlayers().filter(function (p) {
+        return playerMatchesRosterCategoria(p, state.rosterCategoriaFilter);
+    });
+    const allSelected = state.selectedPlayerIds.length === players.length && players.length > 0;
     
     if(allSelected){
-        // Desselecionar todos
         state.selectedPlayerIds = [];
     } else {
-        // Selecionar todos
         state.selectedPlayerIds = players.map(p => p.id);
     }
     

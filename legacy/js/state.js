@@ -17,7 +17,9 @@ let state = {
         pre: [],
         post: []
     },
-    settingsTab: "questionsPre"     // questionsPre | questionsPost | data
+    settingsTab: "questionsPre",     // questionsPre | questionsPost | data
+    /** Plantel no pré/pós treino: profissional | sub20 */
+    rosterCategoriaFilter: "profissional"
 };
 
 // Ao iniciar rodada de coleta, pendingByMode[mode] recebe os jogadores selecionados

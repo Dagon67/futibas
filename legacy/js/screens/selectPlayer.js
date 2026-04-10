@@ -8,7 +8,10 @@ function goSelectPlayer(mode){
     state.currentPlayerId = null;
     setHeaderModeLabel(mode==="pre"?"Pré Treino":"Pós Treino");
 
-    const players = loadPlayers();
+    const sel = state.selectedPlayerIds || [];
+    const players = loadPlayers().filter(function (p) {
+        return sel.indexOf(p.id) >= 0;
+    });
     const pending = state.pendingByMode[mode]; // ids restantes
     
     // Tela sem botão Voltar: só sai quando todos responderem e clicarem em Iniciar Treino

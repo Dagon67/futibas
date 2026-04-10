@@ -32,6 +32,7 @@ function sairJogadoresComSenha() {
 function buildPlayerListRowHTML(p) {
     const position = p.position || "Não definida";
     const number = p.number ? `#${p.number}` : "";
+    var catLbl = typeof categoriaDisplayLabel === "function" ? categoriaDisplayLabel(p) : "";
     const idEsc = String(p.id).replace(/'/g, "\\'");
     const thumb =
         typeof playerAvatarThumbHTML === "function"
@@ -45,7 +46,7 @@ function buildPlayerListRowHTML(p) {
                         ${p.name} ${number}
                     </div>
                     <div class="item-sub">
-                        Posição: ${position}${p.lateralidade ? ` • ${p.lateralidade}` : ''}${p.age ? ` • Idade: ${p.age}` : ''}${p.height ? ` • Altura: ${p.height}cm` : ''}
+                        Posição: ${position}${catLbl ? ` • ${catLbl}` : ""}${p.lateralidade ? ` • ${p.lateralidade}` : ''}${p.age ? ` • Idade: ${p.age}` : ''}${p.height ? ` • Altura: ${p.height}cm` : ''}
                     </div>
                 </div>
                 <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
@@ -117,6 +118,14 @@ function goPlayers(){
                                     </div>
                                 </div>
                                 <div class="inline-form-row">
+                                    <div class="label-col">
+                                        <label>Categoria *</label>
+                                        <select id="newPlayerCategoria">
+                                            <option value="">Selecione...</option>
+                                            <option value="profissional">Profissional</option>
+                                            <option value="sub20">Sub-20</option>
+                                        </select>
+                                    </div>
                                     <div class="label-col">
                                         <label>Destro / Canhoto</label>
                                         <select id="newPlayerLateralidade">
@@ -314,6 +323,7 @@ async function addPlayerFromList(){
     const numberInput = document.getElementById("newPlayerNumber");
     const positionInput = document.getElementById("newPlayerPosition");
     const lateralidadeInput = document.getElementById("newPlayerLateralidade");
+    const categoriaInput = document.getElementById("newPlayerCategoria");
     const ageInput = document.getElementById("newPlayerAge");
     const heightInput = document.getElementById("newPlayerHeight");
     const weightInput = document.getElementById("newPlayerWeight");
@@ -321,6 +331,7 @@ async function addPlayerFromList(){
     const name = nameInput.value.trim();
     const position = positionInput.value.trim();
     const lateralidade = lateralidadeInput ? lateralidadeInput.value.trim() : null;
+    const categoria = categoriaInput ? categoriaInput.value.trim() : "";
     
     if(!name){
         alert("Digite o nome do jogador.");
@@ -330,12 +341,17 @@ async function addPlayerFromList(){
         alert("Selecione a posição do jogador.");
         return;
     }
+    if (!categoria || (categoria !== "profissional" && categoria !== "sub20")) {
+        alert("Selecione a categoria (Profissional ou Sub-20).");
+        return;
+    }
     
     const players = loadPlayers();
     const newPlayer = {
         id: uid(),
         name,
         position,
+        categoria,
         lateralidade: lateralidade || null,
         number: numberInput.value ? parseInt(numberInput.value) : null,
         age: ageInput.value ? parseInt(ageInput.value) : null,
@@ -388,6 +404,7 @@ async function addPlayerFromList(){
     numberInput.value = "";
     positionInput.value = "";
     if(lateralidadeInput) lateralidadeInput.value = "";
+    if (categoriaInput) categoriaInput.value = "";
     ageInput.value = "";
     heightInput.value = "";
     weightInput.value = "";
@@ -421,6 +438,11 @@ function editPlayer(id){
     document.getElementById("newPlayerPosition").value = player.position || "";
     var latEl = document.getElementById("newPlayerLateralidade");
     if(latEl) latEl.value = player.lateralidade || "";
+    var catEl = document.getElementById("newPlayerCategoria");
+    if (catEl) {
+        var nc = typeof normalizePlayerCategoria === "function" ? normalizePlayerCategoria(player) : "";
+        catEl.value = nc === ROSTER_CATEGORIA_SUB20 ? "sub20" : nc === ROSTER_CATEGORIA_PRO ? "profissional" : "";
+    }
     document.getElementById("newPlayerAge").value = player.age || "";
     document.getElementById("newPlayerHeight").value = player.height || "";
     document.getElementById("newPlayerWeight").value = player.weight || "";
@@ -443,6 +465,7 @@ async function savePlayerEdit(oldId){
     const numberInput = document.getElementById("newPlayerNumber");
     const positionInput = document.getElementById("newPlayerPosition");
     const lateralidadeInput = document.getElementById("newPlayerLateralidade");
+    const categoriaInput = document.getElementById("newPlayerCategoria");
     const ageInput = document.getElementById("newPlayerAge");
     const heightInput = document.getElementById("newPlayerHeight");
     const weightInput = document.getElementById("newPlayerWeight");
@@ -450,6 +473,7 @@ async function savePlayerEdit(oldId){
     const name = nameInput.value.trim();
     const position = positionInput.value.trim();
     const lateralidade = lateralidadeInput ? lateralidadeInput.value.trim() : null;
+    const categoria = categoriaInput ? categoriaInput.value.trim() : "";
     
     if(!name){
         alert("Digite o nome do jogador.");
@@ -457,6 +481,10 @@ async function savePlayerEdit(oldId){
     }
     if(!position){
         alert("Selecione a posição do jogador.");
+        return;
+    }
+    if (!categoria || (categoria !== "profissional" && categoria !== "sub20")) {
+        alert("Selecione a categoria (Profissional ou Sub-20).");
         return;
     }
     
@@ -468,6 +496,7 @@ async function savePlayerEdit(oldId){
             id: oldId,
             name,
             position,
+            categoria,
             lateralidade: lateralidade || null,
             number: numberInput.value ? parseInt(numberInput.value) : null,
             age: ageInput.value ? parseInt(ageInput.value) : null,
@@ -520,6 +549,7 @@ async function savePlayerEdit(oldId){
     numberInput.value = "";
     positionInput.value = "";
     if(lateralidadeInput) lateralidadeInput.value = "";
+    if (categoriaInput) categoriaInput.value = "";
     ageInput.value = "";
     heightInput.value = "";
     weightInput.value = "";

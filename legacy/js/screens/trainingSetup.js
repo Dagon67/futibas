@@ -5,6 +5,7 @@
 function goTrainingSetup(){
     state.currentScreen = "trainingSetup";
     setHeaderModeLabel("Novo Treino");
+    if (!state.rosterCategoriaFilter) state.rosterCategoriaFilter = ROSTER_CATEGORIA_PRO;
     
     const now = luxon.DateTime.now().setLocale('pt-BR');
     const currentDate = now.toFormat("dd/MM/yyyy");
@@ -41,6 +42,23 @@ function goTrainingSetup(){
                     <input type="date" id="training-date" value="${now.toFormat('yyyy-MM-dd')}" style="font-size:var(--touch-font-md);">
                     <div style="margin-top:0.5rem;color:var(--text-dim);font-size:var(--touch-font-md);">
                         ${capitalizedDay}, ${currentDate}
+                    </div>
+                </div>
+                
+                <!-- Categoria (filtra jogadores no pré/pós) -->
+                <div class="label-col">
+                    <label>Categoria do plantel</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.5rem;">
+                        <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_PRO ? 'selected' : ''}" 
+                            data-roster-cat="${ROSTER_CATEGORIA_PRO}"
+                            onclick="selectTrainingRosterCategoria('${ROSTER_CATEGORIA_PRO}')">
+                            <div>Profissional</div>
+                        </button>
+                        <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_SUB20 ? 'selected' : ''}" 
+                            data-roster-cat="${ROSTER_CATEGORIA_SUB20}"
+                            onclick="selectTrainingRosterCategoria('${ROSTER_CATEGORIA_SUB20}')">
+                            <div>Sub-20</div>
+                        </button>
                     </div>
                 </div>
                 
@@ -81,6 +99,14 @@ function goTrainingSetup(){
     
     updateSettingsButtonVisibility();
     feather.replace();
+}
+
+function selectTrainingRosterCategoria(cat) {
+    if (cat !== ROSTER_CATEGORIA_PRO && cat !== ROSTER_CATEGORIA_SUB20) return;
+    state.rosterCategoriaFilter = cat;
+    document.querySelectorAll("[data-roster-cat]").forEach(function (btn) {
+        btn.classList.toggle("selected", btn.getAttribute("data-roster-cat") === cat);
+    });
 }
 
 function selectPeriod(period){

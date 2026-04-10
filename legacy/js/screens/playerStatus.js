@@ -47,6 +47,7 @@ function viewPlayerStatus(playerId){
             <div class="item-main">
                 <div class="item-title" style="font-size:var(--touch-font-lg);">${player.name}</div>
                 <div class="item-sub">
+                    ${typeof categoriaDisplayLabel === "function" && categoriaDisplayLabel(player) ? `Categoria: ${categoriaDisplayLabel(player)} • ` : ""}
                     ${player.position ? `Posição: ${player.position}` : ''}
                     ${player.lateralidade ? ` • ${player.lateralidade}` : ''}
                     ${player.number ? ` • Número: #${player.number}` : ''}

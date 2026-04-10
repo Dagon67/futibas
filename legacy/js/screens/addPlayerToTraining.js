@@ -14,15 +14,17 @@ function goSelectPlayerForTraining(trainingId){
         return;
     }
 
+    if (!state.rosterCategoriaFilter) state.rosterCategoriaFilter = ROSTER_CATEGORIA_PRO;
+
     const players = loadPlayers();
     const responses = training.responses || [];
     
     // IDs dos jogadores que já responderam
     const respondedPlayerIds = responses.map(r => r.playerId);
     
-    // Filtrar TODOS os jogadores cadastrados que NÃO responderam ao treino
-    // (mesmo que não tenham sido selecionados inicialmente)
-    const availablePlayers = players.filter(p => !respondedPlayerIds.includes(p.id));
+    const availablePlayers = players.filter(function (p) {
+        return !respondedPlayerIds.includes(p.id) && playerMatchesRosterCategoria(p, state.rosterCategoriaFilter);
+    });
     
     if(availablePlayers.length === 0){
         alert("Todos os jogadores já responderam este treino.");
@@ -66,6 +68,11 @@ function goSelectPlayerForTraining(trainingId){
                 </div>
             </div>
 
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+                <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_PRO ? "selected" : ""}" onclick="setRosterCategoriaFilterAndReloadAddPlayer('${trainingId}','${ROSTER_CATEGORIA_PRO}')">Profissional</button>
+                <button type="button" class="period-btn ${state.rosterCategoriaFilter === ROSTER_CATEGORIA_SUB20 ? "selected" : ""}" onclick="setRosterCategoriaFilterAndReloadAddPlayer('${trainingId}','${ROSTER_CATEGORIA_SUB20}')">Sub-20</button>
+            </div>
+
             <div class="player-grid">
                 ${playerCardsHTML}
             </div>
@@ -74,6 +81,11 @@ function goSelectPlayerForTraining(trainingId){
     
     updateSettingsButtonVisibility();
     feather.replace();
+}
+
+function setRosterCategoriaFilterAndReloadAddPlayer(trainingId, cat) {
+    state.rosterCategoriaFilter = cat;
+    goSelectPlayerForTraining(trainingId);
 }
 
 function addPlayerToTraining(trainingId, playerId){

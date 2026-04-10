@@ -46,7 +46,11 @@ function selectMode(mode){
             alert("Erro ao carregar jogadores. Tente novamente.");
             return;
         }
-        state.selectedPlayerIds = players.map(p => p.id);
+        if (players.length === 0) {
+            alert("Cadastre jogadores em Jogadores antes de iniciar um treino.");
+            return;
+        }
+        state.selectedPlayerIds = [];
 
         const trainingId = uid();
         const now = luxon.DateTime.now();
@@ -60,7 +64,7 @@ function selectMode(mode){
             datetime: now.toISO(),
             mode: mode,
             period: state.trainingPeriod || null,
-            playerIds: [...state.selectedPlayerIds],
+            playerIds: [],
             responses: []
         };
         var trainings = loadTrainings();
@@ -86,7 +90,7 @@ function selectMode(mode){
         delete state.trainingPeriod;
 
         resetPendingForMode(mode);
-        goSelectPlayer(mode);
+        goSelectPlayers();
     } catch (err) {
         console.error("Erro ao criar treino:", err);
         alert("Erro ao criar treino: " + (err.message || err));
