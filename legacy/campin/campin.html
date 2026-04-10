@@ -112,6 +112,11 @@
       border-radius: 18px;
     }
     .mainActions #btnStartPause .ico{ width: 32px; height: 32px; }
+    #btnStartPauseText{
+      transition: color .2s ease;
+    }
+    #btnStartPauseText.btnTimerLabel--play{ color: #4ade80; }
+    #btnStartPauseText.btnTimerLabel--pause{ color: #fb7185; }
     .mainActions .btnFullscreen{
       min-height: 48px;
       padding: 10px 14px;
@@ -214,9 +219,14 @@
     }
     .matchClock .big{
       font-variant-numeric: tabular-nums;
-      font-size: 18px;
+      font-size: 26px;
+      font-weight: 800;
       letter-spacing:.4px;
+      transition: color .2s ease;
     }
+    .matchClock .big.matchClock-big--running{ color: var(--good); }
+    .matchClock .big.matchClock-big--paused{ color: #f87171; }
+    .matchClock .big.matchClock-big--idle{ color: var(--text); }
     .matchClock .small{
       font-size: 12px;
       color: var(--muted);
@@ -302,7 +312,7 @@
     .rightColumn .matchClock{
       min-width: 0;
     }
-    .rightColumn .matchClock .big{ font-size: 22px; }
+    .rightColumn .matchClock .big{ font-size: 36px; }
 
     /* Segunda dobra: logs e informações (rolagem da página para ver) */
     .secondary{
@@ -674,11 +684,28 @@
       color: var(--muted);
       margin-bottom:4px;
     }
-    .durationPop input[type="number"]{
+    .durationPop input[type="number"],
+    .durationPop select{
       width:100%;
-      max-width:100px;
+      max-width:160px;
       padding:8px 10px;
       border-radius:12px;
+      font-size:13px;
+      font-weight:600;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.2);
+    }
+    .durationPop select:disabled,
+    .durationPop #btnApplySyncElapsed:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+    .durationPop .durSep{
+      margin:12px 0 8px;
+      padding-top:10px;
+      border-top:1px solid rgba(255,255,255,.1);
     }
     .durationPop .durHint{
       margin:6px 0 0;
@@ -1156,11 +1183,17 @@
           <span class="teamTag" id="campinTeamTag" title="">Time: —</span>
           <button type="button" class="btnDurationMini" id="btnToggleDurationEdit" aria-expanded="false" aria-controls="durationPop">Tempos</button>
         </div>
-        <div class="durationPop" id="durationPop" role="region" aria-label="Ajustar duração da partida">
-          <label class="durLab" for="halfMinutesEdit">Minutos por tempo (total = 2×)</label>
-          <input type="number" id="halfMinutesEdit" min="5" max="45" step="1" value="20" inputmode="numeric" />
-          <button type="button" class="btnPrimary" id="btnApplyMatchDuration" style="margin-top:8px;padding:8px 12px;font-size:12px;border-radius:12px;">Aplicar</button>
-          <p class="durHint">Use se perdeu o momento de pausar no intervalo ou fim. Com jogo em andamento, o relógio ajusta ao novo teto.</p>
+        <div class="durationPop" id="durationPop" role="region" aria-label="Sincronizar tempo e duração da partida">
+          <label class="durLab" for="syncElapsedMinutes">Tempo já decorrido no jogo (sincronizar)</label>
+          <select id="syncElapsedMinutes" aria-describedby="syncElapsedHint"></select>
+          <button type="button" class="btnPrimary" id="btnApplySyncElapsed" style="margin-top:8px;padding:8px 12px;font-size:12px;border-radius:12px;">Aplicar sincronização</button>
+          <p class="durHint" id="syncElapsedHint">Escolha de 0 a 40 minutos para alinhar o relógio ao jogo real (ex.: árbitro). Disponível com a partida iniciada.</p>
+          <div class="durSep">
+            <label class="durLab" for="halfMinutesEdit">Minutos por tempo (total = 2×)</label>
+            <input type="number" id="halfMinutesEdit" min="5" max="45" step="1" value="20" inputmode="numeric" />
+            <button type="button" class="btnPrimary" id="btnApplyMatchDuration" style="margin-top:8px;padding:8px 12px;font-size:12px;border-radius:12px;">Aplicar duração</button>
+            <p class="durHint">Com jogo em andamento, o relógio ajusta ao novo teto de cada tempo.</p>
+          </div>
         </div>
         <div class="periodRules">
           <span class="kbd" id="kbdHalf1">1º tempo 20:00</span>
@@ -1802,6 +1835,8 @@
     const btnToggleDurationEdit = document.getElementById("btnToggleDurationEdit");
     const halfMinutesEditEl = document.getElementById("halfMinutesEdit");
     const btnApplyMatchDuration = document.getElementById("btnApplyMatchDuration");
+    const syncElapsedMinutesEl = document.getElementById("syncElapsedMinutes");
+    const btnApplySyncElapsed = document.getElementById("btnApplySyncElapsed");
 
     const playerSelectOverlay = document.getElementById("playerSelectOverlay");
     const playerSelectListEl = document.getElementById("playerSelectList");
@@ -2102,6 +2137,47 @@
       el.title = t;
     }
 
+    function ensureSyncElapsedOptions(){
+      if (!syncElapsedMinutesEl || syncElapsedMinutesEl.options.length) return;
+      for (let i = 0; i <= 40; i++) {
+        const o = document.createElement("option");
+        o.value = String(i);
+        o.textContent = i + " min";
+        syncElapsedMinutesEl.appendChild(o);
+      }
+    }
+
+    function syncElapsedSelectFromState(){
+      ensureSyncElapsedOptions();
+      if (!syncElapsedMinutesEl) return;
+      let m = Math.round(state.elapsedMs / MIN);
+      if (!isFinite(m)) m = 0;
+      m = Math.max(0, Math.min(40, m));
+      syncElapsedMinutesEl.value = String(m);
+    }
+
+    function updateDurationPopSyncEnabled(){
+      ensureSyncElapsedOptions();
+      const ok = state.started && !state.matchEnded;
+      if (syncElapsedMinutesEl) syncElapsedMinutesEl.disabled = !ok;
+      if (btnApplySyncElapsed) btnApplySyncElapsed.disabled = !ok;
+    }
+
+    function applySyncElapsedFromSelect(){
+      if (!state.started || state.matchEnded || !syncElapsedMinutesEl) return;
+      let minutes = parseInt(syncElapsedMinutesEl.value, 10);
+      if (!isFinite(minutes)) return;
+      minutes = Math.max(0, Math.min(40, minutes));
+      state.elapsedMs = Math.min(minutes * MIN, state.totalLenMs);
+      updateTimersUI();
+      updateFilledUI();
+      renderLog();
+      if (state.running && !state.matchEnded) saveCampinState();
+      scheduleDebouncedLiveSync(true);
+      if (durationPopEl) durationPopEl.classList.remove("is-open");
+      if (btnToggleDurationEdit) btnToggleDurationEdit.setAttribute("aria-expanded", "false");
+    }
+
     function syncHalfMinutesInput(){
       if (!halfMinutesEditEl) return;
       const m = Math.round(state.halfLenMs / MIN);
@@ -2131,6 +2207,10 @@
       // match clock
       const remaining = Math.max(0, state.totalLenMs - state.elapsedMs);
       matchClockEl.textContent = msToClock(remaining);
+      matchClockEl.classList.remove("matchClock-big--running","matchClock-big--paused","matchClock-big--idle");
+      if (!state.started) matchClockEl.classList.add("matchClock-big--idle");
+      else if (state.running) matchClockEl.classList.add("matchClock-big--running");
+      else matchClockEl.classList.add("matchClock-big--paused");
 
       // half label
       const half = state.elapsedMs < state.halfLenMs ? 1 : 2;
@@ -2168,6 +2248,8 @@
         btnStartPause.disabled = true;
         if (btnQuickEvent) btnQuickEvent.style.display = "none";
         if (btnBackToMenu) btnBackToMenu.style.display = "";
+        updateStartPauseLabelStyle();
+        updateDurationPopSyncEnabled();
         return;
       }
 
@@ -2186,6 +2268,16 @@
       }else{
         btnStartPauseText.textContent = state.running ? "Pausar" : "Retomar";
       }
+      updateStartPauseLabelStyle();
+      updateDurationPopSyncEnabled();
+    }
+
+    function updateStartPauseLabelStyle(){
+      if (!btnStartPauseText) return;
+      btnStartPauseText.classList.remove("btnTimerLabel--play","btnTimerLabel--pause");
+      if (state.matchEnded) return;
+      if (state.started && state.running) btnStartPauseText.classList.add("btnTimerLabel--pause");
+      else btnStartPauseText.classList.add("btnTimerLabel--play");
     }
 
     function setSelectedBench(playerId){
@@ -2784,6 +2876,7 @@
         if(prevElapsed < state.halfLenMs && state.elapsedMs >= state.halfLenMs){
           state.running = false;
           btnStartPauseText.textContent = "Iniciar 2º tempo";
+          updateStartPauseLabelStyle();
           scheduleDebouncedLiveSync(true);
         }
 
@@ -2883,7 +2976,7 @@
 
       const dt = new Date(state.gameDatetimeISO);
       gameDatetimeSmallEl.textContent = isFinite(dt.getTime()) ? dt.toLocaleString("pt-BR") : "—";
-      matchClockEl.textContent = msToClock(state.totalLenMs);
+      updateTimersUI();
       updatePeriodRulesKbd();
       updateCampinTeamTag();
       syncHalfMinutesInput();
@@ -2896,10 +2989,16 @@
         const open = !durationPopEl.classList.contains("is-open");
         durationPopEl.classList.toggle("is-open", open);
         btnToggleDurationEdit.setAttribute("aria-expanded", open ? "true" : "false");
-        if (open) syncHalfMinutesInput();
+        if (open) {
+          ensureSyncElapsedOptions();
+          syncHalfMinutesInput();
+          syncElapsedSelectFromState();
+          updateDurationPopSyncEnabled();
+        }
       });
     }
     if (btnApplyMatchDuration) btnApplyMatchDuration.addEventListener("click", applyMatchDurationFromInput);
+    if (btnApplySyncElapsed) btnApplySyncElapsed.addEventListener("click", applySyncElapsedFromSelect);
 
     if (btnPlayerSelectConfirm) btnPlayerSelectConfirm.addEventListener("click", confirmPlayerSelection);
     if (btnPickAll) btnPickAll.addEventListener("click", function(){
@@ -3017,7 +3116,7 @@
         dtGameEl.value = new Date(now - tzOffset).toISOString().slice(0, 16);
       }
 
-      matchClockEl.textContent = msToClock(state.totalLenMs);
+      updateTimersUI();
       if (!state.gameDatetimeISO) gameDatetimeSmallEl.textContent = "—";
       updatePeriodRulesKbd();
       updateCampinTeamTag();
