@@ -85,6 +85,10 @@ function goHome(){
                     <input type="password" id="settingsPasswordInput" placeholder="Senha para acessar" class="settings-password-input" style="max-width:180px;padding:0.4rem 0.6rem;border-radius:var(--radius-md);border:2px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.3);color:var(--text-main);font-size:0.9rem;" />
                     <button type="button" class="small-solid-btn" onclick="openSettingsWithPassword()" style="padding:0.35rem 0.75rem;font-size:0.85rem;">Acessar configurações</button>
                 </div>
+                <button class="home-btn home-btn-secondary home-btn-logout" type="button" onclick="tutemFirebaseSignOut()" style="margin-top:1.25rem;">
+                    <i data-feather="log-out"></i>
+                    <div>Sair</div>
+                </button>
             </div>
         `;
 

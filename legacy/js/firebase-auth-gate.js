@@ -328,6 +328,7 @@ async function bootstrapJaraguaAppFirestoreIfNeeded() {
 
     if (!user) {
       window.__TUTEM_TENANT__ = null;
+      window.__tutemAppStarted = false;
       setAuthLoadingVisible(false);
       setFirebaseScreenVisible(true);
       setLockVisible(false);
@@ -432,6 +433,19 @@ async function bootstrapJaraguaAppFirestoreIfNeeded() {
       }
     });
   }
+
+  window.tutemFirebaseSignOut = async function () {
+    try {
+      if (window.dateTimeInterval) clearInterval(window.dateTimeInterval);
+    } catch (e) {}
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn(e);
+    }
+    const passClear = $("firebase-password");
+    if (passClear) passClear.value = "";
+  };
 
   // API global para os botões de seleção (admin)
   window.chooseTenantFromAdmin = async function (tenantId) {
