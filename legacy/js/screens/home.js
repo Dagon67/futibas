@@ -13,6 +13,18 @@ function goHome(){
 
     var showAcompanhamento = true;
 
+    var magnusBetaBtn = "";
+    try {
+        var tidHome = window.__TUTEM_TENANT__ && window.__TUTEM_TENANT__.tenantId;
+        if (tidHome === "magnus") {
+            magnusBetaBtn =
+                '<button class="home-btn home-btn-secondary" type="button" onclick="goMagnusBeta()">' +
+                '<i data-feather="mic"></i>' +
+                "<div>Beta</div>" +
+                "</button>";
+        }
+    } catch (eHome) {}
+
     var homeButtonsHtml = `
             <div class="home-buttons">
                 <div class="home-onfield-wrap">
@@ -53,6 +65,10 @@ function goHome(){
                             <i data-feather="target"></i>
                             <div>Iniciar jogo</div>
                         </button>
+                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goCampinUnfinishedGames()">
+                            <i data-feather="layers"></i>
+                            <div>Jogos inacabados</div>
+                        </button>
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="openGameReportsExport()">
                             <i data-feather="download-cloud"></i>
                             <div>Exportar relatórios</div>
@@ -77,6 +93,7 @@ function goHome(){
                     <i data-feather="users"></i>
                     <div>Jogadores</div>
                 </button>
+                ${magnusBetaBtn}
                 <button class="home-btn home-btn-secondary" type="button">
                     <i data-feather="settings"></i>
                     <div>Configurações</div>

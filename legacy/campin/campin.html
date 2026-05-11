@@ -1518,6 +1518,7 @@
       </div>
       <div class="modalBody" style="padding: 20px 16px;">
         <p style="margin:0; color: var(--muted); font-size: 14px;">Tem certeza que deseja encerrar o jogo?</p>
+        <p style="margin:12px 0 0; color: var(--muted); font-size: 13px; line-height:1.45;">Se o cronômetro ainda não tiver chegado ao fim, o relatório fica guardado em <b>Jogos inacabados</b> (menu OnField no início) para enviar à planilha quando a internet estiver melhor.</p>
       </div>
       <div class="modalFooter">
         <button id="btnConfirmEndCancel">Cancelar</button>
@@ -1572,6 +1573,7 @@
     </div>
   </div>
 
+  <script src="../js/campin-unfinished-storage.js"></script>
   <script src="../js/player-categoria.js"></script>
   <script>
     /* =========================
@@ -3134,6 +3136,8 @@
     function endMatch(){
       if(!state.started) return;
 
+      var endedBeforeFullTime = state.elapsedMs < state.totalLenMs;
+
       // ensure paused and close open stints at final time
       state.running = false;
       state.elapsedMs = Math.min(state.elapsedMs, state.totalLenMs);
@@ -3158,6 +3162,22 @@
       renderLog();
       flushLiveSyncImmediate();
       showReport();
+      if (endedBeforeFullTime && typeof tutemCampinUnfinished !== "undefined" && tutemCampinUnfinished.append) {
+        try {
+          var sheetsPayloadEarly = buildCampinSheetsGamePayload();
+          tutemCampinUnfinished.append({
+            storeId: String(sheetsPayloadEarly.gameId || "game") + "_" + Date.now(),
+            savedAt: new Date().toISOString(),
+            teamName: state.teamName || "",
+            gameDatetimeISO: state.gameDatetimeISO || "",
+            elapsedMs: state.elapsedMs,
+            totalLenMs: state.totalLenMs,
+            sheetSynced: false,
+            lastError: null,
+            sheetsPayload: sheetsPayloadEarly
+          });
+        } catch (eEarly) { /* ignore quota / parse */ }
+      }
       saveGameToSheets();
       updateFilledUI();
     }
@@ -3591,10 +3611,7 @@
       if (state.started && !state.matchEnded) saveCampinState();
     });
 
-    function saveGameToSheets(){
-      const base = getBackendUrl();
-      if (!base && !isMagnusMode()) return;
-
+    function buildCampinSheetsGamePayload(){
       var gameId = state.gameId || ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("game-" + Date.now()));
       if (!state.gameId) state.gameId = gameId;
       const logs = [];
@@ -3653,7 +3670,7 @@
         };
       });
 
-      const payload = {
+      return {
         gameId,
         datetime: state.gameDatetimeISO || new Date().toISOString(),
         teamName: state.teamName || "",
@@ -3663,6 +3680,12 @@
         playerSummaries,
         playerPositionTimes: playerPositionTimesRowsForSheets()
       };
+    }
+
+    function saveGameToSheets(){
+      const base = getBackendUrl();
+      const payload = buildCampinSheetsGamePayload();
+      var gameId = payload.gameId;
 
       // Magnus: não salvar no Sheets/backend. Mantém apenas local para não criar vínculo com planilha.
       if (isMagnusMode()) {
@@ -3672,6 +3695,8 @@
         console.log("MAGNUS: jogo salvo localmente (sem Sheets).");
         return;
       }
+
+      if (!base) return;
 
       fetch(base + "/games", {
         method: "POST",
