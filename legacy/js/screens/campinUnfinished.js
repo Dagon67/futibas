@@ -124,8 +124,10 @@ function goCampinUnfinishedGames() {
   var list = tutemCampinUnfinished.read();
   if (!list.length) {
     content.innerHTML =
-      '<p class="item-sub" style="padding:1rem;line-height:1.5;">Nenhum jogo guardado.<br/>' +
-      "No Campin, se encerrar o jogo antes do fim do tempo, o relatório aparece aqui para enviar à planilha quando a rede estiver estável.</p>";
+      '<div style="padding:1.25rem 1rem;line-height:1.55;">' +
+      '<p style="margin:0 0 10px;font-weight:800;font-size:1.08rem;">Nenhum jogo inacabado gravado</p>' +
+      '<p class="item-sub" style="margin:0;">Quando no Campin você encerrar o jogo antes do fim do cronômetro, o relatório aparece aqui para enviar à planilha quando a internet estiver melhor.</p>' +
+      "</div>";
     return;
   }
 
@@ -195,3 +197,5 @@ function goCampinUnfinishedGames() {
     if (window.feather && feather.replace) feather.replace();
   } catch (e2) {}
 }
+
+window.goCampinUnfinishedGames = goCampinUnfinishedGames;

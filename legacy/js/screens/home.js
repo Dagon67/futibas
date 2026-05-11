@@ -60,14 +60,15 @@ function goHome(){
                         <div>OnField</div>
                         <div class="home-onfield-chevron" aria-hidden="true"></div>
                     </button>
+                    <button type="button" class="home-btn home-btn-secondary home-onfield-item home-onfield-unfinished-btn" onclick="goCampinUnfinishedGames()">
+                        <i data-feather="inbox"></i>
+                        <div>Jogos inacabados</div>
+                        <div class="home-onfield-unfinished-hint">Relatórios do Campin para enviar à planilha depois</div>
+                    </button>
                     <div id="homeOnFieldSub" class="home-onfield-sub" style="display:none;" role="group" aria-label="OnField">
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="iniciarNovoJogoComSenha()">
                             <i data-feather="target"></i>
                             <div>Iniciar jogo</div>
-                        </button>
-                        <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="goCampinUnfinishedGames()">
-                            <i data-feather="layers"></i>
-                            <div>Jogos inacabados</div>
                         </button>
                         <button class="home-btn home-btn-secondary home-onfield-item" type="button" onclick="openGameReportsExport()">
                             <i data-feather="download-cloud"></i>
