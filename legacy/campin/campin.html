@@ -2,8 +2,20 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Futsal – Controle de Jogo (Drag & Substituições)</title>
+  <script>
+    (function(){
+      var ua = navigator.userAgent || "";
+      var iOS = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      if (!iOS) return;
+      document.documentElement.classList.add("is-ios");
+      var l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = "campin-ios.css";
+      document.head.appendChild(l);
+    })();
+  </script>
   <style>
     :root{
       --bg1:#070A12;
@@ -106,12 +118,12 @@
       border:1px solid rgba(255,255,255,.18);
     }
     .mainActions #btnStartPause{
-      min-height: 74px;
-      padding: 18px 34px;
-      font-size: 20px;
-      border-radius: 18px;
+      min-height: 88px;
+      padding: 22px 40px;
+      font-size: 23px;
+      border-radius: 20px;
     }
-    .mainActions #btnStartPause .ico{ width: 32px; height: 32px; }
+    .mainActions #btnStartPause .ico{ width: 40px; height: 40px; }
     #btnStartPauseText{
       transition: color .2s ease;
     }
@@ -154,6 +166,53 @@
       height: 17px;
       top: -4px;
       right: -4px;
+    }
+
+    /* Toque longo na quadra: atalho cartão amarelo */
+    .fieldYellowShortcut{
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 8;
+      background: rgba(0,0,0,.58);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      padding: 4px;
+    }
+    .fieldYellowShortcutBtn{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 2px solid rgba(253,224,71,.55);
+      background: rgba(0,0,0,.45);
+      color: #fef9c3;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .02em;
+      text-align: center;
+      line-height: 1.15;
+      cursor: pointer;
+      max-width: 100%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .fieldYellowShortcutBtn:active{
+      transform: scale(.97);
+    }
+    .fieldYellowShortcutCard{
+      display: block;
+      width: 22px;
+      height: 28px;
+      border-radius: 3px;
+      background: linear-gradient(180deg, #fde047, #ca8a04);
+      border: 2px solid rgba(0,0,0,.4);
+      box-shadow: 0 3px 10px rgba(0,0,0,.45);
     }
 
     header{
@@ -483,6 +542,7 @@
 
     /* Chip do jogador na quadra preenche 100% do círculo de demarcação */
     .slotRing .playerChip.fieldChip{
+      position: relative;
       width: 100%;
       height: 100%;
       min-width: 0;
@@ -1198,7 +1258,7 @@
             <p>5 jogadores do <b>mesmo lado</b> • substitua soltando por cima da posição</p>
           </div>
           <div class="hint">
-            <span class="kbd">Desktop e mobile: arraste os jogadores</span>
+            <span class="kbd">Arraste os jogadores • Com o jogo em andamento: segure ~1,5 s no atleta na quadra para atalho de cartão amarelo</span>
           </div>
         </div>
 
@@ -1980,6 +2040,7 @@
        Rendering
     ========================== */
     function renderPositions(){
+      dismissFieldYellowShortcut();
       positionsEl.innerHTML = "";
       for(const pos of state.positions){
         const slot = document.createElement("div");
@@ -2181,6 +2242,7 @@
             state.draggingPlayerId = player.id;
             state.dragFromPosId = posId || null;
           }
+          beginFieldYellowCardHold(e, chip, player.id, posId || null);
         });
       }
 
@@ -2597,6 +2659,114 @@
       closeQuickEventModal();
       renderPositions();
       renderBench();
+    }
+
+    var fieldYellowShortcutChip = null;
+    var fieldYellowShortcutOutsideBound = null;
+
+    function dismissFieldYellowShortcut(){
+      if (fieldYellowShortcutOutsideBound) {
+        document.removeEventListener("pointerdown", fieldYellowShortcutOutsideBound, true);
+        fieldYellowShortcutOutsideBound = null;
+      }
+      if (!fieldYellowShortcutChip) return;
+      var prev = fieldYellowShortcutChip;
+      fieldYellowShortcutChip = null;
+      var w = prev.querySelector(".fieldYellowShortcut");
+      if (w) w.remove();
+    }
+
+    function showFieldYellowCardShortcut(chip, playerId, posId){
+      dismissFieldYellowShortcut();
+      fieldYellowShortcutChip = chip;
+      var wrap = document.createElement("div");
+      wrap.className = "fieldYellowShortcut";
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "fieldYellowShortcutBtn";
+      btn.setAttribute("aria-label", "Registrar cartão amarelo para este atleta");
+      var card = document.createElement("span");
+      card.className = "fieldYellowShortcutCard";
+      card.setAttribute("aria-hidden", "true");
+      var lbl = document.createElement("span");
+      lbl.className = "fieldYellowShortcutLbl";
+      lbl.textContent = "Cartão amarelo";
+      btn.appendChild(card);
+      btn.appendChild(lbl);
+      btn.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        ev.preventDefault();
+        logEvent("GAME_EVENT", playerId, posId || "", { eventType: "Cartão amarelo" });
+        dismissFieldYellowShortcut();
+        renderPositions();
+        renderBench();
+      });
+      wrap.appendChild(btn);
+      chip.appendChild(wrap);
+      if (navigator.vibrate) {
+        try { navigator.vibrate(18); } catch (err) { /* ignore */ }
+      }
+      setTimeout(function(){
+        function outerBound(pe){
+          if (!fieldYellowShortcutChip) return;
+          if (chip.contains(pe.target)) return;
+          dismissFieldYellowShortcut();
+        }
+        fieldYellowShortcutOutsideBound = outerBound;
+        document.addEventListener("pointerdown", outerBound, true);
+      }, 380);
+    }
+
+    function beginFieldYellowCardHold(ev, chip, playerId, posId){
+      if (ev.button != null && ev.button !== 0) return;
+      if (!state.started || state.matchEnded) return;
+
+      var holdMs = 1500;
+      var moveThresh = 14;
+      var holdTimer = null;
+      var startX = ev.clientX;
+      var startY = ev.clientY;
+      var pid = ev.pointerId;
+      var moved = false;
+
+      function clearHold(){
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onEnd);
+        document.removeEventListener("pointercancel", onEnd);
+      }
+
+      function onMove(e){
+        if (e.pointerId !== pid) return;
+        var dx = e.clientX - startX;
+        var dy = e.clientY - startY;
+        if (dx * dx + dy * dy > moveThresh * moveThresh) {
+          moved = true;
+          clearHold();
+        }
+      }
+
+      function onEnd(e){
+        if (e.pointerId !== pid) return;
+        clearHold();
+      }
+
+      document.addEventListener("pointermove", onMove, { passive: true });
+      document.addEventListener("pointerup", onEnd);
+      document.addEventListener("pointercancel", onEnd);
+
+      holdTimer = setTimeout(function(){
+        clearHold();
+        if (moved) return;
+        if (state.draggingPlayerId === playerId && (state.dragFromPosId === posId || (state.dragFromPosId == null && posId == null))) {
+          state.draggingPlayerId = null;
+          state.dragFromPosId = null;
+        }
+        showFieldYellowCardShortcut(chip, playerId, posId || "");
+      }, holdMs);
     }
 
     function playerOut(playerId, posId){

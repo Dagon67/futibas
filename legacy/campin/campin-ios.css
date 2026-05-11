@@ -1,0 +1,82 @@
+/*
+ * Ajustes WebKit / iOS para o controle de jogo (campin).
+ * O ficheiro é carregado apenas quando o HTML recebe a classe is-ios
+ * (deteção em campin.html: iPhone, iPad, iPod ou iPadOS no Safari).
+ */
+
+html.is-ios {
+  height: 100%;
+  height: -webkit-fill-available;
+}
+
+html.is-ios body {
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+html.is-ios .firstFold {
+  min-height: 100svh;
+  min-height: -webkit-fill-available;
+}
+
+html.is-ios .app {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+html.is-ios .firstFold .mainActions {
+  padding-top: max(6px, env(safe-area-inset-top, 0px));
+  padding-left: max(10px, env(safe-area-inset-left, 0px));
+  padding-right: max(10px, env(safe-area-inset-right, 0px));
+}
+
+html.is-ios .secondary {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+html.is-ios .overlay {
+  padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  padding-top: max(18px, env(safe-area-inset-top, 0px));
+}
+
+/* iPhone / iPad estreito: coluna única evita quadra esmagada ao lado do cronómetro */
+@media (max-width: 820px) {
+  html.is-ios .grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(260px, 1fr) auto;
+  }
+
+  html.is-ios .rightColumn {
+    border-radius: 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+    max-height: min(50vh, 520px);
+    min-height: 0;
+  }
+
+  html.is-ios .bench {
+    min-height: 200px;
+  }
+
+  html.is-ios .court {
+    min-height: min(416px, 42svh);
+  }
+}
+
+html.is-ios .court,
+html.is-ios .slotRing .playerChip.fieldChip,
+html.is-ios .reservasStrip .bolinha {
+  -webkit-touch-callout: none;
+}
+
+html.is-ios .reservasStrip .benchRow {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Inputs em iOS: evita zoom automático ao focar (mantém legível) */
+@media (max-width: 560px) {
+  html.is-ios input,
+  html.is-ios select,
+  html.is-ios textarea {
+    font-size: 16px;
+  }
+}
