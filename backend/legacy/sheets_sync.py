@@ -6,6 +6,7 @@ Sincroniza jogadores, treinos, respostas e perguntas com a planilha
 from sheets_app import SheetsEditor, SPREADSHEET_ID
 from typing import List, Dict, Any, Optional
 import json
+import re
 
 
 class SheetsSync:
@@ -184,30 +185,51 @@ class SheetsSync:
             return "; ".join(str(a) for a in answer)
         return str(answer)
 
-    def _format_articular_pain(self, answer: Any) -> str:
+    def _parse_articular_labels(self, answer: Any) -> List[str]:
+        """Converte códigos 1–9 (ou '1 (Ombro)') em nomes da articulação."""
+        if answer is None or answer == "":
+            return []
         if answer == "Sem dor" or (isinstance(answer, str) and answer.strip().lower() == "sem dor"):
-            return ""
-        codes: List[str] = []
+            return []
+        tokens: List[str] = []
         if isinstance(answer, list):
-            codes = [str(c).strip() for c in answer if c and str(c).strip() not in ("", "Sem dor")]
+            tokens = [str(c).strip() for c in answer if c and str(c).strip() not in ("", "Sem dor")]
         else:
             t = str(answer).strip()
             if not t:
-                return ""
+                return []
             if any(sep in t for sep in (";", ",", "|")):
-                codes = [p.strip() for p in t.replace("|", ";").replace(",", ";").split(";") if p.strip()]
-            elif t.replace(" ", "").isdigit() and all(ch in "123456789" for ch in t.replace(" ", "")):
-                codes = list(t.replace(" ", ""))
+                tokens = [p.strip() for p in re.split(r"[;,|]", t) if p.strip()]
+            elif re.match(r"^[1-9]+$", t.replace(" ", "")):
+                tokens = list(t.replace(" ", ""))
             else:
-                return t
-        labels = [self._PAIN_LABEL_ARTICULAR.get(c, c) for c in codes]
-        seen = set()
-        out = []
+                tokens = [t]
+        label_by_lower = {v.lower(): v for v in self._PAIN_LABEL_ARTICULAR.values()}
+        labels: List[str] = []
+        for p in tokens:
+            m = re.match(r"^([1-9])\s*(?:\([^)]+\))?\s*$", p)
+            if m:
+                labels.append(self._PAIN_LABEL_ARTICULAR.get(m.group(1), m.group(1)))
+                continue
+            if p in self._PAIN_LABEL_ARTICULAR:
+                labels.append(self._PAIN_LABEL_ARTICULAR[p])
+                continue
+            known = label_by_lower.get(p.lower())
+            if known:
+                labels.append(known)
+                continue
+            labels.append(p)
+        seen: set = set()
+        out: List[str] = []
         for lb in labels:
             if lb not in seen:
                 seen.add(lb)
                 out.append(lb)
-        return "; ".join(sorted(out, key=lambda s: s.lower()))
+        return sorted(out, key=lambda s: s.lower())
+
+    def _format_articular_pain(self, answer: Any) -> str:
+        labels = self._parse_articular_labels(answer)
+        return "; ".join(labels) if labels else ""
 
     def _format_muscular_pain(self, answer: Any) -> str:
         if isinstance(answer, str) and answer.strip().lower() in ("nenhuma", "sem dor"):
@@ -274,6 +296,86 @@ class SheetsSync:
         if isinstance(answer, list):
             return self._str("; ".join(str(a) for a in answer))
         return self._str(answer) if answer is not None and answer != "" else ""
+
+    def _find_pre_pain_column_indices(self, header: List[str]) -> Dict[str, Optional[int]]:
+        col_muscular: Optional[int] = None
+        col_articular: Optional[int] = None
+        for i, h in enumerate(header):
+            hn = re.sub(r"\s+", " ", (h or "").strip()).lower()
+            if hn == "pontos de dor" and col_muscular is None:
+                col_muscular = i
+            elif hn == "pontos de dor articular" and col_articular is None:
+                col_articular = i
+        return {"muscular": col_muscular, "articular": col_articular}
+
+    def migrate_pre_pain_labels(self, dry_run: bool = True) -> Dict[str, Any]:
+        """
+        Transcreve códigos (1–9, A–Z) para nomes na aba 'pre'.
+        Reescreve a aba inteira com as mesmas linhas/colunas; só altera células que mudam.
+        """
+        worksheet = self._get_or_create_worksheet("pre")
+        all_rows = worksheet.get_all_values()
+        if not all_rows:
+            return {
+                "success": True,
+                "dry_run": dry_run,
+                "total_data_rows": 0,
+                "cells_changed": 0,
+                "changes": [],
+            }
+
+        header = all_rows[0]
+        cols = self._find_pre_pain_column_indices(header)
+        col_width = len(header)
+        changes: List[Dict[str, Any]] = []
+        new_rows: List[List[Any]] = [header]
+
+        for sheet_row_num, row in enumerate(all_rows[1:], start=2):
+            padded = list(row) + [""] * max(0, col_width - len(row))
+            padded = padded[:col_width]
+            for col_key, q_text in (("muscular", "Pontos de dor"), ("articular", "Pontos de dor articular")):
+                col_idx = cols.get(col_key)
+                if col_idx is None or col_idx >= len(padded):
+                    continue
+                old_val = padded[col_idx]
+                if old_val is None or str(old_val).strip() == "":
+                    continue
+                new_val = self._format_pain_answer_for_sheet(q_text, old_val)
+                old_norm = re.sub(r"\s+", " ", str(old_val).strip())
+                new_norm = re.sub(r"\s+", " ", str(new_val).strip())
+                if old_norm != new_norm:
+                    changes.append({
+                        "row": sheet_row_num,
+                        "column": header[col_idx] if col_idx < len(header) else q_text,
+                        "before": old_norm,
+                        "after": new_norm,
+                    })
+                    padded[col_idx] = new_val
+            new_rows.append(padded)
+
+        result: Dict[str, Any] = {
+            "success": True,
+            "dry_run": dry_run,
+            "total_data_rows": len(all_rows) - 1,
+            "cells_changed": len(changes),
+            "changes": changes[:200],
+            "changes_truncated": len(changes) > 200,
+            "columns": {
+                "Pontos de dor": cols.get("muscular"),
+                "Pontos de dor articular": cols.get("articular"),
+            },
+        }
+
+        if not dry_run and changes:
+            self._update_worksheet_batch(worksheet, new_rows)
+            result["message"] = f"Aba pre atualizada: {len(changes)} célula(s) transcrita(s)."
+        elif dry_run:
+            result["message"] = f"Simulação: {len(changes)} célula(s) seriam transcrita(s)."
+        else:
+            result["message"] = "Nenhuma célula precisava de transcrição."
+
+        print(f"📋 migrate_pre_pain_labels dry_run={dry_run}: {len(changes)} alteração(ões)")
+        return result
 
     def sync_trainings(self, trainings: List[Dict[str, Any]]):
         """Sincroniza lista de treinos na aba 'Treinos'"""
@@ -1098,6 +1200,13 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
             rows = sync.get_pre_last_rows(n)
             print(f"🔍 [DEBUG] Verificação aba pre: {len(rows)} linha(s) lida(s)")
             return {"success": True, "rows": rows}
+        if data_type == "migrate_pre_pain_labels":
+            dry_run = True
+            if isinstance(data, dict):
+                dry_run = bool(data.get("dry_run", True))
+            elif data is False:
+                dry_run = False
+            return sync.migrate_pre_pain_labels(dry_run=dry_run)
         if data_type == "players":
             sync.sync_players(data)
         elif data_type == "trainings":

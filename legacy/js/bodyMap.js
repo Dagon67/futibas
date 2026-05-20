@@ -93,28 +93,61 @@ var PAIN_LABEL_MUSCULAR = {
     "Y": "Outro", "Z": "Outro"
 };
 
-function formatArticularPainForSheets(val) {
-    if (val == null || val === "") return "";
-    if (val === "Sem dor" || (typeof val === "string" && /^sem dor$/i.test(val.trim()))) return "";
-    var codes = [];
+/** Rótulo exibido no botão (imagem articula.png: 1=Ombro … 9=Coluna lombar). */
+function articularOptionDisplayLabel(opt) {
+    if (opt == null || opt === "") return "";
+    if (String(opt).toLowerCase() === "sem dor") return "Sem dor";
+    return PAIN_LABEL_ARTICULAR[String(opt).trim()] || String(opt);
+}
+
+function parseArticularPainLabels(val) {
+    if (val == null || val === "") return [];
+    if (val === "Sem dor" || (typeof val === "string" && /^sem dor$/i.test(val.trim()))) return [];
+    var tokens = [];
     if (Array.isArray(val)) {
-        codes = val.filter(function (v) { return v && String(v).trim() && String(v) !== "Sem dor"; });
+        tokens = val.filter(function (v) { return v && String(v).trim() && String(v) !== "Sem dor"; });
     } else {
         var t = String(val).trim();
-        if (!t) return "";
+        if (!t) return [];
         if (/[;,|]/.test(t)) {
-            codes = t.split(/[;,|]/).map(function (x) { return x.trim(); }).filter(Boolean);
+            tokens = t.split(/[;,|]/).map(function (x) { return x.trim(); }).filter(Boolean);
         } else if (/^[1-9]+$/.test(t.replace(/\s/g, ""))) {
-            codes = t.replace(/\s/g, "").split("");
+            tokens = t.replace(/\s/g, "").split("");
         } else {
-            return t;
+            tokens = [t];
         }
     }
-    var labels = codes.map(function (c) {
-        var key = String(c).trim();
-        return PAIN_LABEL_ARTICULAR[key] || key;
+    var labelByNameLower = {};
+    Object.keys(PAIN_LABEL_ARTICULAR).forEach(function (k) {
+        labelByNameLower[PAIN_LABEL_ARTICULAR[k].toLowerCase()] = PAIN_LABEL_ARTICULAR[k];
     });
-    return dedupePartList(labels).sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(BODY_MAP_ANSWER_SEP);
+    var labels = [];
+    for (var i = 0; i < tokens.length; i++) {
+        var p = String(tokens[i]).trim();
+        if (!p) continue;
+        var m = p.match(/^([1-9])\s*(?:\([^)]+\))?\s*$/);
+        if (m) {
+            labels.push(PAIN_LABEL_ARTICULAR[m[1]] || m[1]);
+            continue;
+        }
+        if (PAIN_LABEL_ARTICULAR[p]) {
+            labels.push(PAIN_LABEL_ARTICULAR[p]);
+            continue;
+        }
+        var known = labelByNameLower[p.toLowerCase()];
+        if (known) {
+            labels.push(known);
+            continue;
+        }
+        labels.push(p);
+    }
+    return dedupePartList(labels);
+}
+
+function formatArticularPainForSheets(val) {
+    var labels = parseArticularPainLabels(val);
+    if (!labels.length) return "";
+    return labels.sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(BODY_MAP_ANSWER_SEP);
 }
 
 function formatMuscularPainForSheets(val) {

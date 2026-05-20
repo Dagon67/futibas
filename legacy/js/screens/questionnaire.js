@@ -51,10 +51,15 @@ function goQuestionnaire(){
             }
         }else if(q.tipo === "checkbox"){
             if(q.opcoes && q.opcoes.length > 0){
+                const isArticular = (q.texto || "") === "Pontos de dor articular";
                 inputHTML = `<div class="rating-scale choice-buttons-multi" id="${qId}">
                     ${q.opcoes.map((opt)=>{
                         const optEsc = (opt+"").replace(/"/g, "&quot;");
-                        return `<button type="button" class="rating-btn choice-btn-multi" data-value="${optEsc}" onclick="toggleCheckboxByIndex(${idx}, this.getAttribute('data-value'), '${qId}')">${opt}</button>`;
+                        const label = isArticular && typeof articularOptionDisplayLabel === "function"
+                            ? articularOptionDisplayLabel(opt)
+                            : opt;
+                        const labelEsc = (label+"").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        return `<button type="button" class="rating-btn choice-btn-multi" data-value="${optEsc}" onclick="toggleCheckboxByIndex(${idx}, this.getAttribute('data-value'), '${qId}')">${labelEsc}</button>`;
                     }).join("")}
                 </div>`;
             }else{

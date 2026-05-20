@@ -16,10 +16,28 @@ from urllib.parse import quote
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from contextlib import nullcontext
+import tempfile
+import glob
 
 # Raiz do repositório (uploads/ e pastas pre|pos ficam na raiz, não em backend/legacy)
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_BACKEND_DIR))
+
+
+def _prepend_repo_ffmpeg_to_path():
+    """Se existir repo/mpeg/<build>/bin com ffmpeg, antecede ao PATH (Whisper invoca `ffmpeg`)."""
+    root = os.path.join(_REPO_ROOT, "mpeg")
+    if not os.path.isdir(root):
+        return
+    pattern = os.path.join(root, "*", "bin", "ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+    found = sorted(glob.glob(pattern))
+    if not found:
+        return
+    bin_dir = os.path.dirname(found[0])
+    os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
+
+
+_prepend_repo_ffmpeg_to_path()
 
 app = Flask(__name__)
 # CORS: permitir qualquer origem (localhost, file:// com origin null, app hospedado)
@@ -33,6 +51,10 @@ MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
 
 # Criar pasta de uploads se não existir
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Magnus Beta (Whisper): modelo carregado sob demanda; só usado se MAGNUS_BETA_WHISPER=1
+_whisper_model = None
+_whisper_model_loaded_name = None
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -352,6 +374,24 @@ def sync_all():
         else:
             return jsonify(result), 500
             
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/sync/migrate-pain-labels', methods=['POST'])
+def migrate_pain_labels():
+    """
+    Transcreve códigos de pontos de dor na aba 'pre' para nomes legíveis.
+    Body JSON opcional: { "dry_run": true } — use false para aplicar na planilha.
+    """
+    try:
+        payload = request.json if request.is_json else {}
+        dry_run = True
+        if isinstance(payload, dict) and "dry_run" in payload:
+            dry_run = bool(payload.get("dry_run", True))
+        result = sync_data("migrate_pre_pain_labels", {"dry_run": dry_run})
+        status = 200 if result.get("success") else 500
+        return jsonify(result), status
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -795,6 +835,100 @@ def post_insights_game():
             }), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _magnus_beta_whisper_model():
+    """Carrega openai-whisper uma vez (ou troca de modelo se WHISPER_MODEL mudar)."""
+    global _whisper_model, _whisper_model_loaded_name  # noqa: PLW0603
+    try:
+        import whisper
+    except ImportError as e:
+        raise RuntimeError(
+            "Pacote openai-whisper não instalado. Use: pip install openai-whisper "
+            "(e ffmpeg no sistema). Ver backend/legacy/requirements-magnus-beta-whisper.txt"
+        ) from e
+    model_name = (os.getenv("WHISPER_MODEL") or "base").strip() or "base"
+    if _whisper_model is None or _whisper_model_loaded_name != model_name:
+        _whisper_model = whisper.load_model(model_name)
+        _whisper_model_loaded_name = model_name
+    return _whisper_model
+
+
+@app.route("/api/magnus-beta/status", methods=["GET"])
+def magnus_beta_status():
+    """Indica se o servidor pode transcrever (Whisper opcional)."""
+    whisper_installed = False
+    try:
+        import whisper  # noqa: F401
+
+        whisper_installed = True
+    except ImportError:
+        pass
+    return jsonify(
+        {
+            "success": True,
+            "whisperRouteEnabled": _truthy_env("MAGNUS_BETA_WHISPER"),
+            "whisperInstalled": whisper_installed,
+        }
+    ), 200
+
+
+@app.route("/api/magnus-beta/transcribe", methods=["POST"])
+def magnus_beta_transcribe():
+    """
+    Recebe áudio gravado no totem (multipart campo `audio`), transcreve com OpenAI Whisper.
+    Não persiste texto nem áudio — só devolve JSON. Ative com MAGNUS_BETA_WHISPER=1.
+    """
+    if not _truthy_env("MAGNUS_BETA_WHISPER"):
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "Whisper desativado neste servidor. "
+                    "Para testes locais: MAGNUS_BETA_WHISPER=1 e pip install openai-whisper.",
+                }
+            ),
+            503,
+        )
+
+    if "audio" not in request.files:
+        return jsonify({"success": False, "error": "Campo multipart 'audio' ausente"}), 400
+
+    upload = request.files["audio"]
+    if not upload or not upload.filename:
+        return jsonify({"success": False, "error": "Arquivo de áudio vazio"}), 400
+
+    raw_name = (upload.filename or "clip").lower()
+    suffix = ".webm"
+    if raw_name.endswith(".wav"):
+        suffix = ".wav"
+    elif raw_name.endswith(".ogg"):
+        suffix = ".ogg"
+    elif raw_name.endswith(".mp3"):
+        suffix = ".mp3"
+    elif raw_name.endswith(".mp4") or raw_name.endswith(".m4a"):
+        suffix = ".m4a"
+
+    path = None
+    try:
+        fd, path = tempfile.mkstemp(suffix=suffix, prefix="magnus_beta_")
+        os.close(fd)
+        upload.save(path)
+
+        model = _magnus_beta_whisper_model()
+        result = model.transcribe(path, language="pt")
+        text = (result.get("text") or "").strip()
+        return jsonify({"success": True, "text": text}), 200
+    except RuntimeError as e:
+        return jsonify({"success": False, "error": str(e)}), 503
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
 
 @app.route('/verify/pre', methods=['GET'])
