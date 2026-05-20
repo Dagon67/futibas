@@ -231,6 +231,36 @@ class SheetsSync:
         labels = self._parse_articular_labels(answer)
         return "; ".join(labels) if labels else ""
 
+    def _known_muscular_label_lookup(self) -> Dict[str, str]:
+        """Nomes já legíveis (valores A–Z + regiões do mapa corporal)."""
+        names: Dict[str, str] = {}
+        for v in self._PAIN_LABEL_MUSCULAR.values():
+            names[v.lower()] = v
+        body_names = [
+            "Pé direito", "Pé esquerdo", "Calcanhar esquerdo", "Calcanhar direito",
+            "Panturrilha esquerda", "Panturrilha direita", "Joelho direito", "Joelho esquerdo",
+            "Posterior esquerdo", "Posterior direito", "Quadríceps direito", "Quadríceps esquerdo",
+            "Adutor esquerdo", "Adutor direito", "Glúteo esquerdo", "Glúteo direito",
+            "Abdômen", "Lombar", "Serrátil direito", "Serrátil esquerdo", "Latíssimo direito",
+            "Latíssimo esquerdo", "Trapézio direito", "Trapézio esquerdo", "Ombro esquerdo",
+            "Ombro direito", "Tríceps direito", "Tríceps esquerdo", "Cotovelo esquerdo",
+            "Cotovelo direito", "Pescoço", "Bíceps direito", "Bíceps esquerdo",
+            "Antebraço esquerdo", "Antebraço direito", "Pulso esquerdo", "Pulso direito",
+            "Mão esquerda", "Mão direita", "Peitoral direito", "Peitoral esquerdo", "Quadril",
+        ]
+        for n in body_names:
+            names[n.lower()] = n
+        return names
+
+    def _looks_like_legacy_muscular_codes(self, text: str) -> bool:
+        """True só para sequências curtas de códigos A–Z (ex.: 'CDE', 'QR'), não nomes como 'Tornozelo'."""
+        compact = re.sub(r"\s+", "", text)
+        if not compact or len(compact) > 15:
+            return False
+        if not compact.isupper() or not compact.isalpha():
+            return False
+        return all(ch in self._PAIN_LABEL_MUSCULAR for ch in compact)
+
     def _format_muscular_pain(self, answer: Any) -> str:
         if isinstance(answer, str) and answer.strip().lower() in ("nenhuma", "sem dor"):
             return ""
@@ -240,10 +270,13 @@ class SheetsSync:
         t = str(raw).strip()
         if not t or t.lower() == "sem dor":
             return ""
+        known = self._known_muscular_label_lookup()
+        if t.lower() in known:
+            return known[t.lower()]
         if any(sep in t for sep in (";", ",", "|")):
             parts = [p.strip() for p in t.replace("|", ";").replace(",", ";").split(";") if p.strip()]
-        elif len(t.replace(" ", "")) <= 26 and t.replace(" ", "").isalpha() and " " not in t.strip():
-            parts = list(t.replace(" ", "").upper())
+        elif self._looks_like_legacy_muscular_codes(t):
+            parts = list(re.sub(r"\s+", "", t).upper())
         else:
             parts = self._split_muscular_greedy(t)
         labels = []

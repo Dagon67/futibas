@@ -150,11 +150,24 @@ function formatArticularPainForSheets(val) {
     return labels.sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(BODY_MAP_ANSWER_SEP);
 }
 
+function muscularLabelLookupLower() {
+    var o = {};
+    Object.keys(PAIN_LABEL_MUSCULAR).forEach(function (k) {
+        o[PAIN_LABEL_MUSCULAR[k].toLowerCase()] = PAIN_LABEL_MUSCULAR[k];
+    });
+    for (var i = 0; i < BODY_MAP_PART_NAMES.length; i++) {
+        o[BODY_MAP_PART_NAMES[i].toLowerCase()] = BODY_MAP_PART_NAMES[i];
+    }
+    return o;
+}
+
 function formatMuscularPainForSheets(val) {
     if (val == null || val === "") return "";
     if (typeof val === "string" && /^nenhuma$/i.test(val.trim())) return "";
     var raw = Array.isArray(val) ? val.join("") : String(val).trim();
     if (!raw || /^sem dor$/i.test(raw)) return "";
+    var known = muscularLabelLookupLower();
+    if (known[raw.toLowerCase()]) return known[raw.toLowerCase()];
     var parts = parsePontosDorMuscularValue(raw);
     var labels = parts.map(function (p) {
         if (p.length === 1 && PAIN_LABEL_MUSCULAR[p.toUpperCase()]) {
@@ -186,10 +199,19 @@ function normalizePainAnswersObject(answers) {
     return out;
 }
 
+function looksLikeLegacyMuscularCodes(t) {
+    var compact = String(t || "").replace(/\s/g, "");
+    if (!compact || compact.length > 15) return false;
+    if (compact !== compact.toUpperCase() || !/^[A-Z]+$/.test(compact)) return false;
+    for (var i = 0; i < compact.length; i++) {
+        if (!PAIN_LABEL_MUSCULAR[compact[i]]) return false;
+    }
+    return true;
+}
+
 function legacyParseMuscularTokens(t) {
-    var compact = t.replace(/\s/g, "");
-    if (/^[A-Za-z]+$/.test(compact) && compact.length <= 26) {
-        return compact.toUpperCase().split("");
+    if (looksLikeLegacyMuscularCodes(t)) {
+        return t.replace(/\s/g, "").toUpperCase().split("");
     }
     return t.split(/[;,]/).map(function (x) { return x.trim(); }).filter(Boolean);
 }
