@@ -79,6 +79,80 @@ function buildPartButton(partName) {
 /** Separador gravado no Sheets / estado — nomes têm espaços ("Ombro direito"); não usar espaço como delimitador. */
 var BODY_MAP_ANSWER_SEP = "; ";
 
+/** Rótulos para exportação legível (Sheets / CSV) — articular 1–9, muscular A–Z (legado). */
+var PAIN_LABEL_ARTICULAR = {
+    "1": "Ombro", "2": "Cotovelo", "3": "Punho", "4": "Quadril", "5": "Joelho",
+    "6": "Tornozelo", "7": "Coluna cervical", "8": "Coluna torácica", "9": "Coluna lombar"
+};
+var PAIN_LABEL_MUSCULAR = {
+    "A": "Pescoço", "B": "Trapézio", "C": "Ombro", "D": "Peitoral", "E": "Coxa ant./med.",
+    "F": "Panturrilha", "G": "Abdômen", "H": "Costas", "I": "Deltoide/Ombro", "J": "Bíceps",
+    "K": "Tríceps", "L": "Antebraço", "M": "Lombar", "N": "Glúteo", "O": "Adutor",
+    "P": "Quadríceps", "Q": "Posterior coxa", "R": "Posterior coxa", "S": "Glúteo",
+    "T": "Panturrilha", "U": "Tornozelo", "V": "Outro", "W": "Outro", "X": "Outro",
+    "Y": "Outro", "Z": "Outro"
+};
+
+function formatArticularPainForSheets(val) {
+    if (val == null || val === "") return "";
+    if (val === "Sem dor" || (typeof val === "string" && /^sem dor$/i.test(val.trim()))) return "";
+    var codes = [];
+    if (Array.isArray(val)) {
+        codes = val.filter(function (v) { return v && String(v).trim() && String(v) !== "Sem dor"; });
+    } else {
+        var t = String(val).trim();
+        if (!t) return "";
+        if (/[;,|]/.test(t)) {
+            codes = t.split(/[;,|]/).map(function (x) { return x.trim(); }).filter(Boolean);
+        } else if (/^[1-9]+$/.test(t.replace(/\s/g, ""))) {
+            codes = t.replace(/\s/g, "").split("");
+        } else {
+            return t;
+        }
+    }
+    var labels = codes.map(function (c) {
+        var key = String(c).trim();
+        return PAIN_LABEL_ARTICULAR[key] || key;
+    });
+    return dedupePartList(labels).sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(BODY_MAP_ANSWER_SEP);
+}
+
+function formatMuscularPainForSheets(val) {
+    if (val == null || val === "") return "";
+    if (typeof val === "string" && /^nenhuma$/i.test(val.trim())) return "";
+    var raw = Array.isArray(val) ? val.join("") : String(val).trim();
+    if (!raw || /^sem dor$/i.test(raw)) return "";
+    var parts = parsePontosDorMuscularValue(raw);
+    var labels = parts.map(function (p) {
+        if (p.length === 1 && PAIN_LABEL_MUSCULAR[p.toUpperCase()]) {
+            return PAIN_LABEL_MUSCULAR[p.toUpperCase()];
+        }
+        return p;
+    });
+    return dedupePartList(labels).sort(function (a, b) { return a.localeCompare(b, "pt-BR"); }).join(BODY_MAP_ANSWER_SEP);
+}
+
+/** Converte códigos (1–9, A–Z) em nomes legíveis para gravar no Sheets. */
+function formatPainAnswerForSheets(qText, val) {
+    if (qText === "Pontos de dor articular") return formatArticularPainForSheets(val);
+    if (qText === "Pontos de dor") return formatMuscularPainForSheets(val);
+    if (val == null) return "";
+    if (Array.isArray(val)) return val.join(BODY_MAP_ANSWER_SEP);
+    return String(val);
+}
+
+function normalizePainAnswersObject(answers) {
+    if (!answers || typeof answers !== "object") return answers;
+    var out = Object.assign({}, answers);
+    if (out["Pontos de dor"] !== undefined) {
+        out["Pontos de dor"] = formatMuscularPainForSheets(out["Pontos de dor"]);
+    }
+    if (out["Pontos de dor articular"] !== undefined) {
+        out["Pontos de dor articular"] = formatArticularPainForSheets(out["Pontos de dor articular"]);
+    }
+    return out;
+}
+
 function legacyParseMuscularTokens(t) {
     var compact = t.replace(/\s/g, "");
     if (/^[A-Za-z]+$/.test(compact) && compact.length <= 26) {

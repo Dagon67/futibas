@@ -244,12 +244,37 @@ async function saveAllTrainingExportsAndRosterToFirestore(allData) {
     return { ok: true };
 }
 
+function normalizePainAnswersInResponses(responses) {
+    if (!responses || !responses.length) return responses;
+    if (typeof normalizePainAnswersObject !== "function") return responses;
+    return responses.map(function (r) {
+        if (!r || !r.answers) return r;
+        return Object.assign({}, r, { answers: normalizePainAnswersObject(r.answers) });
+    });
+}
+
+function normalizePainAnswersInTrainings(trainings) {
+    if (!trainings || !trainings.length) return trainings;
+    if (typeof normalizePainAnswersObject !== "function") return trainings;
+    return trainings.map(function (t) {
+        if (!t || !t.responses) return t;
+        return Object.assign({}, t, {
+            responses: (t.responses || []).map(function (r) {
+                if (!r || !r.answers) return r;
+                return Object.assign({}, r, { answers: normalizePainAnswersObject(r.answers) });
+            })
+        });
+    });
+}
+
 /** Mesmo payload que o sync/all envia ao Sheets. */
 function getAllDataForSnapshot() {
+    var trainings = typeof loadTrainings === "function" ? loadTrainings() : [];
+    var responses = typeof loadResponses === "function" ? loadResponses() : [];
     return {
         players: typeof loadPlayers === "function" ? loadPlayers() : [],
-        trainings: typeof loadTrainings === "function" ? loadTrainings() : [],
-        responses: typeof loadResponses === "function" ? loadResponses() : [],
+        trainings: normalizePainAnswersInTrainings(trainings),
+        responses: normalizePainAnswersInResponses(responses),
         questions: typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] }
     };
 }
@@ -454,12 +479,12 @@ async function syncSingleTrainingToSheets(trainingId) {
             return { success: false, error: "Treino não encontrado" };
         }
         // Garantir dados do treino (período, data formatada) para a aba Treinos no Sheets
-        const trainingToSend = {
-            ...training,
+        var normalizedList = normalizePainAnswersInTrainings([training]);
+        const trainingToSend = Object.assign({}, normalizedList[0] || training, {
             dateFormatted: training.dateFormatted || training.date,
             datetime: training.datetime || (training.date ? training.date + "T12:00:00.000Z" : new Date().toISOString()),
             period: training.period != null ? training.period : null
-        };
+        });
         const questions = typeof loadQuestions === "function" ? loadQuestions() : { pre: [], post: [] };
         const payload = { training: trainingToSend, questions: questions };
         const response = await fetch(SHEETS_SYNC_TRAINING_URL, {

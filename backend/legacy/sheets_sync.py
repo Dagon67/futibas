@@ -158,6 +158,123 @@ class SheetsSync:
             return json.dumps(val, ensure_ascii=False) if val else ""
         return str(val)
 
+    _PAIN_LABEL_ARTICULAR = {
+        "1": "Ombro", "2": "Cotovelo", "3": "Punho", "4": "Quadril", "5": "Joelho",
+        "6": "Tornozelo", "7": "Coluna cervical", "8": "Coluna torácica", "9": "Coluna lombar",
+    }
+    _PAIN_LABEL_MUSCULAR = {
+        "A": "Pescoço", "B": "Trapézio", "C": "Ombro", "D": "Peitoral", "E": "Coxa ant./med.",
+        "F": "Panturrilha", "G": "Abdômen", "H": "Costas", "I": "Deltoide/Ombro", "J": "Bíceps",
+        "K": "Tríceps", "L": "Antebraço", "M": "Lombar", "N": "Glúteo", "O": "Adutor",
+        "P": "Quadríceps", "Q": "Posterior coxa", "R": "Posterior coxa", "S": "Glúteo",
+        "T": "Panturrilha", "U": "Tornozelo", "V": "Outro", "W": "Outro", "X": "Outro",
+        "Y": "Outro", "Z": "Outro",
+    }
+
+    def _format_pain_answer_for_sheet(self, q_text: str, answer: Any) -> str:
+        """Grava nomes legíveis no Sheets (ombro, joelho…) em vez de códigos 1–9 / A–Z."""
+        if answer is None or answer == "":
+            return ""
+        q = (q_text or "").strip()
+        if q == "Pontos de dor articular":
+            return self._format_articular_pain(answer)
+        if q == "Pontos de dor":
+            return self._format_muscular_pain(answer)
+        if isinstance(answer, list):
+            return "; ".join(str(a) for a in answer)
+        return str(answer)
+
+    def _format_articular_pain(self, answer: Any) -> str:
+        if answer == "Sem dor" or (isinstance(answer, str) and answer.strip().lower() == "sem dor"):
+            return ""
+        codes: List[str] = []
+        if isinstance(answer, list):
+            codes = [str(c).strip() for c in answer if c and str(c).strip() not in ("", "Sem dor")]
+        else:
+            t = str(answer).strip()
+            if not t:
+                return ""
+            if any(sep in t for sep in (";", ",", "|")):
+                codes = [p.strip() for p in t.replace("|", ";").replace(",", ";").split(";") if p.strip()]
+            elif t.replace(" ", "").isdigit() and all(ch in "123456789" for ch in t.replace(" ", "")):
+                codes = list(t.replace(" ", ""))
+            else:
+                return t
+        labels = [self._PAIN_LABEL_ARTICULAR.get(c, c) for c in codes]
+        seen = set()
+        out = []
+        for lb in labels:
+            if lb not in seen:
+                seen.add(lb)
+                out.append(lb)
+        return "; ".join(sorted(out, key=lambda s: s.lower()))
+
+    def _format_muscular_pain(self, answer: Any) -> str:
+        if isinstance(answer, str) and answer.strip().lower() in ("nenhuma", "sem dor"):
+            return ""
+        raw = answer
+        if isinstance(answer, list):
+            raw = "".join(str(a) for a in answer)
+        t = str(raw).strip()
+        if not t or t.lower() == "sem dor":
+            return ""
+        if any(sep in t for sep in (";", ",", "|")):
+            parts = [p.strip() for p in t.replace("|", ";").replace(",", ";").split(";") if p.strip()]
+        elif len(t.replace(" ", "")) <= 26 and t.replace(" ", "").isalpha() and " " not in t.strip():
+            parts = list(t.replace(" ", "").upper())
+        else:
+            parts = self._split_muscular_greedy(t)
+        labels = []
+        for p in parts:
+            key = p.upper() if len(p) == 1 else p
+            labels.append(self._PAIN_LABEL_MUSCULAR.get(key, p) if len(p) == 1 else p)
+        seen = set()
+        out = []
+        for lb in labels:
+            if lb not in seen:
+                seen.add(lb)
+                out.append(lb)
+        return "; ".join(sorted(out, key=lambda s: s.lower()))
+
+    def _split_muscular_greedy(self, text: str) -> List[str]:
+        """Separa nomes compostos ('Ombro direito; Joelho esquerdo')."""
+        known = [
+            "Pé direito", "Pé esquerdo", "Calcanhar esquerdo", "Calcanhar direito",
+            "Panturrilha esquerda", "Panturrilha direita", "Joelho direito", "Joelho esquerdo",
+            "Posterior esquerdo", "Posterior direito", "Quadríceps direito", "Quadríceps esquerdo",
+            "Adutor esquerdo", "Adutor direito", "Glúteo esquerdo", "Glúteo direito",
+            "Abdômen", "Lombar", "Serrátil direito", "Serrátil esquerdo", "Latíssimo direito",
+            "Latíssimo esquerdo", "Trapézio direito", "Trapézio esquerdo", "Ombro esquerdo",
+            "Ombro direito", "Tríceps direito", "Tríceps esquerdo", "Cotovelo esquerdo",
+            "Cotovelo direito", "Pescoço", "Bíceps direito", "Bíceps esquerdo",
+            "Antebraço esquerdo", "Antebraço direito", "Pulso esquerdo", "Pulso direito",
+            "Mão esquerda", "Mão direita", "Peitoral direito", "Peitoral esquerdo", "Quadril",
+        ]
+        s = text.strip()
+        out: List[str] = []
+        while s:
+            s = s.lstrip()
+            if not s:
+                break
+            best = None
+            for name in known:
+                if s.startswith(name) and (len(s) == len(name) or s[len(name)] in (" ", ";", ",")):
+                    if not best or len(name) > len(best):
+                        best = name
+            if not best:
+                break
+            out.append(best)
+            s = s[len(best):].lstrip(" ;,")
+        return out if out else [text]
+
+    def _cell_answer(self, q_text: str, answer: Any) -> str:
+        q = (q_text or "").strip()
+        if q in ("Pontos de dor", "Pontos de dor articular"):
+            return self._str(self._format_pain_answer_for_sheet(q_text, answer))
+        if isinstance(answer, list):
+            return self._str("; ".join(str(a) for a in answer))
+        return self._str(answer) if answer is not None and answer != "" else ""
+
     def sync_trainings(self, trainings: List[Dict[str, Any]]):
         """Sincroniza lista de treinos na aba 'Treinos'"""
         worksheet = self._get_or_create_worksheet("Treinos")
@@ -267,11 +384,7 @@ class SheetsSync:
                                 break
                 if answer is None and answers_list is not None and 0 <= idx < len(answers_list):
                     answer = answers_list[idx]
-                if isinstance(answer, list):
-                    answer = "; ".join(str(a) for a in answer)
-                else:
-                    answer = str(answer) if answer is not None and answer != "" else ""
-                row.append(self._str(answer))
+                row.append(self._cell_answer(q_text, answer))
             rows_pre.append(row)
         self._update_worksheet_batch(worksheet_pre, rows_pre)
         print(f"✅ {len(pre_responses)} respostas (pré-treino) sincronizadas na aba pre")
@@ -305,11 +418,7 @@ class SheetsSync:
                         if (k or "").strip() == (q_text or "").strip():
                             answer = v
                             break
-                if isinstance(answer, list):
-                    answer = "; ".join(str(a) for a in answer)
-                else:
-                    answer = str(answer) if answer is not None and answer != "" else ""
-                row.append(self._str(answer))
+                row.append(self._cell_answer(q_text, answer))
             rows_post.append(row)
         self._update_worksheet_batch(worksheet_pos, rows_post)
         if post_responses:
@@ -346,12 +455,7 @@ class SheetsSync:
                 self._str(response.get("comment", "")),
             ]
             for q_text in pre_questions:
-                answer = answers.get(q_text)
-                if isinstance(answer, list):
-                    answer = "; ".join(str(a) for a in answer)
-                else:
-                    answer = str(answer) if answer is not None and answer != "" else ""
-                row.append(self._str(answer))
+                row.append(self._cell_answer(q_text, answers.get(q_text)))
             return row
 
         def build_post_row(response):
@@ -366,12 +470,7 @@ class SheetsSync:
                 self._str(response.get("comment", "")),
             ]
             for q_text in post_questions:
-                answer = answers.get(q_text)
-                if isinstance(answer, list):
-                    answer = "; ".join(str(a) for a in answer)
-                else:
-                    answer = str(answer) if answer is not None and answer != "" else ""
-                row.append(self._str(answer))
+                row.append(self._cell_answer(q_text, answers.get(q_text)))
             return row
 
         worksheet_pre = self._get_or_create_worksheet("pre")

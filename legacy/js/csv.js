@@ -22,9 +22,18 @@ function finalizeQuestionnaireAndSave(){
         if (Array.isArray(val)) {
             if (val.length === 0) val = "";
             else if ((qText === "Pontos de dor" || qText === "Pontos de dor articular") && val.indexOf("Sem dor") !== -1) val = "";
-            else val = val.join("");
+            else if (qText === "Pontos de dor" || qText === "Pontos de dor articular") {
+                val = typeof formatPainAnswerForSheets === "function"
+                    ? formatPainAnswerForSheets(qText, val)
+                    : val.join("; ");
+            } else val = val.join("");
         } else if (qText === "Pontos de dor articular" && val === "Sem dor") val = "";
         else if (qText === "Pontos de dor" && (val === "Sem dor" || (typeof val === "string" && /^nenhuma$/i.test(val.trim())))) val = "";
+        else if (qText === "Pontos de dor" || qText === "Pontos de dor articular") {
+            val = typeof formatPainAnswerForSheets === "function"
+                ? formatPainAnswerForSheets(qText, val)
+                : val;
+        }
         answers[qText] = val;
     }
     // Incluir qualquer resposta extra que veio do DOM e não está na lista (compatibilidade)
@@ -137,8 +146,15 @@ function generateCSV(){
         // Respostas pré (por ordem; Pontos de dor/articular já vêm como string sem separador)
         for (let i = 0; i < EXPORT_HEADERS_PRE.length; i++) {
             const qText = preQs[i] ? preQs[i].texto : null;
-            const raw = r.mode === "pre" && qText && r.answers[qText] != null ? r.answers[qText] : "";
-            const val = Array.isArray(raw) ? raw.join("") : String(raw);
+            let raw = r.mode === "pre" && qText && r.answers[qText] != null ? r.answers[qText] : "";
+            let val;
+            if (qText === "Pontos de dor" || qText === "Pontos de dor articular") {
+                val = typeof formatPainAnswerForSheets === "function"
+                    ? formatPainAnswerForSheets(qText, raw)
+                    : (Array.isArray(raw) ? raw.join("; ") : String(raw));
+            } else {
+                val = Array.isArray(raw) ? raw.join("") : String(raw);
+            }
             row.push((val || "").replace(/\r?\n/g, " "));
         }
         // Respostas pós (por ordem)
