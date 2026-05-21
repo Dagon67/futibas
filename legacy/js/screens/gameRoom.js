@@ -301,8 +301,18 @@ function gameRoomPlayerRow(agg, load, pid) {
     }
     var bucket = "ready";
     if (fad != null) {
-        if (fad >= 4) bucket = "risk";
-        else if (fad >= 3) bucket = "attention";
+        if (typeof semaforoClass === "function") {
+            var fadCls = semaforoClass("fadiga", fad);
+            if (fadCls === "semaforo-vermelho") bucket = "risk";
+            else if (fadCls === "semaforo-amarelo") bucket = "attention";
+            else bucket = "ready";
+        } else if (fad >= 4) {
+            bucket = "ready";
+        } else if (fad === 3) {
+            bucket = "attention";
+        } else {
+            bucket = "risk";
+        }
     }
     var posLoads = p.pos.slice().sort(function (a, b) {
         var da = typeof parseDateToLocalDate === "function" ? parseDateToLocalDate(a.date) : null;

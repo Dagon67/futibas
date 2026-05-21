@@ -1,0 +1,973 @@
+================================================================================
+  CORRESPONDÊNCIA COMPLETA: PERGUNTAS PRÉ-TREINO E PÓS-TREINO
+  TODAS AS RESPOSTAS POSSÍVEIS (SEM ABREVIAÇÕES)
+================================================================================
+
+Projeto: Futibas / Tutem (monitoramento de treino)
+Arquivo gerado para consulta humana e depuração de planilhas.
+
+Fontes no código (ordem de prioridade para o app principal):
+  - legacy/js/storage.js                    → perguntas padrão (defaultQuestions)
+  - legacy/js/screens/questionnaire.js    → como cada tipo é exibido e validado
+  - legacy/js/bodyMap.js                  → mapa corporal e rótulos de dor
+  - legacy/js/csv.js                      → exportação CSV e gravação de respostas
+  - backend/legacy/sheets_sync.py           → sincronização com Google Sheets (abas pre/pos)
+
+================================================================================
+  PARTE 1 — ONDE ESTE QUESTIONÁRIO É USADO
+================================================================================
+
+App principal (legacy/index.html — Jaraguá Futsal e fluxo padrão):
+  - Usa SEMPRE o objeto defaultQuestions definido em legacy/js/storage.js.
+  - A função loadQuestions() retorna esse objeto fixo (não lê perguntas do localStorage
+    no Jaraguá padrão; o comentário no código diz que perguntas são iguais para todos).
+
+Tenants com Firestore (brazil, magnus, jaraguá-firestore, entre outros):
+  - Cópia idêntica das mesmas 8 perguntas pré e 2 perguntas pós em:
+      legacy/js/storage-jaragua-firestore.js
+      legacy/js/storage-magnus.js
+  - Podem gravar perguntas alteradas no localStorage com chave por tenant; se houver
+    alteração local, a lista pode divergir deste documento.
+
+Google Sheets (tenant jaragua-futsal):
+  - Respostas pré vão para a aba "pre".
+  - Respostas pós vão para a aba "pos".
+  - Sincronização pelo backend em backend/legacy/ (Render: futibas.onrender.com).
+
+Totem alternativo (legacy/totem.html):
+  - Possui questionário DIFERENTE (4 perguntas pré e 4 perguntas pós).
+  - Descrito na PARTE 8 deste arquivo.
+
+================================================================================
+  PARTE 2 — ESTRUTURA DE UMA RESPOSTA SALVA NO APLICATIVO
+================================================================================
+
+Quando o jogador termina o questionário, o app grava um objeto "response" com:
+
+  playerId        → identificador do jogador (texto)
+  playerName      → nome do jogador (texto)
+  playerNumber    → número da camisa (número ou texto vazio)
+  timestamp       → data e hora da resposta (formato ISO gerado por nowTimestamp())
+  mode            → "pre" (pré-treino) ou "post" (pós-treino)
+  trainingId      → identificador do treino
+  trainingDate    → data formatada do treino (quando disponível)
+  answers         → objeto cujas CHAVES são o texto EXATO de cada pergunta
+                    (ex.: "Nível de fadiga") e os VALORES são a resposta
+  comment         → comentário opcional (NÃO é pergunta do questionário; pode ser
+                    adicionado depois na tela de detalhes do jogador / status)
+
+Todas as perguntas do questionário são OBRIGATÓRIAS para enviar:
+  - Se alguma ficar vazia, o app exibe alerta e não salva.
+  - Exceção de “vazio permitido” na prática: Pontos de dor com botão "Nenhuma dor
+    nestas regiões" grava string vazia; Pontos de dor articular com apenas "Sem dor"
+    grava string vazia.
+
+================================================================================
+  PARTE 3 — COLUNAS FIXAS NO GOOGLE SHEETS (ANTES DAS PERGUNTAS)
+================================================================================
+
+Cada linha de resposta nas abas "pre" e "pos" começa com estas colunas (nesta ordem):
+
+  Coluna 1:  ID Treino
+  Coluna 2:  Data Treino
+  Coluna 3:  Modo                    → texto "Pré" ou "Pós"
+  Coluna 4:  ID Jogador
+  Coluna 5:  Nome Jogador
+  Coluna 6:  Data/Hora               → carimbo de quando a resposta foi registrada
+  Coluna 7:  Comentário              → texto livre opcional (fora do questionário)
+
+Depois da coluna 7 vêm as colunas das perguntas, uma coluna por pergunta, com o
+cabeçalho igual ao campo "texto" da pergunta (ex.: "Nível de fadiga").
+
+Observação sobre exportação CSV (legacy/js/csv.js):
+  O CSV usa nomes de cabeçalho ligeiramente diferentes nas colunas de bem-estar:
+    "Bem Estar [Fadiga]" em vez de "Nível de fadiga"
+    "Bem Estar [Qualidade de Sono]" em vez de "Nível de sono"
+    "Bem Estar [Dor Muscular]" em vez de "Nível de dor"
+    "Bem Estar [Nível de Estresse]" em vez de "Nível de estresse"
+    "Bem Estar [Humor]" em vez de "Nível de humor"
+    "Pontos de Dor" e "Pontos de Dor Articular" (D maiúsculo em Dor)
+  No Google Sheets sincronizado pelo backend, os cabeçalhos seguem o texto das perguntas
+  ("Nível de fadiga", "Pontos de dor", etc.).
+
+================================================================================
+  PARTE 4 — TIPOS DE PERGUNTA (REFERÊNCIA TÉCNICA COMPLETA)
+================================================================================
+
+O campo "tipo" no objeto da pergunta define o comportamento na tela:
+
+--------------------------------------------------------------------------------
+tipo: "texto"
+--------------------------------------------------------------------------------
+  Interface: caixa de texto (textarea), placeholder "Digite aqui..."
+  Resposta: qualquer texto digitado pelo jogador (texto livre)
+  Valor gravado: string com o texto completo
+  Obrigatório: não pode ficar vazio (apenas espaços conta como vazio)
+
+--------------------------------------------------------------------------------
+tipo: "nota"
+--------------------------------------------------------------------------------
+  Interface: botões numéricos em linha (rating-scale)
+  Parâmetros opcionais no objeto da pergunta:
+    notaMin  → valor mínimo (se omitido, usa 0)
+    notaMax  → valor máximo (se omitido, usa 10)
+  Resposta: um único número inteiro entre notaMin e notaMax (inclusive)
+  Valor gravado: o número como texto ou número (ex.: "3" ou 3)
+  Regra especial de exibição: quando notaMin=1 e notaMax=5, os botões na tela
+    aparecem na ordem 5, 4, 3, 2, 1 (invertidos visualmente), mas o valor
+    salvo continua sendo 1, 2, 3, 4 ou 5.
+
+--------------------------------------------------------------------------------
+tipo: "escolha"
+--------------------------------------------------------------------------------
+  Interface: opções de rádio (uma única escolha)
+  Parâmetro: opcoes → array de strings; cada string é uma opção
+  Resposta: exatamente uma das strings do array opcoes
+  Valor gravado: a string da opção escolhida
+  Obrigatório: deve marcar uma opção
+
+--------------------------------------------------------------------------------
+tipo: "checkbox"
+--------------------------------------------------------------------------------
+  Interface: botões múltiplos (choice-buttons-multi); pode selecionar várias
+  Parâmetro: opcoes → array de strings
+  Resposta: uma ou mais opções (array interno antes de salvar)
+  Valor gravado após salvar:
+    - Para "Pontos de dor articular": nomes das áreas separados por "; "
+    - Para outras perguntas checkbox genéricas: junção sem separador (legado)
+  Se a lista contiver "Sem dor" e for pergunta articular: grava vazio
+
+--------------------------------------------------------------------------------
+tipo: "corpo"
+--------------------------------------------------------------------------------
+  Interface: mapa corporal SVG (frente e costas) + botões laterais por região
+  Arquivo do mapa: legacy/corpo/body-interactive.svg
+  Resposta: zero ou mais regiões do mapa (nomes completos)
+  Botão "Nenhuma dor nestas regiões": grava vazio (ou "Nenhuma" internamente,
+    exportado como célula vazia no Sheets)
+  Valor gravado no Sheets: nomes separados por "; " (ponto e vírgula e espaço),
+    ordenados alfabeticamente em português (pt-BR)
+  Obrigatório: pode enviar vazio se indicou que não há dor nas regiões do mapa
+
+--------------------------------------------------------------------------------
+tipo: "duracao"
+--------------------------------------------------------------------------------
+  Interface: lista suspensa (select) só de minutos
+  Valores fixos no código: 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120
+  Resposta: um desses números de minutos
+  Valor gravado: texto com sufixo " min" (exemplo: "60 min")
+  Obrigatório: deve escolher um valor (não pode deixar "min" vazio no select)
+
+================================================================================
+  PARTE 4B — CORES DO SEMÁFORO (GRÁFICOS E TABELAS — REFERÊNCIA OFICIAL)
+================================================================================
+
+Implementação no código: função semaforoClass() em legacy/js/screens/acompanhamento.js
+Classes CSS em legacy/index.html:
+  semaforo-verde    → fundo verde translúcido, texto claro verde
+  semaforo-amarelo  → fundo amarelo translúcido, texto amarelo claro
+  semaforo-vermelho → fundo vermelho translúcido, texto vermelho claro
+
+Pontos decorativos (TRIMP / prontidão — outro contexto, não confundir com bem-estar):
+  semaforo-dot semaforo-green  → #22c55e
+  semaforo-dot semaforo-yellow → #eab308
+  semaforo-dot semaforo-red    → #ef4444
+
+--------------------------------------------------------------------------------
+Escala 1 a 5 — fadiga, sono, dor muscular (pergunta), estresse, humor
+--------------------------------------------------------------------------------
+Aplica-se às perguntas:
+  Nível de fadiga
+  Nível de sono
+  Nível de dor
+  Nível de estresse
+  Nível de humor
+
+Valores e cor exibida no painel de Acompanhamento:
+
+  Valor 5 → 🟢 VERDE   (classe semaforo-verde)
+  Valor 4 → 🟢 VERDE   (classe semaforo-verde)
+  Valor 3 → 🟡 AMARELO (classe semaforo-amarelo)
+  Valor 2 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor 1 → 🔴 VERMELHO (classe semaforo-vermelho)
+
+Regra em código: valor >= 4 verde; valor === 3 amarelo; valor <= 2 vermelho.
+
+--------------------------------------------------------------------------------
+Escala 1 a 20 — Qualidade Total de Recuperação
+--------------------------------------------------------------------------------
+
+  Valor 19 → 🟢 VERDE   (classe semaforo-verde)
+  Valor 20 → 🟢 VERDE   (classe semaforo-verde)
+  Valor 18 → 🟡 AMARELO (classe semaforo-amarelo)
+  Valor 17 → 🟡 AMARELO (classe semaforo-amarelo)
+  Valor 16 → 🟡 AMARELO (classe semaforo-amarelo)
+  Valor 15 → 🟡 AMARELO (classe semaforo-amarelo)
+  Valor 14 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor 13 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor 12 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor 11 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor 10 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  9 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  8 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  7 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  6 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  5 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  4 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  3 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  2 → 🔴 VERMELHO (classe semaforo-vermelho)
+  Valor  1 → 🔴 VERMELHO (classe semaforo-vermelho)
+
+Regra em código:
+  valor >= 19 → verde
+  valor >= 15 e valor < 19 → amarelo (faixa 15–18,9; inteiros 15 a 18)
+  valor <= 14,9 → vermelho (inteiros 1 a 14)
+
+--------------------------------------------------------------------------------
+Sala de jogo (gameRoom) — fadiga do último pré-treino
+--------------------------------------------------------------------------------
+Usa a mesma regra de cores via semaforoClass("fadiga", valor):
+  Verde (fadiga 4 ou 5)   → prontidão "alta", bucket "ready"
+  Amarelo (fadiga 3)      → prontidão "média", bucket "attention"
+  Vermelho (fadiga 1 ou 2) → prontidão "baixa", bucket "risk"
+
+--------------------------------------------------------------------------------
+Gráficos Chart.js (evolução bem-estar) — cores das LINHAS (não semáforo por ponto)
+--------------------------------------------------------------------------------
+As linhas dos gráficos mantêm cores fixas por métrica; o semáforo aplica-se às células
+da tabela "Bem-Estar Pré" no painel Acompanhamento:
+  Recuperação → linha amarela (#feec02)
+  Fadiga      → linha laranja (#ff7850)
+  Sono        → linha azul (#50a0ff)
+  Dor         → linha vermelha (#ff5050)
+  Estresse    → linha roxa (#a050ff)
+  Humor       → linha verde (#50c050)
+
+================================================================================
+  PARTE 5 — PRÉ-TREINO (MODO "pre") — 8 PERGUNTAS COMPLETAS
+================================================================================
+
+Ordem na tela e na planilha: 1 → 8 (esta ordem é fixa no defaultQuestions).
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 1 de 8
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta (chave em answers e cabeçalho no Sheets):
+    Qualidade Total de Recuperação
+
+  Tipo no aplicativo:
+    nota
+
+  Imagem exibida na pergunta:
+    pre/recupera.png
+
+  Parâmetros numéricos no código:
+    notaMin = 1
+    notaMax = 20
+
+  Lista COMPLETA de respostas possíveis (escolher exatamente UM número):
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    13
+    14
+    15
+    16
+    17
+    18
+    19
+    20
+
+  Valor gravado no Google Sheets:
+    O número escolhido (exemplo: 14)
+
+  Cores do semáforo (ver PARTE 4B — escala 1 a 20):
+    🟢 Verde:   19 e 20
+    🟡 Amarelo: 15, 16, 17, 18
+    🔴 Vermelho: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 2 de 8
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Nível de fadiga
+
+  Tipo no aplicativo:
+    nota
+
+  Imagem exibida na pergunta:
+    pre/fadiga.jpg
+
+  Parâmetros numéricos no código:
+    notaMin = 1
+    notaMax = 5
+
+  Ordem dos botões na tela (visual, da esquerda para a direita):
+    5, 4, 3, 2, 1
+
+  Lista COMPLETA de respostas possíveis (valor realmente salvo):
+    1
+    2
+    3
+    4
+    5
+
+  Valor gravado no Google Sheets:
+    O número escolhido (1, 2, 3, 4 ou 5)
+
+  Cores do semáforo (ver PARTE 4B — escala 1 a 5):
+    🟢 Verde:   4 e 5
+    🟡 Amarelo: 3
+    🔴 Vermelho: 1 e 2
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 3 de 8
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Nível de sono
+
+  Tipo no aplicativo:
+    nota
+
+  Imagem exibida na pergunta:
+    pre/sono.jpg
+
+  Parâmetros numéricos no código:
+    notaMin = 1
+    notaMax = 5
+
+  Ordem dos botões na tela (visual):
+    5, 4, 3, 2, 1
+
+  Lista COMPLETA de respostas possíveis:
+    1
+    2
+    3
+    4
+    5
+
+  Valor gravado no Google Sheets:
+    O número escolhido
+
+  Cores do semáforo (ver PARTE 4B — escala 1 a 5):
+    🟢 Verde:   4 e 5
+    🟡 Amarelo: 3
+    🔴 Vermelho: 1 e 2
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 4 de 8
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Nível de dor
+
+  Tipo no aplicativo:
+    nota
+
+  Imagem exibida na pergunta:
+    pre/dor.jpg
+
+  Parâmetros numéricos no código:
+    notaMin = 1
+    notaMax = 5
+
+  Ordem dos botões na tela (visual):
+    5, 4, 3, 2, 1
+
+  Lista COMPLETA de respostas possíveis:
+    1
+    2
+    3
+    4
+    5
+
+  Valor gravado no Google Sheets:
+    O número escolhido
+
+  Cores do semáforo (ver PARTE 4B — escala 1 a 5):
+    🟢 Verde:   4 e 5
+    🟡 Amarelo: 3
+    🔴 Vermelho: 1 e 2
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 5 de 8
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Nível de estresse
+
+  Tipo no aplicativo:
+    nota
+
+  Imagem exibida na pergunta:
+    pre/estresse.jpg
+
+  Parâmetros numéricos no código:
+    notaMin = 1
+    notaMax = 5
+
+  Ordem dos botões na tela (visual):
+    5, 4, 3, 2, 1
+
+  Lista COMPLETA de respostas possíveis:
+    1
+    2
+    3
+    4
+    5
+
+  Valor gravado no Google Sheets:
+    O número escolhido
+
+  Cores do semáforo (ver PARTE 4B — escala 1 a 5):
+    🟢 Verde:   4 e 5
+    🟡 Amarelo: 3
+    🔴 Vermelho: 1 e 2
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 6 de 8
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Nível de humor
+
+  Tipo no aplicativo:
+    nota
+
+  Imagem exibida na pergunta:
+    pre/humor.jpg
+
+  Parâmetros numéricos no código:
+    notaMin = 1
+    notaMax = 5
+
+  Ordem dos botões na tela (visual):
+    5, 4, 3, 2, 1
+
+  Lista COMPLETA de respostas possíveis:
+    1
+    2
+    3
+    4
+    5
+
+  Valor gravado no Google Sheets:
+    O número escolhido
+
+  Cores do semáforo (ver PARTE 4B — escala 1 a 5):
+    🟢 Verde:   4 e 5
+    🟡 Amarelo: 3
+    🔴 Vermelho: 1 e 2
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 7 de 8 — PONTOS DE DOR (MAPa CORPORAL / MUSCULAR)
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Pontos de dor
+
+  Tipo no aplicativo:
+    corpo
+
+  Imagem exibida na pergunta:
+    nenhuma (só o mapa SVG interativo)
+
+  Instrução na tela:
+    "Toque nas regiões com dor. Toque de novo para desmarcar."
+
+  Botão para indicar ausência de dor:
+    "Nenhuma dor nestas regiões"
+
+  Respostas possíveis:
+    A) Nenhuma região selecionada → valor vazio no Sheets
+    B) Uma ou mais regiões da lista abaixo, em qualquer combinação
+
+  Separador usado ao gravar várias regiões:
+    "; "  (ponto e vírgula seguido de espaço)
+
+  Ordenação ao gravar:
+    Ordem alfabética em português do Brasil (localeCompare pt-BR)
+
+  LISTA COMPLETA DAS 42 REGIÕES DO MAPA (nome exato gravado no Sheets):
+
+    1.  Abdômen
+    2.  Adutor direito
+    3.  Adutor esquerdo
+    4.  Antebraço direito
+    5.  Antebraço esquerdo
+    6.  Bíceps direito
+    7.  Bíceps esquerdo
+    8.  Calcanhar direito
+    9.  Calcanhar esquerdo
+    10. Cotovelo direito
+    11. Cotovelo esquerdo
+    12. Glúteo direito
+    13. Glúteo esquerdo
+    14. Joelho direito
+    15. Joelho esquerdo
+    16. Latíssimo direito
+    17. Latíssimo esquerdo
+    18. Lombar
+    19. Mão direita
+    20. Mão esquerda
+    21. Ombro direito
+    22. Ombro esquerdo
+    23. Panturrilha direita
+    24. Panturrilha esquerda
+    25. Pé direito
+    26. Pé esquerdo
+    27. Pescoço
+    28. Peitoral direito
+    29. Peitoral esquerdo
+    30. Posterior direito
+    31. Posterior esquerdo
+    32. Pulso direito
+    33. Pulso esquerdo
+    34. Quadril
+    35. Quadríceps direito
+    36. Quadríceps esquerdo
+    37. Serrátil direito
+    38. Serrátil esquerdo
+    39. Trapézio direito
+    40. Trapézio esquerdo
+    41. Tríceps direito
+    42. Tríceps esquerdo
+
+  (O código fonte enumera 42 nomes em BODY_MAP_PART_NAMES; a numeração acima
+   segue a ordem alfabética para consulta; na interface os botões aparecem
+   agrupados por vista Frente e Costas conforme posição no corpo.)
+
+  Vista no mapa (regra PART_VIEW_OVERRIDE — onde a região aparece na interface):
+
+    Regiões associadas principalmente à FRENTE do corpo:
+      Peitoral (Peitoral direito, Peitoral esquerdo)
+      Abdômen
+      Pé (Pé direito, Pé esquerdo)
+      Quadríceps (Quadríceps direito, Quadríceps esquerdo)
+      Bíceps (Bíceps direito, Bíceps esquerdo)
+      Serrátil (Serrátil direito, Serrátil esquerdo)
+      Adutor (Adutor direito, Adutor esquerdo)
+
+    Regiões associadas principalmente às COSTAS do corpo:
+      Calcanhar (Calcanhar direito, Calcanhar esquerdo)
+      Glúteo (Glúteo direito, Glúteo esquerdo)
+      Lombar
+      Posterior (Posterior direito, Posterior esquerdo)
+      Latíssimo (Latíssimo direito, Latíssimo esquerdo)
+      Trapézio (Trapézio direito, Trapézio esquerdo)
+      Tríceps (Tríceps direito, Tríceps esquerdo)
+      Quadril
+
+    Demais regiões: posição definida pela geometria no SVG (lado esquerdo ou
+    direito do corpo, ou ambas as vistas se cruzam o meio do desenho).
+
+  Exemplo de valor gravado no Google Sheets com três regiões:
+    Joelho esquerdo; Ombro direito; Panturrilha direita
+
+  FORMATO LEGADO (dados antigos na planilha — já convertidos para nomes quando
+  possível): letras maiúsculas A a Z concatenadas sem separador.
+
+  TABELA COMPLETA DE CORRESPONDÊNCIA LEGADO MUSCULAR (letra → significado):
+
+    A → Pescoço
+    B → Trapézio
+    C → Ombro
+    D → Peitoral
+    E → Coxa ant./med.
+    F → Panturrilha
+    G → Abdômen
+    H → Costas
+    I → Deltoide/Ombro
+    J → Bíceps
+    K → Tríceps
+    L → Antebraço
+    M → Lombar
+    N → Glúteo
+    O → Adutor
+    P → Quadríceps
+    Q → Posterior coxa
+    R → Posterior coxa
+    S → Glúteo
+    T → Panturrilha
+    U → Tornozelo
+    V → Outro
+    W → Outro
+    X → Outro
+    Y → Outro
+    Z → Outro
+
+  Exemplo legado "CDE" convertido para nomes:
+    Coxa ant./med.; Ombro; Peitoral
+
+--------------------------------------------------------------------------------
+PERGUNTA PRÉ 8 de 8 — PONTOS DE DOR ARTICULAR
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Pontos de dor articular
+
+  Tipo no aplicativo:
+    checkbox (múltipla escolha)
+
+  Imagem exibida na pergunta:
+    pre/articula.png
+    (diagrama com números 1 a 9 sobre as articulações)
+
+  Array "opcoes" no código (valor interno de cada botão):
+    Sem dor
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+
+  Texto EXIBIDO em cada botão na tela (rótulo visível para o jogador):
+    Sem dor
+    Ombro              (valor interno gravado antes da conversão: 1)
+    Cotovelo           (valor interno: 2)
+    Punho              (valor interno: 3)
+    Quadril            (valor interno: 4)
+    Joelho             (valor interno: 5)
+    Tornozelo          (valor interno: 6)
+    Coluna cervical    (valor interno: 7)
+    Coluna torácica    (valor interno: 8)
+    Coluna lombar      (valor interno: 9)
+
+  TABELA COMPLETA NÚMERO → ÁREA (conforme imagem articula.png):
+
+    1 → Ombro
+    2 → Cotovelo
+    3 → Punho
+    4 → Quadril
+    5 → Joelho
+    6 → Tornozelo
+    7 → Coluna cervical
+    8 → Coluna torácica
+    9 → Coluna lombar
+
+  Respostas possíveis na prática:
+    - Nenhuma articulação com dor: selecionar apenas "Sem dor" OU não marcar
+      nenhum número → célula vazia no Sheets
+    - Uma articulação: exemplo só "Joelho"
+    - Várias articulações: exemplo "Ombro; Joelho; Coluna lombar"
+
+  Valor gravado no Google Sheets (formato atual):
+    Nomes das áreas separados por "; ", ordem alfabética pt-BR
+    NÃO grava os números 1 a 9 no formato novo
+
+  FORMATO LEGADO na planilha (convertido para nomes):
+    - Números isolados: "5" → Joelho
+    - Sequência sem separador: "159" → Coluna lombar; Joelho; Ombro
+      (ordenado alfabeticamente após conversão)
+    - Com separador: "1; 5" → Joelho; Ombro
+
+  Exemplo completo no Sheets:
+    Coluna cervical; Ombro; Tornozelo
+
+================================================================================
+  PARTE 6 — PÓS-TREINO (MODO "post") — 2 PERGUNTAS COMPLETAS
+================================================================================
+
+Ordem na tela e na planilha: 1 → 2.
+
+--------------------------------------------------------------------------------
+PERGUNTA PÓS 1 de 2
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Estado atual
+
+  Tipo no aplicativo:
+    nota
+
+  Imagem exibida na pergunta:
+    pos/esforço.png
+
+  Parâmetros numéricos no código:
+    notaMin não definido no objeto → padrão do questionário = 0
+    notaMax = 10
+
+  Lista COMPLETA de respostas possíveis:
+    0
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+
+  Ordem dos botões na tela:
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 (ordem crescente)
+
+  Valor gravado no Google Sheets:
+    O número escolhido (0 a 10)
+
+--------------------------------------------------------------------------------
+PERGUNTA PÓS 2 de 2
+--------------------------------------------------------------------------------
+
+  Texto exato da pergunta:
+    Quanto tempo de treino foi feito?
+
+  Tipo no aplicativo:
+    duracao
+
+  Imagem exibida na pergunta:
+    nenhuma
+
+  Lista COMPLETA de respostas possíveis (valor no select):
+
+    10   (gravado como "10 min")
+    20   (gravado como "20 min")
+    30   (gravado como "30 min")
+    40   (gravado como "40 min")
+    50   (gravado como "50 min")
+    60   (gravado como "60 min")
+    70   (gravado como "70 min")
+    80   (gravado como "80 min")
+    90   (gravado como "90 min")
+    100  (gravado como "100 min")
+    110  (gravado como "110 min")
+    120  (gravado como "120 min")
+
+  Valor gravado no Google Sheets:
+    Texto com número e sufixo " min", com espaço antes de "min"
+    Exemplos exatos: "10 min", "45 min" não existe — só múltiplos de 10
+
+  Leitura no painel de acompanhamento:
+    A função parseTempoMin extrai o número inteiro do texto (ex.: "60 min" → 60)
+
+================================================================================
+  PARTE 7 — CAMPO COMENTÁRIO (NÃO É PERGUNTA DO QUESTIONÁRIO)
+================================================================================
+
+  Nome na planilha:
+    Comentário
+
+  Posição:
+    Coluna 7, antes das colunas das perguntas
+
+  Como é preenchido:
+    Opcionalmente após o questionário, nas telas de detalhes do treino ou status
+    do jogador, em textarea dedicada ("Adicionar Comentário" / "Editar Comentário")
+
+  Tipo de conteúdo:
+    Texto livre, qualquer comprimento razoável; quebras de linha podem ser
+    removidas ou substituídas na exportação CSV
+
+  Valor vazio:
+    Célula vazia no Sheets se nunca foi adicionado comentário
+
+================================================================================
+  PARTE 8 — QUESTIONÁRIO DO TOTEM (legacy/totem.html) — SEPARADO DO APP PRINCIPAL
+================================================================================
+
+O totem NÃO usa o defaultQuestions de storage.js. Usa o objeto próprio no HTML.
+
+--------------------------------------------------------------------------------
+PRÉ-TREINO NO TOTEM — 4 PERGUNTAS
+--------------------------------------------------------------------------------
+
+  Pergunta 1:
+    Texto: Como você está se sentindo hoje fisicamente?
+    Tipo: texto
+    Imagem: nenhuma
+    Respostas possíveis: texto livre digitado pelo usuário
+
+  Pergunta 2:
+    Texto: Qual seu nível de fadiga agora?
+    Tipo: nota
+    Imagem: nenhuma
+    notaMin padrão: 0
+    notaMax padrão: 10
+    Respostas possíveis: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+  Pergunta 3:
+    Texto: Sentiu dor ou desconforto em alguma parte do corpo?
+    Tipo: texto
+    Imagem: nenhuma
+    Respostas possíveis: texto livre digitado pelo usuário
+
+  Pergunta 4:
+    Texto: Dormiu bem?
+    Tipo: nota
+    Imagem: nenhuma
+    Respostas possíveis: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+--------------------------------------------------------------------------------
+PÓS-TREINO NO TOTEM — 4 PERGUNTAS
+--------------------------------------------------------------------------------
+
+  Pergunta 1:
+    Texto: Como você está se sentindo após o treino?
+    Tipo: texto
+    Imagem: nenhuma
+    Respostas possíveis: texto livre
+
+  Pergunta 2:
+    Texto: Sentiu dor aguda em algum momento?
+    Tipo: texto
+    Imagem: nenhuma
+    Respostas possíveis: texto livre
+
+  Pergunta 3:
+    Texto: Nível de esforço hoje?
+    Tipo: nota
+    Imagem: nenhuma
+    Respostas possíveis: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+  Pergunta 4:
+    Texto: Você acha que consegue treinar igual amanhã?
+    Tipo: escolha
+    Imagem: nenhuma
+    Opções no array opcoes:
+      Sim
+      Não
+      Talvez
+    Respostas possíveis: exatamente uma dessas três strings
+
+================================================================================
+  PARTE 9 — OBJETO JSON COMPLETO DAS PERGUNTAS PADRÃO (APP PRINCIPAL)
+================================================================================
+
+Copiado literalmente da estrutura em legacy/js/storage.js:
+
+  defaultQuestions.pre[0]:
+    tipo: "nota"
+    texto: "Qualidade Total de Recuperação"
+    opcoes: []  (array vazio)
+    imagem: "pre/recupera.png"
+    notaMin: 1
+    notaMax: 20
+
+  defaultQuestions.pre[1]:
+    tipo: "nota"
+    texto: "Nível de fadiga"
+    opcoes: []
+    imagem: "pre/fadiga.jpg"
+    notaMin: 1
+    notaMax: 5
+
+  defaultQuestions.pre[2]:
+    tipo: "nota"
+    texto: "Nível de sono"
+    opcoes: []
+    imagem: "pre/sono.jpg"
+    notaMin: 1
+    notaMax: 5
+
+  defaultQuestions.pre[3]:
+    tipo: "nota"
+    texto: "Nível de dor"
+    opcoes: []
+    imagem: "pre/dor.jpg"
+    notaMin: 1
+    notaMax: 5
+
+  defaultQuestions.pre[4]:
+    tipo: "nota"
+    texto: "Nível de estresse"
+    opcoes: []
+    imagem: "pre/estresse.jpg"
+    notaMin: 1
+    notaMax: 5
+
+  defaultQuestions.pre[5]:
+    tipo: "nota"
+    texto: "Nível de humor"
+    opcoes: []
+    imagem: "pre/humor.jpg"
+    notaMin: 1
+    notaMax: 5
+
+  defaultQuestions.pre[6]:
+    tipo: "corpo"
+    texto: "Pontos de dor"
+    opcoes: []
+    imagem: null
+
+  defaultQuestions.pre[7]:
+    tipo: "checkbox"
+    texto: "Pontos de dor articular"
+    opcoes: ["Sem dor", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    imagem: "pre/articula.png"
+
+  defaultQuestions.post[0]:
+    tipo: "nota"
+    texto: "Estado atual"
+    opcoes: []
+    imagem: "pos/esforço.png"
+    notaMax: 10
+    (notaMin omitido → 0 na interface)
+
+  defaultQuestions.post[1]:
+    tipo: "duracao"
+    texto: "Quanto tempo de treino foi feito?"
+    opcoes: []
+    imagem: null
+
+================================================================================
+  PARTE 10 — QUANDO OS DADOS VÃO PARA O GOOGLE SHEETS
+================================================================================
+
+  O questionário salva primeiro no localStorage do dispositivo (treino.responses).
+
+  O Google Sheets recebe dados quando:
+    - O usuário clica em "Iniciar Treino" (após todos responderem o pré), ou
+    - O usuário clica em "Finalizar treino e sincronizar" na lista de treinos, ou
+    - O usuário clica em sincronização manual nas configurações de dados
+
+  Endpoint de sincronização completa:
+    POST https://futibas.onrender.com/sync/all
+
+  Endpoint de um treino só:
+    POST https://futibas.onrender.com/sync/training
+
+  Antes do envio, as respostas de dor são convertidas para nomes legíveis
+  (funções formatPainAnswerForSheets e normalizePainAnswersObject em bodyMap.js).
+
+================================================================================
+  PARTE 11 — CABEÇALHOS CSV (EXPORTAÇÃO LOCAL) — LISTA COMPLETA
+================================================================================
+
+Ordem das colunas no arquivo CSV gerado por generateCSV():
+
+  1.  Carimbo de data/hora
+  2.  Nome
+  3.  Modo                         → "Pré" ou "Pós"
+  4.  Qualidade Total de Recuperação
+  5.  Bem Estar [Fadiga]
+  6.  Bem Estar [Qualidade de Sono]
+  7.  Bem Estar [Dor Muscular]
+  8.  Bem Estar [Nível de Estresse]
+  9.  Bem Estar [Humor]
+  10. Pontos de Dor
+  11. Pontos de Dor Articular
+  12. (colunas das perguntas pós, na ordem do post — no padrão atual:)
+      Estado atual
+      Quanto tempo de treino foi feito?
+  13. Comentário
+
+================================================================================
+  FIM DO DOCUMENTO
+================================================================================

@@ -532,21 +532,19 @@ function buildBemEstarPreData(data) {
     return { byDate: byDate, dates: dates, last15Dates: last15Dates, teamAveragesByDate: teamAveragesByDate };
 }
 
+/** Cores do semáforo (tabelas, KPIs, bem-estar pré). Escala 1–5: 4–5 verde, 3 amarelo, 1–2 vermelho. */
 function semaforoClass(metric, value) {
     if (value == null || value === "") return "";
+    var n = Number(value);
+    if (!isFinite(n)) return "";
     if (metric === "recuperacao") {
-        if (value >= 15) return "semaforo-verde";
-        if (value >= 10) return "semaforo-amarelo";
+        if (n >= 19) return "semaforo-verde";
+        if (n >= 15) return "semaforo-amarelo";
         return "semaforo-vermelho";
     }
-    if (metric === "humor") {
-        if (value >= 4) return "semaforo-verde";
-        if (value >= 3) return "semaforo-amarelo";
-        return "semaforo-vermelho";
-    }
-    if (metric === "fadiga" || metric === "sono" || metric === "dor" || metric === "estresse") {
-        if (value <= 2) return "semaforo-verde";
-        if (value <= 3) return "semaforo-amarelo";
+    if (metric === "fadiga" || metric === "sono" || metric === "dor" || metric === "estresse" || metric === "humor") {
+        if (n >= 4) return "semaforo-verde";
+        if (n === 3) return "semaforo-amarelo";
         return "semaforo-vermelho";
     }
     return "";
