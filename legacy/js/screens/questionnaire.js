@@ -223,7 +223,7 @@ function captureAnswerByIndex(idx, val){
     if (qText) state.tempAnswers[qText] = val;
 }
 
-/** Lê o select de duração (minutos) e grava em state.tempAnswers no formato "X min". */
+/** Lê o select de duração (minutos) e grava só o número (ex.: 40, sem sufixo " min"). */
 function captureDuracaoByIndex(idx){
     var qText = getQuestionTextByIndex(idx);
     if (!qText) return;
@@ -233,7 +233,7 @@ function captureDuracaoByIndex(idx){
     if (!duracaoWrap) return;
     var selM = duracaoWrap.querySelector(".duracao-m");
     var m = selM && selM.value !== "" ? parseInt(selM.value, 10) : null;
-    if (m != null) state.tempAnswers[qText] = m + " min";
+    if (m != null) state.tempAnswers[qText] = String(m);
     else state.tempAnswers[qText] = "";
 }
 
@@ -342,7 +342,7 @@ function collectAnswersFromDOM(){
                 if (duracaoWrap) {
                     var selM = duracaoWrap.querySelector(".duracao-m");
                     var m = selM && selM.value !== "" ? parseInt(selM.value, 10) : null;
-                    val = m != null ? m + " min" : "";
+                    val = m != null ? String(m) : "";
                 } else {
                     var radio = item.querySelector('input[type="radio"]:checked');
                     if (radio) val = radio.value || "";
