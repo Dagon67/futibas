@@ -410,6 +410,116 @@ class SheetsSync:
         print(f"📋 migrate_pre_pain_labels dry_run={dry_run}: {len(changes)} alteração(ões)")
         return result
 
+    def _normalize_duracao_cell_for_sheet(self, val: Any) -> str:
+        """Remove sufixo ' min' (ex.: '40 min' → '40'). Valores já numéricos permanecem."""
+        if val is None:
+            return ""
+        s = str(val).strip()
+        if not s:
+            return ""
+        m = re.match(r"^(\d+)\s*min\s*$", s, re.IGNORECASE)
+        if m:
+            return m.group(1)
+        if re.match(r"^\d+$", s):
+            return s
+        m2 = re.search(r"(\d+)\s*min", s, re.IGNORECASE)
+        if m2:
+            return m2.group(1)
+        return s
+
+    def _find_pos_duracao_column_index(self, header: List[str]) -> Optional[int]:
+        """Coluna 'Quanto tempo de treino foi feito?' (geralmente coluna I = índice 8)."""
+        for i, h in enumerate(header):
+            hn = re.sub(r"\s+", " ", (h or "").strip()).lower()
+            if hn == "quanto tempo de treino foi feito?":
+                return i
+        if len(header) > 8:
+            return 8
+        return None
+
+    def migrate_pos_duracao_min_suffix(self, dry_run: bool = True) -> Dict[str, Any]:
+        """
+        Na aba 'pos', remove ' min' da coluna de duração (dados legados).
+        Reescreve a aba inteira; só altera células que mudam.
+        """
+        worksheet = self._get_or_create_worksheet("pos")
+        all_rows = worksheet.get_all_values()
+        if not all_rows:
+            return {
+                "success": True,
+                "dry_run": dry_run,
+                "total_data_rows": 0,
+                "cells_changed": 0,
+                "changes": [],
+            }
+
+        header = all_rows[0]
+        col_idx = self._find_pos_duracao_column_index(header)
+        if col_idx is None:
+            return {
+                "success": False,
+                "error": "Coluna de duração pós-treino não encontrada na aba pos.",
+                "header": header,
+            }
+
+        col_width = len(header)
+        col_letter = chr(ord("A") + col_idx) if col_idx < 26 else str(col_idx)
+        changes: List[Dict[str, Any]] = []
+        new_rows: List[List[Any]] = [header]
+
+        for sheet_row_num, row in enumerate(all_rows[1:], start=2):
+            padded = list(row) + [""] * max(0, col_width - len(row))
+            padded = padded[:col_width]
+            old_val = padded[col_idx]
+            if old_val is None or str(old_val).strip() == "":
+                new_rows.append(padded)
+                continue
+            new_val = self._normalize_duracao_cell_for_sheet(old_val)
+            old_norm = str(old_val).strip()
+            new_norm = str(new_val).strip()
+            if old_norm != new_norm:
+                changes.append({
+                    "row": sheet_row_num,
+                    "column": header[col_idx] if col_idx < len(header) else "duracao",
+                    "column_index": col_idx,
+                    "column_letter": col_letter,
+                    "before": old_norm,
+                    "after": new_norm,
+                })
+                padded[col_idx] = new_val
+            new_rows.append(padded)
+
+        result: Dict[str, Any] = {
+            "success": True,
+            "dry_run": dry_run,
+            "total_data_rows": len(all_rows) - 1,
+            "cells_changed": len(changes),
+            "changes": changes[:200],
+            "changes_truncated": len(changes) > 200,
+            "column": {
+                "header": header[col_idx] if col_idx < len(header) else "",
+                "index": col_idx,
+                "letter": col_letter,
+            },
+        }
+
+        if not dry_run and changes:
+            self._update_worksheet_batch(worksheet, new_rows)
+            result["message"] = (
+                f"Aba pos atualizada: {len(changes)} célula(s) na coluna {col_letter} "
+                f"({header[col_idx] if col_idx < len(header) else 'duração'})."
+            )
+        elif dry_run:
+            result["message"] = (
+                f"Simulação: {len(changes)} célula(s) na coluna {col_letter} "
+                f"seriam convertidas para só número."
+            )
+        else:
+            result["message"] = "Nenhuma célula com ' min' encontrada na coluna de duração."
+
+        print(f"📋 migrate_pos_duracao_min_suffix dry_run={dry_run}: {len(changes)} alteração(ões)")
+        return result
+
     def sync_trainings(self, trainings: List[Dict[str, Any]]):
         """Sincroniza lista de treinos na aba 'Treinos'"""
         worksheet = self._get_or_create_worksheet("Treinos")
@@ -1240,6 +1350,13 @@ def sync_data(data_type: str, data: Any, questions: Optional[Dict] = None):
             elif data is False:
                 dry_run = False
             return sync.migrate_pre_pain_labels(dry_run=dry_run)
+        if data_type == "migrate_pos_duracao_min":
+            dry_run = True
+            if isinstance(data, dict):
+                dry_run = bool(data.get("dry_run", True))
+            elif data is False:
+                dry_run = False
+            return sync.migrate_pos_duracao_min_suffix(dry_run=dry_run)
         if data_type == "players":
             sync.sync_players(data)
         elif data_type == "trainings":

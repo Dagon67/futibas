@@ -378,6 +378,24 @@ def sync_all():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/sync/migrate-pos-duracao-min', methods=['POST'])
+def migrate_pos_duracao_min():
+    """
+    Remove sufixo ' min' da coluna de duração na aba 'pos' (dados legados).
+    Body JSON opcional: { "dry_run": true } — use false para aplicar na planilha.
+    """
+    try:
+        payload = request.json if request.is_json else {}
+        dry_run = True
+        if isinstance(payload, dict) and "dry_run" in payload:
+            dry_run = bool(payload.get("dry_run", True))
+        result = sync_data("migrate_pos_duracao_min", {"dry_run": dry_run})
+        status = 200 if result.get("success") else 500
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/sync/migrate-pain-labels', methods=['POST'])
 def migrate_pain_labels():
     """

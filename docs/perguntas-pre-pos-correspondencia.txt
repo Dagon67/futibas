@@ -757,6 +757,11 @@ PERGUNTA PÓS 2 de 2
   Leitura no painel de acompanhamento:
     A função parseTempoMin aceita número puro (40) ou formato legado ("40 min" → 40)
 
+  Migração de dados antigos no Google Sheets (aba pos, coluna I / duração):
+    POST https://futibas.onrender.com/sync/migrate-pos-duracao-min
+    Body: { "dry_run": true }   → simula quantas células mudariam
+    Body: { "dry_run": false }  → aplica (ex.: "40 min" vira 40)
+
 ================================================================================
   PARTE 7 — CAMPO COMENTÁRIO (NÃO É PERGUNTA DO QUESTIONÁRIO)
 ================================================================================
